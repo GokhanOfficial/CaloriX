@@ -1,0 +1,214 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CaloriX Design System - Modern Minimalist Dark Theme */
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    --primary: 152 76% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 20%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 152 76% 95%;
+    --accent-foreground: 152 76% 30%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 210 100% 52%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 14% 90%;
+    --input: 220 14% 90%;
+    --ring: 152 76% 36%;
+
+    --radius: 1rem;
+
+    /* Macro colors */
+    --macro-protein: 210 100% 56%;
+    --macro-carbs: 38 92% 50%;
+    --macro-fat: 340 82% 52%;
+    --macro-calories: 152 76% 36%;
+
+    /* Chart colors */
+    --chart-1: 152 76% 36%;
+    --chart-2: 210 100% 56%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 340 82% 52%;
+    --chart-5: 262 83% 58%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 0 20px hsl(152 76% 36% / 0.3);
+
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+    --spacing: 0.25rem;
+  }
+
+  .dark {
+    --background: 220 20% 7%;
+    --foreground: 0 0% 98%;
+
+    --card: 220 18% 11%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 220 18% 14%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 152 72% 46%;
+    --primary-foreground: 220 20% 7%;
+
+    --secondary: 220 14% 18%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 220 14% 18%;
+    --muted-foreground: 220 10% 60%;
+
+    --accent: 152 60% 15%;
+    --accent-foreground: 152 72% 46%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 72% 46%;
+    --success-foreground: 220 20% 7%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 20% 7%;
+
+    --info: 210 100% 56%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
+    --ring: 152 72% 46%;
+
+    /* Macro colors - brighter for dark mode */
+    --macro-protein: 210 100% 60%;
+    --macro-carbs: 38 95% 55%;
+    --macro-fat: 340 85% 58%;
+    --macro-calories: 152 72% 46%;
+
+    /* Chart colors - brighter for dark mode */
+    --chart-1: 152 72% 50%;
+    --chart-2: 210 100% 60%;
+    --chart-3: 38 95% 55%;
+    --chart-4: 340 85% 58%;
+    --chart-5: 262 85% 65%;
+
+    /* Shadows for dark */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -2px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -4px hsl(0 0% 0% / 0.2);
+    --shadow-glow: 0 0 30px hsl(152 72% 46% / 0.25);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(152 60% 55%) 100%);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent-foreground;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Safe area padding for mobile */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

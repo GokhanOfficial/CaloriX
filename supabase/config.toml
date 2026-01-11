@@ -1,0 +1,16 @@
+project_id = "oshafbahrwburzmanzzj"
+
+[functions.calculate-macros]
+verify_jwt = false
+
+[functions.recognize-food]
+verify_jwt = false
+
+[functions.recognize-food-text]
+verify_jwt = false
+
+[functions.send-notification]
+verify_jwt = false
+
+[functions.check-reminders]
+verify_jwt = false
