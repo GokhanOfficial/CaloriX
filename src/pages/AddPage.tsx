@@ -31,7 +31,10 @@ interface SelectedFood {
   fat_g: number;
 }
 
+import { useTranslation } from "react-i18next";
+
 const AddPage = () => {
+  const { t } = useTranslation();
   const isOnline = useOnlineStatus();
   const [selectedMeal, setSelectedMeal] = useState<MealType>("lunch");
   const [searchQuery, setSearchQuery] = useState("");
@@ -136,11 +139,11 @@ const AddPage = () => {
         entry_date: format(new Date(), "yyyy-MM-dd"),
         note: null,
       });
-      
-      toast.success("Yiyecek eklendi");
+
+      toast.success(t('addFood.toasts.success'));
       return { error: null };
     } catch (err) {
-      toast.error("Yiyecek eklenirken hata oluştu");
+      toast.error(t('addFood.toasts.error'));
       return { error: err as Error };
     }
   };
@@ -162,22 +165,22 @@ const AddPage = () => {
         entry_date: format(new Date(), "yyyy-MM-dd"),
         note: null,
       });
-      
-      toast.success("Yiyecek eklendi");
+
+      toast.success(t('addFood.toasts.success'));
       return { error: null };
     } catch (err) {
-      toast.error("Yiyecek eklenirken hata oluştu");
+      toast.error(t('addFood.toasts.error'));
       return { error: err as Error };
     }
   };
 
   return (
-    <AppLayout title="Yiyecek Ekle">
+    <AppLayout title={t('addFood.title')}>
       <div className="container max-w-lg space-y-4 px-4 py-4">
         {/* Meal Selector */}
         <Card className="border-none bg-card shadow-lg">
           <CardContent className="p-4">
-            <Label className="text-sm text-muted-foreground">Öğün</Label>
+            <Label className="text-sm text-muted-foreground">{t('addFood.meal')}</Label>
             <Select value={selectedMeal} onValueChange={(v) => setSelectedMeal(v as MealType)}>
               <SelectTrigger className="mt-1.5 h-12 bg-secondary">
                 <SelectValue />
@@ -188,7 +191,7 @@ const AddPage = () => {
                     <SelectItem key={key} value={key}>
                       <span className="flex items-center gap-2">
                         <span>{meal.icon}</span>
-                        <span>{meal.label}</span>
+                        <span>{t(`meals.${key}`)}</span>
                       </span>
                     </SelectItem>
                   )
@@ -203,7 +206,7 @@ const AddPage = () => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
-              AI ile Tanıma
+              {t('addFood.ai.title')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -220,9 +223,9 @@ const AddPage = () => {
                   <Sparkles className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium">AI ile Ekle</p>
+                  <p className="font-medium">{t('addFood.ai.buttonTitle')}</p>
                   <p className="text-xs text-muted-foreground">
-                    Fotoğraf veya yazı ile yiyecek tanıt
+                    {t('addFood.ai.buttonDesc')}
                   </p>
                 </div>
               </Button>
@@ -232,9 +235,9 @@ const AddPage = () => {
                   <WifiOff className="h-8 w-8 text-warning" />
                 </div>
                 <div className="text-center">
-                  <p className="font-medium text-foreground">Çevrimdışı</p>
+                  <p className="font-medium text-foreground">{t('addFood.offline.title')}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    AI tanıma için internet bağlantısı gerekli
+                    {t('addFood.offline.desc')}
                   </p>
                 </div>
               </div>
@@ -244,21 +247,21 @@ const AddPage = () => {
 
         {/* Recent Foods */}
         <FoodListSection
-          title="Son Kullanılanlar"
+          title={t('addFood.recent.title')}
           icon="history"
           foods={recentFoods}
           loading={recentLoading}
-          emptyMessage="Henüz yiyecek eklemediniz"
+          emptyMessage={t('addFood.recent.empty')}
           onSelect={handleFoodSelect}
         />
 
         {/* Favorite Foods */}
         <FoodListSection
-          title="En Çok Yenenler"
+          title={t('addFood.favorites.title')}
           icon="star"
           foods={favorites}
           loading={favoritesLoading}
-          emptyMessage="Henüz yiyecek eklemediniz"
+          emptyMessage={t('addFood.favorites.empty')}
           onSelect={handleFoodSelect}
         />
 
@@ -267,11 +270,11 @@ const AddPage = () => {
           <TabsList className="grid w-full grid-cols-2 bg-secondary">
             <TabsTrigger value="search" className="gap-1.5">
               <Search className="h-4 w-4" />
-              <span>Ara</span>
+              <span>{t('addFood.tabs.search')}</span>
             </TabsTrigger>
             <TabsTrigger value="barcode" className="gap-1.5">
               <ScanBarcode className="h-4 w-4" />
-              <span>Barkod</span>
+              <span>{t('addFood.tabs.barcode')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -279,13 +282,13 @@ const AddPage = () => {
           <TabsContent value="search" className="mt-4">
             <Card className="border-none bg-card shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Yiyecek Ara</CardTitle>
+                <CardTitle className="text-base">{t('addFood.search.title')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Yiyecek adı veya marka..."
+                    placeholder={t('addFood.search.placeholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-12 pl-10 bg-secondary"
@@ -321,7 +324,7 @@ const AddPage = () => {
                       ))
                     ) : (
                       <p className="py-4 text-center text-sm text-muted-foreground">
-                        Sonuç bulunamadı
+                        {t('addFood.search.noResults')}
                       </p>
                     )}
                   </div>
@@ -330,10 +333,10 @@ const AddPage = () => {
                 {searchQuery.length < 2 && (
                   <div className="py-8 text-center">
                     <p className="text-sm text-muted-foreground">
-                      Veritabanından yiyecek ara
+                      {t('addFood.search.promptTitle')}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      En az 2 karakter girin
+                      {t('addFood.search.promptDesc')}
                     </p>
                   </div>
                 )}
@@ -345,7 +348,7 @@ const AddPage = () => {
           <TabsContent value="barcode" className="mt-4">
             <Card className="border-none bg-card shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Barkod Tara</CardTitle>
+                <CardTitle className="text-base">{t('addFood.barcode.title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center gap-4 py-8">
@@ -353,13 +356,13 @@ const AddPage = () => {
                     <ScanBarcode className="h-12 w-12 text-primary" />
                   </div>
                   <div className="text-center">
-                    <p className="font-medium text-foreground">Kamera ile Tara</p>
+                    <p className="font-medium text-foreground">{t('addFood.barcode.scanTitle')}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Ürün barkodunu kameraya göster
+                      {t('addFood.barcode.scanDesc')}
                     </p>
                   </div>
                   <Button size="lg" className="w-full max-w-xs">
-                    Kamerayı Aç
+                    {t('addFood.barcode.openCamera')}
                   </Button>
                 </div>
               </CardContent>
@@ -378,9 +381,9 @@ const AddPage = () => {
                 <Pencil className="h-6 w-6 text-accent-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Manuel Giriş</p>
+                <p className="font-semibold text-foreground">{t('addFood.manual.title')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Besin değerlerini kendin gir
+                  {t('addFood.manual.desc')}
                 </p>
               </div>
             </button>

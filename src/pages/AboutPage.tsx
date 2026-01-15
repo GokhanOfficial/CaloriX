@@ -4,9 +4,12 @@ import { Separator } from "@/components/ui/separator";
 import { Info, Mail, Code, Heart } from "lucide-react";
 import { PollinationsCredit } from "@/components/common/PollinationsCredit";
 
+import { useTranslation } from "react-i18next";
+
 const AboutPage = () => {
+  const { t } = useTranslation();
   return (
-    <AppLayout title="Hakkında">
+    <AppLayout title={t('about.title')}>
       <div className="container max-w-lg space-y-4 px-4 py-4">
         {/* App Info */}
         <Card className="border-none bg-card shadow-lg">
@@ -15,11 +18,11 @@ const AboutPage = () => {
               <Info className="h-8 w-8 text-primary" />
             </div>
             <CardTitle className="text-2xl font-bold text-foreground">CaloriX</CardTitle>
-            <p className="text-muted-foreground">Kalori ve Makro Takip Uygulaması</p>
+            <p className="text-muted-foreground">{t('about.subtitle')}</p>
           </CardHeader>
           <CardContent className="text-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-              Versiyon 1.0.0
+              {t('about.version', { version: '1.0.0' })}
             </div>
           </CardContent>
         </Card>
@@ -27,32 +30,32 @@ const AboutPage = () => {
         {/* Features */}
         <Card className="border-none bg-card shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Özellikler</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('about.features.title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-start gap-3">
               <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-              <p className="text-sm text-foreground">AI destekli yemek tanıma (fotoğraf ve metin)</p>
+              <p className="text-sm text-foreground">{t('about.features.ai')}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-              <p className="text-sm text-foreground">Barkod ile yiyecek ekleme</p>
+              <p className="text-sm text-foreground">{t('about.features.barcode')}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-              <p className="text-sm text-foreground">Su ve kilo takibi</p>
+              <p className="text-sm text-foreground">{t('about.features.tracker')}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-              <p className="text-sm text-foreground">Detaylı analiz ve grafikler</p>
+              <p className="text-sm text-foreground">{t('about.features.analytics')}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-              <p className="text-sm text-foreground">Akıllı bildirim hatırlatıcıları</p>
+              <p className="text-sm text-foreground">{t('about.features.notifications')}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-              <p className="text-sm text-foreground">Offline-first çalışma desteği</p>
+              <p className="text-sm text-foreground">{t('about.features.offline')}</p>
             </div>
           </CardContent>
         </Card>
@@ -60,7 +63,7 @@ const AboutPage = () => {
         {/* Developer Info */}
         <Card className="border-none bg-card shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Geliştirici</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('about.developer.title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
@@ -69,7 +72,7 @@ const AboutPage = () => {
               </div>
               <div>
                 <p className="font-medium text-foreground">Gökhan Tekyıldırım</p>
-                <p className="text-sm text-muted-foreground">Yazılım Geliştirici</p>
+                <p className="text-sm text-muted-foreground">{t('about.developer.role')}</p>
               </div>
             </div>
 
@@ -81,7 +84,7 @@ const AboutPage = () => {
             >
               <Mail className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium text-foreground">E-posta</p>
+                <p className="text-sm font-medium text-foreground">{t('about.email')}</p>
                 <p className="text-sm text-muted-foreground">gokhantekyildirim@outlook.com</p>
               </div>
             </a>
@@ -91,7 +94,7 @@ const AboutPage = () => {
         {/* Powered By */}
         <Card className="border-none bg-card shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Destekleyenler</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('about.poweredBy')}</CardTitle>
           </CardHeader>
           <CardContent>
             <PollinationsCredit />
@@ -102,12 +105,12 @@ const AboutPage = () => {
         <Card className="border-none bg-card shadow-lg">
           <CardContent className="p-4 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <span>Made with</span>
+              <span>{t('about.footer.madeWith')}</span>
               <Heart className="h-4 w-4 text-destructive fill-destructive" />
-              <span>in Turkey</span>
+              <span>{t('about.footer.inTurkey')}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              © 2025 CaloriX. Tüm hakları saklıdır.
+              {t('about.footer.copyright')}
             </p>
           </CardContent>
         </Card>

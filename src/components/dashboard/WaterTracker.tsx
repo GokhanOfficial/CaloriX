@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { WATER_QUICK_ADD, DEFAULT_GOALS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { CustomWaterDialog } from "@/components/dialogs/CustomWaterDialog";
+import { useTranslation } from "react-i18next";
 
 interface WaterTrackerProps {
   current?: number;
@@ -18,6 +19,7 @@ export function WaterTracker({
   target = DEFAULT_GOALS.water,
   onAdd,
 }: WaterTrackerProps) {
+  const { t } = useTranslation();
   const percentage = Math.min(100, (current / target) * 100);
   const remaining = Math.max(0, target - current);
   const [displayValue, setDisplayValue] = useState(current);
@@ -37,11 +39,11 @@ export function WaterTracker({
       const animate = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         // Easing function (ease-out)
         const eased = 1 - Math.pow(1 - progress, 3);
         const currentValue = Math.round(startValue + (endValue - startValue) * eased);
-        
+
         setDisplayValue(currentValue);
 
         if (progress < 1) {
@@ -61,28 +63,28 @@ export function WaterTracker({
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div 
+            <div
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-full bg-info/10 transition-transform duration-300",
                 isAnimating && "scale-110"
               )}
             >
-              <Droplets 
+              <Droplets
                 className={cn(
                   "h-5 w-5 text-info transition-all duration-300",
                   isAnimating && "animate-pulse"
-                )} 
+                )}
               />
             </div>
             <div>
-              <p className="font-semibold text-foreground">Su Takibi</p>
+              <p className="font-semibold text-foreground">{t('dashboard.waterTracker')}</p>
               <p className="text-sm text-muted-foreground">
-                {remaining > 0 ? `${remaining} ml kaldı` : "Hedef tamamlandı! 🎉"}
+                {remaining > 0 ? t('dashboard.mlRemaining', { amount: remaining }) : t('dashboard.goalReached')}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p 
+            <p
               className={cn(
                 "text-lg font-bold text-foreground transition-all duration-300",
                 isAnimating && "text-info scale-105"
@@ -93,9 +95,9 @@ export function WaterTracker({
           </div>
         </div>
 
-        <Progress 
-          value={percentage} 
-          className="mt-4 h-2 transition-all duration-500" 
+        <Progress
+          value={percentage}
+          className="mt-4 h-2 transition-all duration-500"
         />
 
         <div className="mt-4 flex gap-2">
@@ -126,7 +128,7 @@ export function WaterTracker({
             onClick={() => setCustomDialogOpen(true)}
           >
             <Pencil className="h-3 w-3" />
-            Özel
+            {t('dashboard.custom')}
           </Button>
         </div>
 

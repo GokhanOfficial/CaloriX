@@ -1,0 +1,467 @@
+{
+    "common": {
+        "loading": "Caricamento...",
+        "error": "Errore",
+        "success": "Successo",
+        "cancel": "Annulla",
+        "save": "Salva",
+        "close": "Chiudi",
+        "send": "Invia",
+        "back": "Indietro",
+        "resend": "Reinvia",
+        "healthDisclaimer": "⚠️ Questa applicazione è solo a scopo informativo e non costituisce consulenza medica. Consultare un professionista per questioni di nutrizione e salute.",
+        "appName": "CaloriX",
+        "required": "Campo obbligatorio",
+        "food": "Alimento",
+        "aiPoweredBy": "Alimentato da IA",
+        "today": "Oggi",
+        "yesterday": "Ieri",
+        "tomorrow": "Domani",
+        "meal": "Pasto",
+        "searchFood": "Cerca alimento",
+        "searchPlaceholder": "Cerca alimento...",
+        "version": "Versione"
+    },
+    "header": {
+        "online": "Online",
+        "offline": "Offline",
+        "signedOut": "Disconnesso",
+        "goodbye": "Arrivederci!",
+        "user": "Utente"
+    },
+    "bmi": {
+        "underweight": "Sottopeso",
+        "normal": "Normale",
+        "overweight": "Sovrappeso",
+        "obese": "Obeso"
+    },
+    "notificationTypes": {
+        "weighIn": {
+            "title": "Promemoria pesata",
+            "description": "Promemoria regolari per la pesata"
+        },
+        "dailyLog": {
+            "title": "Registro giornaliero",
+            "description": "Promemoria se nessun registro in 24h"
+        },
+        "water": {
+            "title": "Promemoria acqua",
+            "description": "Promemoria per bere acqua"
+        },
+        "goalAchieved": {
+            "title": "Obiettivo raggiunto",
+            "description": "Notifica al raggiungimento dell'obiettivo"
+        },
+        "weeklySummary": {
+            "title": "Riepilogo settimanale",
+            "description": "Report di progresso settimanale"
+        },
+        "enablePush": "Attiva notifiche push",
+        "pushBlocked": "Notifiche push bloccate",
+        "pushBlockedDesc": "Consenti le notifiche nelle impostazioni del browser.",
+        "push": "Push",
+        "email": "Email"
+    },
+    "dialogs": {
+        "add": "Aggiungi",
+        "save": "Salva",
+        "cancel": "Annulla",
+        "back": "Indietro",
+        "search": "Cerca",
+        "results": "Risultati",
+        "noResults": "Nessun risultato",
+        "analyzeWithAI": "Analizza con IA",
+        "reanalyze": "Ri-analizza",
+        "example": "es.",
+        "optional": "opzionale",
+        "required": "obbligatorio",
+        "customAmount": "Quantità personalizzata",
+        "addWithAI": "Aggiungi con IA",
+        "addWithBarcode": "Aggiungi con codice",
+        "addFood": "Aggiungi alimento",
+        "editFood": "Modifica alimento",
+        "searchFood": "Cerca alimento",
+        "foodName": "Nome alimento",
+        "searchPlaceholder": "Cerca alimento...",
+        "meal": "Pasto",
+        "amount": "Quantità",
+        "amountGram": "Quantità (grammi)",
+        "suggestedPortion": "Porzione suggerita",
+        "calculatedValues": "Valori calcolati per",
+        "per100g": "per 100g",
+        "total": "Totale",
+        "protein": "proteine",
+        "carbs": "carboidrati",
+        "fat": "grassi",
+        "recognizedFoods": "Alimenti riconosciuti",
+        "recognizing": "Riconoscimento in corso...",
+        "aiAnalyzing": "IA in analisi...",
+        "portionHint": "Aggiungi info porzione",
+        "photoOrTextRequired": "Foto o testo richiesto",
+        "photo": "Foto",
+        "takePhoto": "Scatta foto",
+        "selectFromGallery": "Scegli dalla galleria",
+        "selectedFood": "Alimento selezionato",
+        "whatDidYouEat": "Cosa hai mangiato?",
+        "additionalInfo": "Info aggiuntive",
+        "photoAdditionalHint": "Aggiungi dettagli porzione",
+        "textOrPhotoRequired": "Carica una foto o descrivi cosa hai mangiato",
+        "aiRequiresInternet": "L'analisi IA richiede internet",
+        "analysisFailed": "Analisi fallita",
+        "offlineMode": "Modalità offline: solo ricerca locale",
+        "selectAtLeastOne": "Seleziona almeno un alimento",
+        "foodAdded": "Alimento aggiunto",
+        "foodsAdded": "alimenti aggiunti",
+        "saveFailed": "Salvataggio fallito",
+        "inputText": "Testo inserito",
+        "confidence": "affidabilità",
+        "calories": "Cal",
+        "calPer100g": "Cal/100g",
+        "proPer100g": "Pro/100g",
+        "carbPer100g": "Carb/100g",
+        "fatPer100g": "Grass/100g",
+        "barcode": {
+            "title": "Aggiungi con codice",
+            "scanning": "Scansione...",
+            "productFound": "Prodotto trovato",
+            "productNotFound": "Prodotto non trovato",
+            "tryAgain": "Riprova",
+            "manualEntry": "Inserimento manuale"
+        },
+        "weight": {
+            "title": "Registra peso",
+            "currentWeight": "Peso attuale",
+            "unit": "kg",
+            "saved": "Peso salvato"
+        },
+        "edit": {
+            "title": "Modifica voce",
+            "updated": "Voce aggiornata",
+            "deleted": "Voce eliminata"
+        }
+    },
+    "export": {
+        "success": "esportato",
+        "mealEntries": "voci pasti",
+        "waterEntries": "voci acqua",
+        "weightEntries": "voci peso",
+        "imported": "importato",
+        "foods": "alimenti"
+    },
+    "notifications": {
+        "title": "Notifiche",
+        "new": "nuovo",
+        "markAllRead": "Segna tutto letto",
+        "empty": "Nessuna notifica"
+    },
+    "auth": {
+        "signIn": "Accedi",
+        "signUp": "Registrati",
+        "email": "E-mail",
+        "password": "Password",
+        "name": "Nome",
+        "nameOptional": "Nome (Opzionale)",
+        "forgotPassword": "Password dimenticata",
+        "forgotPasswordTitle": "Password dimenticata",
+        "forgotPasswordDesc": "Inserisci la tua e-mail e ti invieremo un link per reimpostare la password",
+        "sendResetLink": "Invia link di reimpostazione",
+        "resetPassword": "Reimposta password",
+        "resetPasswordTitle": "Imposta nuova password",
+        "resetPasswordDesc": "Imposta una nuova password per il tuo account",
+        "newPassword": "Nuova password",
+        "confirmPassword": "Conferma password",
+        "updatePassword": "Aggiorna password",
+        "signInTab": "Accedi",
+        "signUpTab": "Registrati",
+        "signInDesc": "Accedi al tuo account",
+        "signUpDesc": "Crea un nuovo account",
+        "tagline": "Il tuo assistente intelligente per il monitoraggio di calorie e macro",
+        "validation": {
+            "invalidEmail": "Inserisci un indirizzo e-mail valido",
+            "passwordLength": "La password deve contenere almeno 6 caratteri",
+            "passwordMismatch": "Le password non corrispondono",
+            "userAlreadyRegistered": "Questo indirizzo e-mail è già registrato",
+            "invalidLogin": "E-mail o password non validi",
+            "emailNotConfirmed": "Verifica il tuo indirizzo e-mail"
+        },
+        "messages": {
+            "signInSuccess": "Accesso effettuato con successo",
+            "signUpSuccess": "Registrazione completata! E-mail di verifica inviata.",
+            "resetEmailSent": "Link di reimpostazione inviato alla tua e-mail",
+            "passwordUpdated": "La tua password è stata aggiornata",
+            "verificationSent": "Nuova e-mail di verifica inviata",
+            "emailVerified": "E-mail verificata!",
+            "emailVerifiedDesc": "Il tuo account è stato verificato con successo."
+        },
+        "pendingVerification": {
+            "title": "Verifica e-mail in attesa",
+            "description": "Abbiamo inviato un'e-mail di verifica a {{email}}. Controlla la tua casella di posta e clicca sul link di verifica.",
+            "spamNote": "Se non hai ricevuto l'e-mail, controlla la cartella spam o reinvia.",
+            "differentAccount": "Accedi con un altro account"
+        },
+        "button": {
+            "signingIn": "Accesso in corso...",
+            "signingUp": "Registrazione...",
+            "sending": "Invio...",
+            "saving": "Salvataggio..."
+        }
+    },
+    "meals": {
+        "breakfast": "Colazione",
+        "lunch": "Pranzo",
+        "dinner": "Cena",
+        "snack": "Spuntino"
+    },
+    "nav": {
+        "home": "Home",
+        "add": "Aggiungi",
+        "analytics": "Analisi",
+        "settings": "Impostazioni"
+    },
+    "settings": {
+        "title": "Impostazioni",
+        "darkTheme": "Tema scuro",
+        "active": "Attivo",
+        "inactive": "Inattivo",
+        "sections": {
+            "profile": "Profilo",
+            "app": "Applicazione",
+            "data": "Dati",
+            "account": "Account",
+            "about": "Info"
+        },
+        "items": {
+            "personalInfo": "Informazioni personali",
+            "goals": "Obiettivi",
+            "notifications": "Notifiche",
+            "exportData": "Esporta dati",
+            "exporting": "Esportazione...",
+            "exportDesc": "Backup in formato JSON",
+            "importData": "Importa dati",
+            "importing": "Importazione...",
+            "importDesc": "Ripristina da backup",
+            "changePassword": "Cambia password",
+            "changePasswordDesc": "Aggiorna la password del tuo account",
+            "signOut": "Esci",
+            "signOutDesc": "Disconnettiti dal tuo account",
+            "aboutApp": "Info sull'app"
+        },
+        "personalInfo": {
+            "title": "Informazioni personali",
+            "desc": "Aggiorna le informazioni del tuo profilo",
+            "gender": "Genere",
+            "male": "Maschio",
+            "female": "Femmina",
+            "other": "Altro",
+            "birthDate": "Data di nascita",
+            "height": "Altezza (cm)",
+            "weight": "Peso (kg)",
+            "targetWeight": "Obiettivo (kg)",
+            "bmi": "IMC"
+        },
+        "goals": {
+            "title": "Obiettivi",
+            "desc": "Modifica i tuoi obiettivi di calorie e macro",
+            "activityLevel": "Livello di attività",
+            "goalType": "Obiettivo",
+            "aiCalculate": "Calcola obiettivi con IA",
+            "calculating": "IA in calcolo...",
+            "calories": "Calorie (kcal)",
+            "water": "Acqua (ml)",
+            "protein": "Proteine (g)",
+            "carbs": "Carboidrati (g)",
+            "fat": "Grassi (g)",
+            "activity": {
+                "sedentary": "Sedentario",
+                "light": "Leggermente attivo",
+                "moderate": "Moderatamente attivo",
+                "active": "Attivo",
+                "very_active": "Molto attivo"
+            },
+            "goal": {
+                "lose_fast": "Perdere velocemente",
+                "lose": "Perdere peso",
+                "maintain": "Mantenere",
+                "gain": "Aumentare muscoli"
+            }
+        },
+        "notifications": {
+            "title": "Impostazioni notifiche",
+            "desc": "Configura canali e orari delle notifiche"
+        },
+        "import": {
+            "title": "Importa dati",
+            "desc": "Seleziona un file JSON esportato in precedenza. I dati esistenti saranno preservati, verranno aggiunti solo i nuovi record.",
+            "fileSelect": "Seleziona file",
+            "fileNote": "Sono supportati solo file di backup JSON di CaloriX"
+        },
+        "messages": {
+            "personalInfoSaved": "Informazioni personali aggiornate",
+            "goalsSaved": "Obiettivi aggiornati",
+            "settingsSaved": "Impostazioni aggiornate",
+            "passwordChanged": "Password aggiornata",
+            "aiSuccess": "Calcolo IA completato",
+            "aiUpdate": "Aggiornamento macro da IA",
+            "error": "Si è verificato un errore"
+        }
+    },
+    "dashboard": {
+        "title": "Home",
+        "welcome": "Bentornato",
+        "caloriesLeft": "Calorie rimanenti",
+        "eaten": "Consumate",
+        "burned": "Bruciate",
+        "macros": "Macro",
+        "water": "Acqua",
+        "noRecords": "Nessun record",
+        "addFood": "Aggiungi alimento",
+        "waterTracker": "Monitoraggio acqua",
+        "mlRemaining": "{{amount}} ml rimanenti",
+        "goalReached": "Obiettivo raggiunto! 🎉",
+        "custom": "Personalizzato",
+        "logWeight": "Registra peso",
+        "weightOverdue": "Non ti pesi da {{days}} giorni",
+        "lastWeight": "Ultima pesata: {{days}} giorni fa",
+        "recordWeight": "Registra il tuo peso",
+        "quickAdd": "Aggiungi veloce",
+        "quick": {
+            "barcode": "Codice a barre",
+            "scan": "Scansiona prodotto",
+            "search": "Cerca",
+            "findFood": "Trova alimento",
+            "ai": "Aggiungi con IA",
+            "photoText": "Foto/Testo",
+            "recent": "Recenti",
+            "history": "Dalla cronologia",
+            "favorites": "Preferiti",
+            "saved": "Elementi salvati",
+            "offline": "Modalità offline: Internet richiesto per funzionalità IA"
+        },
+        "dailySummary": "Riepilogo giornaliero",
+        "remaining": "kcal rimanenti",
+        "consumed": "Consumate",
+        "target": "Obiettivo",
+        "waterAdded": "+{{amount}}ml di acqua aggiunti",
+        "dailyTotal": "Totale giornaliero: {{total}}ml",
+        "errorWeight": "Errore nel salvare il peso",
+        "weightSaved": "Peso salvato",
+        "savedAs": "Salvato come {{weight}} kg",
+        "errorFood": "Errore nell'aggiungere l'alimento",
+        "foodAdded": "Alimento aggiunto",
+        "addedToMeal": "{{food}} aggiunto a {{meal}}",
+        "errorUpdate": "Errore nell'aggiornare l'alimento",
+        "foodUpdated": "Alimento aggiornato",
+        "updatedSuccessfully": "{{food}} aggiornato con successo",
+        "errorDelete": "Errore nell'eliminare l'alimento",
+        "foodDeleted": "Alimento eliminato",
+        "deletedSuccessfully": "Record eliminato con successo"
+    },
+    "about": {
+        "title": "Info",
+        "subtitle": "App per il monitoraggio di calorie e macro",
+        "version": "Versione {{version}}",
+        "features": {
+            "title": "Funzionalità",
+            "ai": "Riconoscimento alimenti con IA (foto e testo)",
+            "barcode": "Scansione codice a barre",
+            "tracker": "Monitoraggio acqua e peso",
+            "analytics": "Analisi dettagliate e grafici",
+            "notifications": "Promemoria intelligenti",
+            "offline": "Supporto offline"
+        },
+        "developer": {
+            "title": "Sviluppatore",
+            "role": "Sviluppatore Software"
+        },
+        "email": "E-mail",
+        "poweredBy": "Realizzato con",
+        "footer": {
+            "madeWith": "Fatto con",
+            "inTurkey": "in Turchia",
+            "copyright": "© 2025 CaloriX. Tutti i diritti riservati."
+        }
+    },
+    "addFood": {
+        "title": "Aggiungi alimento",
+        "meal": "Pasto",
+        "ai": {
+            "title": "Riconoscimento IA",
+            "buttonTitle": "Aggiungi con IA",
+            "buttonDesc": "Identifica alimento tramite foto o testo"
+        },
+        "offline": {
+            "title": "Offline",
+            "desc": "Internet richiesto per il riconoscimento IA"
+        },
+        "recent": {
+            "title": "Recenti",
+            "empty": "Nessun alimento aggiunto"
+        },
+        "favorites": {
+            "title": "Più consumati",
+            "empty": "Nessun alimento aggiunto"
+        },
+        "tabs": {
+            "search": "Cerca",
+            "barcode": "Codice a barre"
+        },
+        "search": {
+            "title": "Cerca alimento",
+            "placeholder": "Nome alimento o marca...",
+            "noResults": "Nessun risultato",
+            "promptTitle": "Cerca alimento nel database",
+            "promptDesc": "Inserisci almeno 2 caratteri"
+        },
+        "barcode": {
+            "title": "Scansiona codice",
+            "scanTitle": "Scansiona con fotocamera",
+            "scanDesc": "Mostra il codice a barre alla fotocamera",
+            "openCamera": "Apri fotocamera"
+        },
+        "manual": {
+            "title": "Inserimento manuale",
+            "desc": "Inserisci i valori nutrizionali"
+        },
+        "toasts": {
+            "success": "Alimento aggiunto",
+            "error": "Errore nell'aggiungere l'alimento"
+        }
+    },
+    "analytics": {
+        "title": "Analisi",
+        "period": {
+            "week": "Settimana",
+            "month": "Mese",
+            "3months": "3 Mesi"
+        },
+        "stats": {
+            "avgCalories": "Media calorie",
+            "avgWater": "Media acqua",
+            "avgProtein": "Media proteine",
+            "weightChange": "Variazione peso",
+            "target": "/ obiettivo"
+        },
+        "charts": {
+            "calories": {
+                "title": "Monitoraggio calorie"
+            },
+            "target": "Obiettivo",
+            "macros": {
+                "title": "Monitoraggio macro (% dell'obiettivo)",
+                "subtitle": "Linea = 100% obiettivo"
+            }
+        },
+        "averages": {
+            "title": "Valori medi dei macro"
+        },
+        "summary": {
+            "daysWithData": "Giorni con dati",
+            "day": "giorni"
+        },
+        "weightTrend": {
+            "first": "Prima registrazione",
+            "change": "Variazione",
+            "last": "Ultima registrazione"
+        }
+    }
+}

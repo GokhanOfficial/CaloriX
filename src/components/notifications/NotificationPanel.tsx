@@ -6,8 +6,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useNotifications, type Notification } from '@/hooks/useNotifications';
-import { formatDistanceToNow } from 'date-fns';
-import { tr } from 'date-fns/locale';
+import { formatDistanceToNow, type Locale } from 'date-fns';
+import { tr, enUS, es, fr, de, pt, it, ru, ja, ko, zhCN, ar } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+
+const locales: Record<string, Locale> = {
+  tr, en: enUS, es, fr, de, pt, it, ru, ja, ko, zh: zhCN, ar
+};
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -96,8 +101,10 @@ function NotificationItem({ notification, onMarkRead, onDelete }: NotificationIt
 }
 
 export function NotificationPanel() {
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
+  const currentLocale = locales[i18n.language.split('-')[0]] || enUS;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -105,8 +112,8 @@ export function NotificationPanel() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
@@ -118,15 +125,15 @@ export function NotificationPanel() {
         <SheetHeader className="flex flex-row items-center justify-between">
           <SheetTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
-            Bildirimler
+            {t('settings.items.notifications')}
             {unreadCount > 0 && (
-              <Badge variant="secondary">{unreadCount} yeni</Badge>
+              <Badge variant="secondary">{unreadCount} {t('notifications.new')}</Badge>
             )}
           </SheetTitle>
           {unreadCount > 0 && (
             <Button variant="ghost" size="sm" onClick={markAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-1" />
-              Tümünü Oku
+              {t('notifications.markAllRead')}
             </Button>
           )}
         </SheetHeader>
@@ -139,7 +146,7 @@ export function NotificationPanel() {
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
               <Bell className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm">Henüz bildirim yok</p>
+              <p className="text-sm">{t('notifications.empty')}</p>
             </div>
           ) : (
             <div className="space-y-2">

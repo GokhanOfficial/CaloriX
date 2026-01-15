@@ -2,6 +2,7 @@ import { Scale, ChevronRight, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface WeightBannerProps {
   lastWeight?: number;
@@ -16,6 +17,7 @@ export function WeightBanner({
   reminderDays = 7,
   onLogWeight,
 }: WeightBannerProps) {
+  const { t } = useTranslation();
   const daysSinceWeigh = lastWeighDate
     ? Math.floor((Date.now() - lastWeighDate.getTime()) / (1000 * 60 * 60 * 24))
     : null;
@@ -46,14 +48,14 @@ export function WeightBanner({
           </div>
           <div>
             <p className="font-semibold text-foreground">
-              {lastWeight ? `${lastWeight} kg` : "Kilo Gir"}
+              {lastWeight ? `${lastWeight} kg` : t('dashboard.logWeight')}
             </p>
             <p className="text-sm text-muted-foreground">
               {isOverdue
-                ? `${daysSinceWeigh} gündür tartılmadın`
+                ? t('dashboard.weightOverdue', { days: daysSinceWeigh })
                 : lastWeighDate
-                ? `Son tartı: ${daysSinceWeigh} gün önce`
-                : "Kilonu kaydet"}
+                  ? t('dashboard.lastWeight', { days: daysSinceWeigh })
+                  : t('dashboard.recordWeight')}
             </p>
           </div>
         </div>

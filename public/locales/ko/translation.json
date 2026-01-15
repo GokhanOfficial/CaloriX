@@ -1,0 +1,467 @@
+{
+    "common": {
+        "loading": "로딩 중...",
+        "error": "오류",
+        "success": "성공",
+        "cancel": "취소",
+        "save": "저장",
+        "close": "닫기",
+        "send": "보내기",
+        "back": "뒤로",
+        "resend": "다시 보내기",
+        "healthDisclaimer": "⚠️ 이 앱은 정보 제공 목적으로만 사용되며 의료 조언을 구성하지 않습니다. 영양 및 건강 문제는 전문가와 상담하세요.",
+        "appName": "CaloriX",
+        "required": "필수 항목",
+        "food": "음식",
+        "aiPoweredBy": "AI 제공",
+        "today": "오늘",
+        "yesterday": "어제",
+        "tomorrow": "내일",
+        "meal": "식사",
+        "searchFood": "음식 검색",
+        "searchPlaceholder": "음식 검색...",
+        "version": "버전"
+    },
+    "header": {
+        "online": "온라인",
+        "offline": "오프라인",
+        "signedOut": "로그아웃됨",
+        "goodbye": "안녕히 가세요!",
+        "user": "사용자"
+    },
+    "bmi": {
+        "underweight": "저체중",
+        "normal": "정상",
+        "overweight": "과체중",
+        "obese": "비만"
+    },
+    "notificationTypes": {
+        "weighIn": {
+            "title": "체중 측정 알림",
+            "description": "정기적인 체중 측정 알림"
+        },
+        "dailyLog": {
+            "title": "일일 기록",
+            "description": "24시간 기록이 없을 때 알림"
+        },
+        "water": {
+            "title": "수분 알림",
+            "description": "물 마시기 알림"
+        },
+        "goalAchieved": {
+            "title": "목표 달성",
+            "description": "목표 달성 시 알림"
+        },
+        "weeklySummary": {
+            "title": "주간 요약",
+            "description": "주간 진행 보고서"
+        },
+        "enablePush": "푸시 알림 활성화",
+        "pushBlocked": "푸시 알림이 차단됨",
+        "pushBlockedDesc": "브라우저 설정에서 알림을 허용하세요.",
+        "push": "푸시",
+        "email": "이메일"
+    },
+    "dialogs": {
+        "add": "추가",
+        "save": "저장",
+        "cancel": "취소",
+        "back": "뒤로",
+        "search": "검색",
+        "results": "결과",
+        "noResults": "결과 없음",
+        "analyzeWithAI": "AI로 분석",
+        "reanalyze": "재분석",
+        "example": "예",
+        "optional": "선택",
+        "required": "필수",
+        "customAmount": "사용자 지정 양",
+        "addWithAI": "AI로 추가",
+        "addWithBarcode": "바코드로 추가",
+        "addFood": "음식 추가",
+        "editFood": "음식 편집",
+        "searchFood": "음식 검색",
+        "foodName": "음식 이름",
+        "searchPlaceholder": "음식 검색...",
+        "meal": "식사",
+        "amount": "양",
+        "amountGram": "양 (그램)",
+        "suggestedPortion": "권장 분량",
+        "calculatedValues": "계산된 값",
+        "per100g": "100g당",
+        "total": "총",
+        "protein": "단백질",
+        "carbs": "탄수화물",
+        "fat": "지방",
+        "recognizedFoods": "인식된 음식",
+        "recognizing": "인식 중...",
+        "aiAnalyzing": "AI 분석 중...",
+        "portionHint": "분량 정보 추가",
+        "photoOrTextRequired": "사진 또는 텍스트 필요",
+        "photo": "사진",
+        "takePhoto": "사진 촬영",
+        "selectFromGallery": "갤러리에서 선택",
+        "selectedFood": "선택된 음식",
+        "whatDidYouEat": "무엇을 드셨나요?",
+        "additionalInfo": "추가 정보",
+        "photoAdditionalHint": "분량 세부사항 추가",
+        "textOrPhotoRequired": "사진을 업로드하거나 먹은 것을 설명해주세요",
+        "aiRequiresInternet": "AI 분석에 인터넷 필요",
+        "analysisFailed": "분석 실패",
+        "offlineMode": "오프라인: 로컬 검색만 가능",
+        "selectAtLeastOne": "하나 이상 선택하세요",
+        "foodAdded": "음식 추가됨",
+        "foodsAdded": "개 추가됨",
+        "saveFailed": "저장 실패",
+        "inputText": "입력된 텍스트",
+        "confidence": "신뢰도",
+        "calories": "칼로리",
+        "calPer100g": "칼로리/100g",
+        "proPer100g": "단백질/100g",
+        "carbPer100g": "탄수화물/100g",
+        "fatPer100g": "지방/100g",
+        "barcode": {
+            "title": "바코드로 추가",
+            "scanning": "스캔 중...",
+            "productFound": "제품 발견",
+            "productNotFound": "제품 없음",
+            "tryAgain": "다시 시도",
+            "manualEntry": "수동 입력"
+        },
+        "weight": {
+            "title": "체중 기록",
+            "currentWeight": "현재 체중",
+            "unit": "kg",
+            "saved": "체중 저장됨"
+        },
+        "edit": {
+            "title": "항목 편집",
+            "updated": "항목 업데이트됨",
+            "deleted": "항목 삭제됨"
+        }
+    },
+    "export": {
+        "success": "내보내기 완료",
+        "mealEntries": "식사 기록",
+        "waterEntries": "수분 기록",
+        "weightEntries": "체중 기록",
+        "imported": "가져오기 완료",
+        "foods": "음식"
+    },
+    "notifications": {
+        "title": "알림",
+        "new": "새로운",
+        "markAllRead": "모두 읽음 표시",
+        "empty": "알림이 없습니다"
+    },
+    "auth": {
+        "signIn": "로그인",
+        "signUp": "회원가입",
+        "email": "이메일",
+        "password": "비밀번호",
+        "name": "이름",
+        "nameOptional": "이름 (선택)",
+        "forgotPassword": "비밀번호 찾기",
+        "forgotPasswordTitle": "비밀번호 찾기",
+        "forgotPasswordDesc": "이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다",
+        "sendResetLink": "재설정 링크 보내기",
+        "resetPassword": "비밀번호 재설정",
+        "resetPasswordTitle": "새 비밀번호 설정",
+        "resetPasswordDesc": "계정의 새 비밀번호를 설정하세요",
+        "newPassword": "새 비밀번호",
+        "confirmPassword": "비밀번호 확인",
+        "updatePassword": "비밀번호 업데이트",
+        "signInTab": "로그인",
+        "signUpTab": "회원가입",
+        "signInDesc": "계정에 로그인",
+        "signUpDesc": "새 계정 만들기",
+        "tagline": "칼로리와 매크로 추적을 위한 스마트 어시스턴트",
+        "validation": {
+            "invalidEmail": "유효한 이메일 주소를 입력하세요",
+            "passwordLength": "비밀번호는 최소 6자 이상이어야 합니다",
+            "passwordMismatch": "비밀번호가 일치하지 않습니다",
+            "userAlreadyRegistered": "이 이메일 주소는 이미 등록되어 있습니다",
+            "invalidLogin": "이메일 또는 비밀번호가 잘못되었습니다",
+            "emailNotConfirmed": "이메일 주소를 확인해 주세요"
+        },
+        "messages": {
+            "signInSuccess": "로그인 성공",
+            "signUpSuccess": "회원가입 완료! 인증 이메일을 보냈습니다.",
+            "resetEmailSent": "재설정 링크를 이메일로 보냈습니다",
+            "passwordUpdated": "비밀번호가 업데이트되었습니다",
+            "verificationSent": "새 인증 이메일을 보냈습니다",
+            "emailVerified": "이메일 인증 완료!",
+            "emailVerifiedDesc": "계정이 성공적으로 인증되었습니다."
+        },
+        "pendingVerification": {
+            "title": "이메일 인증 대기 중",
+            "description": "{{email}}로 인증 이메일을 보냈습니다. 받은 편지함을 확인하고 인증 링크를 클릭하세요.",
+            "spamNote": "이메일을 받지 못했다면 스팸 폴더를 확인하거나 다시 보내세요.",
+            "differentAccount": "다른 계정으로 로그인"
+        },
+        "button": {
+            "signingIn": "로그인 중...",
+            "signingUp": "가입 중...",
+            "sending": "보내는 중...",
+            "saving": "저장 중..."
+        }
+    },
+    "meals": {
+        "breakfast": "아침",
+        "lunch": "점심",
+        "dinner": "저녁",
+        "snack": "간식"
+    },
+    "nav": {
+        "home": "홈",
+        "add": "추가",
+        "analytics": "분석",
+        "settings": "설정"
+    },
+    "settings": {
+        "title": "설정",
+        "darkTheme": "다크 테마",
+        "active": "켜짐",
+        "inactive": "꺼짐",
+        "sections": {
+            "profile": "프로필",
+            "app": "앱",
+            "data": "데이터",
+            "account": "계정",
+            "about": "정보"
+        },
+        "items": {
+            "personalInfo": "개인 정보",
+            "goals": "목표",
+            "notifications": "알림",
+            "exportData": "데이터 내보내기",
+            "exporting": "내보내는 중...",
+            "exportDesc": "JSON 형식으로 백업",
+            "importData": "데이터 가져오기",
+            "importing": "가져오는 중...",
+            "importDesc": "백업에서 복원",
+            "changePassword": "비밀번호 변경",
+            "changePasswordDesc": "계정 비밀번호 업데이트",
+            "signOut": "로그아웃",
+            "signOutDesc": "계정에서 로그아웃",
+            "aboutApp": "앱 정보"
+        },
+        "personalInfo": {
+            "title": "개인 정보",
+            "desc": "프로필 정보 업데이트",
+            "gender": "성별",
+            "male": "남성",
+            "female": "여성",
+            "other": "기타",
+            "birthDate": "생년월일",
+            "height": "키 (cm)",
+            "weight": "체중 (kg)",
+            "targetWeight": "목표 (kg)",
+            "bmi": "BMI"
+        },
+        "goals": {
+            "title": "목표",
+            "desc": "칼로리 및 매크로 목표 편집",
+            "activityLevel": "활동 수준",
+            "goalType": "목표",
+            "aiCalculate": "AI로 목표 계산",
+            "calculating": "AI 계산 중...",
+            "calories": "칼로리 (kcal)",
+            "water": "수분 (ml)",
+            "protein": "단백질 (g)",
+            "carbs": "탄수화물 (g)",
+            "fat": "지방 (g)",
+            "activity": {
+                "sedentary": "앉아있는 생활",
+                "light": "가벼운 활동",
+                "moderate": "보통 활동",
+                "active": "활동적",
+                "very_active": "매우 활동적"
+            },
+            "goal": {
+                "lose_fast": "빠른 감량",
+                "lose": "체중 감량",
+                "maintain": "유지",
+                "gain": "근육 증가"
+            }
+        },
+        "notifications": {
+            "title": "알림 설정",
+            "desc": "알림 채널 및 시간 구성"
+        },
+        "import": {
+            "title": "데이터 가져오기",
+            "desc": "이전에 내보낸 JSON 파일을 선택하세요. 기존 데이터는 유지되고 새 레코드만 추가됩니다.",
+            "fileSelect": "파일 선택",
+            "fileNote": "CaloriX JSON 백업 파일만 지원됩니다"
+        },
+        "messages": {
+            "personalInfoSaved": "개인 정보가 업데이트되었습니다",
+            "goalsSaved": "목표가 업데이트되었습니다",
+            "settingsSaved": "설정이 업데이트되었습니다",
+            "passwordChanged": "비밀번호가 업데이트되었습니다",
+            "aiSuccess": "AI 계산 완료",
+            "aiUpdate": "AI 매크로 업데이트",
+            "error": "오류가 발생했습니다"
+        }
+    },
+    "dashboard": {
+        "title": "홈",
+        "welcome": "다시 오신 것을 환영합니다",
+        "caloriesLeft": "남은 칼로리",
+        "eaten": "섭취",
+        "burned": "소비",
+        "macros": "매크로",
+        "water": "수분",
+        "noRecords": "기록 없음",
+        "addFood": "음식 추가",
+        "waterTracker": "수분 추적",
+        "mlRemaining": "{{amount}} ml 남음",
+        "goalReached": "목표 달성! 🎉",
+        "custom": "사용자 지정",
+        "logWeight": "체중 기록",
+        "weightOverdue": "{{days}}일 동안 측정하지 않았습니다",
+        "lastWeight": "마지막 측정: {{days}}일 전",
+        "recordWeight": "체중을 기록하세요",
+        "quickAdd": "빠른 추가",
+        "quick": {
+            "barcode": "바코드",
+            "scan": "제품 스캔",
+            "search": "검색",
+            "findFood": "음식 찾기",
+            "ai": "AI로 추가",
+            "photoText": "사진/텍스트",
+            "recent": "최근",
+            "history": "기록에서",
+            "favorites": "즐겨찾기",
+            "saved": "저장된 항목",
+            "offline": "오프라인 모드: AI 기능에는 인터넷이 필요합니다"
+        },
+        "dailySummary": "일일 요약",
+        "remaining": "남은 kcal",
+        "consumed": "섭취",
+        "target": "목표",
+        "waterAdded": "+{{amount}}ml 수분 추가됨",
+        "dailyTotal": "일일 총량: {{total}}ml",
+        "errorWeight": "체중 저장 오류",
+        "weightSaved": "체중 저장됨",
+        "savedAs": "{{weight}} kg로 저장됨",
+        "errorFood": "음식 추가 오류",
+        "foodAdded": "음식 추가됨",
+        "addedToMeal": "{{food}}이(가) {{meal}}에 추가됨",
+        "errorUpdate": "음식 업데이트 오류",
+        "foodUpdated": "음식 업데이트됨",
+        "updatedSuccessfully": "{{food}} 업데이트 성공",
+        "errorDelete": "음식 삭제 오류",
+        "foodDeleted": "음식 삭제됨",
+        "deletedSuccessfully": "기록이 삭제되었습니다"
+    },
+    "about": {
+        "title": "정보",
+        "subtitle": "칼로리 및 매크로 추적 앱",
+        "version": "버전 {{version}}",
+        "features": {
+            "title": "기능",
+            "ai": "AI 식품 인식 (사진 및 텍스트)",
+            "barcode": "바코드 스캔",
+            "tracker": "수분 및 체중 추적",
+            "analytics": "상세 분석 및 그래프",
+            "notifications": "스마트 알림",
+            "offline": "오프라인 지원"
+        },
+        "developer": {
+            "title": "개발자",
+            "role": "소프트웨어 개발자"
+        },
+        "email": "이메일",
+        "poweredBy": "제공",
+        "footer": {
+            "madeWith": "사랑으로 만듦",
+            "inTurkey": "터키에서",
+            "copyright": "© 2025 CaloriX. All rights reserved."
+        }
+    },
+    "addFood": {
+        "title": "음식 추가",
+        "meal": "식사",
+        "ai": {
+            "title": "AI 인식",
+            "buttonTitle": "AI로 추가",
+            "buttonDesc": "사진 또는 텍스트로 음식 식별"
+        },
+        "offline": {
+            "title": "오프라인",
+            "desc": "AI 인식에는 인터넷이 필요합니다"
+        },
+        "recent": {
+            "title": "최근",
+            "empty": "추가된 음식 없음"
+        },
+        "favorites": {
+            "title": "자주 먹는 음식",
+            "empty": "추가된 음식 없음"
+        },
+        "tabs": {
+            "search": "검색",
+            "barcode": "바코드"
+        },
+        "search": {
+            "title": "음식 검색",
+            "placeholder": "음식 이름 또는 브랜드...",
+            "noResults": "결과 없음",
+            "promptTitle": "데이터베이스에서 음식 검색",
+            "promptDesc": "최소 2자 이상 입력하세요"
+        },
+        "barcode": {
+            "title": "바코드 스캔",
+            "scanTitle": "카메라로 스캔",
+            "scanDesc": "제품 바코드를 카메라에 보여주세요",
+            "openCamera": "카메라 열기"
+        },
+        "manual": {
+            "title": "수동 입력",
+            "desc": "영양 정보 직접 입력"
+        },
+        "toasts": {
+            "success": "음식 추가됨",
+            "error": "음식 추가 오류"
+        }
+    },
+    "analytics": {
+        "title": "분석",
+        "period": {
+            "week": "주",
+            "month": "월",
+            "3months": "3개월"
+        },
+        "stats": {
+            "avgCalories": "평균 칼로리",
+            "avgWater": "평균 수분",
+            "avgProtein": "평균 단백질",
+            "weightChange": "체중 변화",
+            "target": "/ 목표"
+        },
+        "charts": {
+            "calories": {
+                "title": "칼로리 추적"
+            },
+            "target": "목표",
+            "macros": {
+                "title": "매크로 추적 (목표의 %)",
+                "subtitle": "선 = 100% 목표"
+            }
+        },
+        "averages": {
+            "title": "평균 매크로 값"
+        },
+        "summary": {
+            "daysWithData": "데이터가 있는 일수",
+            "day": "일"
+        },
+        "weightTrend": {
+            "first": "첫 번째 기록",
+            "change": "변화",
+            "last": "마지막 기록"
+        }
+    }
+}

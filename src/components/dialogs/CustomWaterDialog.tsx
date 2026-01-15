@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
 
 interface CustomWaterDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ export function CustomWaterDialog({
   onOpenChange,
   onSubmit,
 }: CustomWaterDialogProps) {
+  const { t } = useTranslation();
   const [amount, setAmount] = useState("");
 
   const handleSubmit = () => {
@@ -46,17 +48,17 @@ export function CustomWaterDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Droplets className="h-5 w-5 text-info" />
-            Özel Miktar Ekle
+            {t('dialogs.customAmount')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="waterAmount">Miktar (ml)</Label>
+            <Label htmlFor="waterAmount">{t('dashboard.water')} (ml)</Label>
             <Input
               id="waterAmount"
               type="number"
-              placeholder="Örn: 330"
+              placeholder={`${t('dialogs.example')} 330`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -82,13 +84,13 @@ export function CustomWaterDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            İptal
+            {t('common.cancel')}
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={!amount || parseInt(amount, 10) <= 0}
           >
-            Ekle
+            {t('dialogs.add')}
           </Button>
         </DialogFooter>
       </DialogContent>

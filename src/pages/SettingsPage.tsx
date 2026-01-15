@@ -45,6 +45,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { useDataExport } from "@/hooks/useDataExport";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { Globe } from "lucide-react";
 
 function calculateAge(birthDate: Date): number {
   const today = new Date();
@@ -57,6 +60,7 @@ function calculateAge(birthDate: Date): number {
 }
 
 const SettingsPage = () => {
+  const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
   const { profile, updateProfile } = useProfile();
   const { signOut } = useAuth();
@@ -128,15 +132,15 @@ const SettingsPage = () => {
 
   const recalculateMacros = async () => {
     if (!birthDate) {
-      toast({ title: "Hata", description: "Doğum tarihi gerekli", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
       return;
     }
-    
+
     setIsRecalculating(true);
-    
+
     try {
       const age = calculateAge(new Date(birthDate));
-      
+
       const { data, error } = await supabase.functions.invoke('calculate-macros', {
         body: {
           age,
@@ -148,9 +152,9 @@ const SettingsPage = () => {
           goal,
         },
       });
-      
+
       if (error) throw error;
-      
+
       setDailyCalorieTarget(data.daily_calorie_target);
       setProteinTarget(data.protein_target_g);
       setCarbsTarget(data.carbs_target_g);
@@ -159,16 +163,16 @@ const SettingsPage = () => {
       if (data.daily_water_target_ml) {
         setWaterTarget(data.daily_water_target_ml);
       }
-      
+
       toast({
-        title: "AI Hesaplama Tamamlandı",
-        description: data.explanation || `Günlük kalori: ${data.daily_calorie_target} kcal, Su: ${data.daily_water_target_ml} ml`,
+        title: t('settings.messages.aiSuccess'),
+        description: data.explanation || `${t('settings.goals.calories')}: ${data.daily_calorie_target} kcal, ${t('settings.goals.water')}: ${data.daily_water_target_ml} ml`,
       });
     } catch (error) {
       console.error('AI macro calculation error:', error);
       toast({
-        title: "Hata",
-        description: "AI hesaplama başarısız oldu",
+        title: t('common.error'),
+        description: t('settings.messages.error'),
         variant: "destructive",
       });
     } finally {
@@ -178,7 +182,7 @@ const SettingsPage = () => {
 
   const savePersonalInfo = async () => {
     setIsLoading(true);
-    
+
     const updates: Record<string, unknown> = {
       display_name: displayName,
       birth_date: birthDate,
@@ -187,12 +191,12 @@ const SettingsPage = () => {
       current_weight_kg: currentWeightKg,
       target_weight_kg: targetWeightKg,
     };
-    
+
     // If auto-recalculate is on and weight changed, use AI to recalculate macros
     if (autoRecalculate && profile?.current_weight_kg !== currentWeightKg && birthDate) {
       try {
         const age = calculateAge(new Date(birthDate));
-        
+
         const { data, error: aiError } = await supabase.functions.invoke('calculate-macros', {
           body: {
             age,
@@ -211,7 +215,7 @@ const SettingsPage = () => {
             },
           },
         });
-        
+
         if (!aiError && data) {
           updates.bmr = data.bmr;
           updates.tdee = data.tdee;
@@ -219,31 +223,31 @@ const SettingsPage = () => {
           updates.protein_target_g = data.protein_target_g;
           updates.carbs_target_g = data.carbs_target_g;
           updates.fat_target_g = data.fat_target_g;
-          
+
           toast({
-            title: "AI Makro Güncelleme",
-            description: data.explanation || "Makrolar kilo değişimine göre güncellendi",
+            title: t('settings.messages.aiUpdate'),
+            description: data.explanation || t('settings.messages.aiUpdateDesc'),
           });
         }
       } catch (aiError) {
         console.error('AI recalculation failed:', aiError);
       }
     }
-    
+
     const { error } = await updateProfile(updates as any);
     setIsLoading(false);
-    
+
     if (error) {
-      toast({ title: "Hata", description: "Bilgiler kaydedilemedi", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
     } else {
-      toast({ title: "Başarılı", description: "Kişisel bilgileriniz güncellendi" });
+      toast({ title: t('common.success'), description: t('settings.messages.personalInfoSaved') });
       setPersonalInfoOpen(false);
     }
   };
 
   const saveGoals = async () => {
     setIsLoading(true);
-    
+
     const { error } = await updateProfile({
       activity_level: activityLevel,
       goal,
@@ -253,33 +257,33 @@ const SettingsPage = () => {
       fat_target_g: fatTarget,
       daily_water_target_ml: waterTarget,
     } as any);
-    
+
     setIsLoading(false);
-    
+
     if (error) {
-      toast({ title: "Hata", description: "Hedefler kaydedilemedi", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
     } else {
-      toast({ title: "Başarılı", description: "Hedefleriniz güncellendi" });
+      toast({ title: t('common.success'), description: t('settings.messages.goalsSaved') });
       setGoalsOpen(false);
     }
   };
 
   const saveNotifications = async () => {
     setIsLoading(true);
-    
+
     const { error } = await updateProfile({
       push_notifications_enabled: pushEnabled,
       email_notifications_enabled: emailEnabled,
       weigh_in_frequency_days: weighInFrequency,
       auto_recalculate_macros: autoRecalculate,
     } as any);
-    
+
     setIsLoading(false);
-    
+
     if (error) {
-      toast({ title: "Hata", description: "Ayarlar kaydedilemedi", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
     } else {
-      toast({ title: "Başarılı", description: "Bildirim ayarları güncellendi" });
+      toast({ title: t('common.success'), description: t('settings.messages.settingsSaved') });
       setNotificationsOpen(false);
     }
   };
@@ -290,11 +294,11 @@ const SettingsPage = () => {
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
-      toast({ title: "Hata", description: "Parola en az 6 karakter olmalı", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('auth.validation.passwordLength'), variant: "destructive" });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({ title: "Hata", description: "Parolalar eşleşmiyor", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('auth.validation.passwordMismatch'), variant: "destructive" });
       return;
     }
 
@@ -303,9 +307,9 @@ const SettingsPage = () => {
     setIsChangingPassword(false);
 
     if (error) {
-      toast({ title: "Hata", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Başarılı", description: "Parolanız güncellendi" });
+      toast({ title: t('common.success'), description: t('settings.messages.passwordChanged') });
       setPasswordDialogOpen(false);
       setNewPassword("");
       setConfirmPassword("");
@@ -317,80 +321,92 @@ const SettingsPage = () => {
     navigate("/auth");
   };
 
-  const bmi = profile?.current_weight_kg && profile?.height_cm 
-    ? calculateBMI(profile.current_weight_kg, profile.height_cm) 
+  const bmi = profile?.current_weight_kg && profile?.height_cm
+    ? calculateBMI(profile.current_weight_kg, profile.height_cm)
     : null;
 
   const settingsSections = [
     {
-      title: "Profil",
+      title: t('settings.sections.profile'),
       items: [
         {
           icon: User,
-          label: "Kişisel Bilgiler",
-          description: `${profile?.display_name || "İsim yok"} • ${profile?.height_cm || "-"} cm • ${profile?.current_weight_kg || "-"} kg`,
+          label: t('settings.items.personalInfo'),
+          description: `${profile?.display_name || t('settings.personalInfo.noName')} • ${profile?.height_cm || "-"} cm • ${profile?.current_weight_kg || "-"} kg`,
           action: openPersonalInfo,
         },
         {
           icon: Target,
-          label: "Hedefler",
+          label: t('settings.items.goals'),
           description: `${profile?.daily_calorie_target || "-"} kcal • P:${profile?.protein_target_g || "-"}g K:${profile?.carbs_target_g || "-"}g Y:${profile?.fat_target_g || "-"}g`,
           action: openGoals,
         },
       ],
     },
     {
-      title: "Uygulama",
+      title: t('settings.sections.app'),
       items: [
         {
           icon: Bell,
-          label: "Bildirimler",
-          description: `${profile?.push_notifications_enabled ? "Push açık" : "Push kapalı"} • ${profile?.email_notifications_enabled ? "E-posta açık" : "E-posta kapalı"}`,
+          label: t('settings.items.notifications'),
+          description: `${profile?.push_notifications_enabled ? t('settings.active') : t('settings.inactive')} • ${profile?.email_notifications_enabled ? t('settings.active') : t('settings.inactive')}`,
           action: openNotifications,
         },
+        {
+          icon: Globe,
+          label: "Language",
+          description: "Türkçe / English",
+          component: <div className="flex items-center justify-between p-4 bg-muted/20">
+            <div className="flex items-center gap-3">
+              <Globe className="h-5 w-5 text-muted-foreground" />
+              <p className="font-medium text-foreground">Language</p>
+            </div>
+            <LanguageSelector />
+          </div>
+        }
       ],
     },
     {
-      title: "Veri",
+      title: t('settings.sections.data'),
       items: [
         {
           icon: Download,
-          label: isExporting ? "Dışa Aktarılıyor..." : "Verileri Dışa Aktar",
-          description: "JSON formatında yedekle",
+          label: isExporting ? t('settings.items.exporting') : t('settings.items.exportData'),
+          description: t('settings.items.exportDesc'),
           action: exportData,
         },
         {
           icon: Upload,
-          label: isImporting ? "İçe Aktarılıyor..." : "Verileri İçe Aktar",
-          description: "Yedekten geri yükle",
+          label: isImporting ? t('settings.items.importing') : t('settings.items.importData'),
+          description: t('settings.items.importDesc'),
           action: () => setImportDialogOpen(true),
         },
       ],
     },
     {
-      title: "Hesap",
+      title: t('settings.sections.account'),
       items: [
         {
           icon: KeyRound,
-          label: "Parola Değiştir",
-          description: "Hesap parolanızı güncelleyin",
+          label: t('settings.items.changePassword'),
+          description: t('settings.items.changePasswordDesc'),
           action: () => setPasswordDialogOpen(true),
         },
         {
           icon: LogOut,
-          label: "Çıkış Yap",
-          description: "Hesabınızdan çıkış yapın",
+          label: t('settings.items.signOut'),
+          description: t('settings.items.signOutDesc'),
           action: handleSignOut,
           destructive: true,
         },
       ],
     },
     {
-      title: "Hakkında",
+      title: t('settings.sections.about'),
       items: [
         {
           icon: Info,
-          label: "Uygulama Hakkında",
+          label: t('settings.items.aboutApp'),
           description: "Versiyon 1.0.0",
           action: () => navigate("/about"),
         },
@@ -399,7 +415,7 @@ const SettingsPage = () => {
   ];
 
   return (
-    <AppLayout title="Ayarlar">
+    <AppLayout title={t('settings.title')}>
       <div className="container max-w-lg space-y-4 px-4 py-4">
         {/* Theme Toggle */}
         <Card className="border-none bg-card shadow-lg">
@@ -413,9 +429,9 @@ const SettingsPage = () => {
                 )}
               </div>
               <div>
-                <p className="font-semibold text-foreground">Koyu Tema</p>
+                <p className="font-semibold text-foreground">{t('settings.darkTheme')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {theme === "dark" ? "Aktif" : "Pasif"}
+                  {theme === "dark" ? t('settings.active') : t('settings.inactive')}
                 </p>
               </div>
             </div>
@@ -437,31 +453,35 @@ const SettingsPage = () => {
             <CardContent className="p-0">
               {section.items.map((item, index) => (
                 <div key={item.label}>
-                  <button
-                    onClick={item.action}
-                    className={cn(
-                      "flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50",
-                      (item as any).destructive && "hover:bg-destructive/10"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon className={cn(
+                  {(item as any).component ? (
+                    (item as any).component
+                  ) : (
+                    <button
+                      onClick={item.action}
+                      className={cn(
+                        "flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50",
+                        (item as any).destructive && "hover:bg-destructive/10"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className={cn(
+                          "h-5 w-5",
+                          (item as any).destructive ? "text-destructive" : "text-muted-foreground"
+                        )} />
+                        <div>
+                          <p className={cn(
+                            "font-medium",
+                            (item as any).destructive ? "text-destructive" : "text-foreground"
+                          )}>{item.label}</p>
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className={cn(
                         "h-5 w-5",
                         (item as any).destructive ? "text-destructive" : "text-muted-foreground"
                       )} />
-                      <div>
-                        <p className={cn(
-                          "font-medium",
-                          (item as any).destructive ? "text-destructive" : "text-foreground"
-                        )}>{item.label}</p>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      </div>
-                    </div>
-                    <ChevronRight className={cn(
-                      "h-5 w-5",
-                      (item as any).destructive ? "text-destructive" : "text-muted-foreground"
-                    )} />
-                  </button>
+                    </button>
+                  )}
                   {index < section.items.length - 1 && <Separator />}
                 </div>
               ))}
@@ -473,7 +493,7 @@ const SettingsPage = () => {
         <Card className="border border-warning/30 bg-warning/5">
           <CardContent className="p-4">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              {HEALTH_DISCLAIMER}
+              {t('common.healthDisclaimer')}
             </p>
           </CardContent>
         </Card>
@@ -483,24 +503,24 @@ const SettingsPage = () => {
       <Dialog open={personalInfoOpen} onOpenChange={setPersonalInfoOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Kişisel Bilgiler</DialogTitle>
+            <DialogTitle>{t('settings.personalInfo.title')}</DialogTitle>
             <DialogDescription>
-              Profil bilgilerinizi güncelleyin
+              {t('settings.personalInfo.desc')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">İsim</Label>
+              <Label htmlFor="name">{t('auth.name')}</Label>
               <Input
                 id="name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="birthDate">Doğum Tarihi</Label>
+              <Label htmlFor="birthDate">{t('settings.personalInfo.birthDate')}</Label>
               <Input
                 id="birthDate"
                 type="date"
@@ -508,9 +528,9 @@ const SettingsPage = () => {
                 onChange={(e) => setBirthDate(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label>Cinsiyet</Label>
+              <Label>{t('settings.personalInfo.gender')}</Label>
               <RadioGroup
                 value={gender}
                 onValueChange={(v) => setGender(v as "male" | "female" | "other")}
@@ -518,22 +538,22 @@ const SettingsPage = () => {
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="male" id="edit-male" />
-                  <Label htmlFor="edit-male">Erkek</Label>
+                  <Label htmlFor="edit-male">{t('settings.personalInfo.male')}</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="female" id="edit-female" />
-                  <Label htmlFor="edit-female">Kadın</Label>
+                  <Label htmlFor="edit-female">{t('settings.personalInfo.female')}</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="other" id="edit-other" />
-                  <Label htmlFor="edit-other">Diğer</Label>
+                  <Label htmlFor="edit-other">{t('settings.personalInfo.other')}</Label>
                 </div>
               </RadioGroup>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="height">Boy (cm)</Label>
+                <Label htmlFor="height">{t('settings.personalInfo.height')}</Label>
                 <Input
                   id="height"
                   type="number"
@@ -542,7 +562,7 @@ const SettingsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="weight">Kilo (kg)</Label>
+                <Label htmlFor="weight">{t('settings.personalInfo.weight')}</Label>
                 <Input
                   id="weight"
                   type="number"
@@ -552,7 +572,7 @@ const SettingsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="targetWeight">Hedef (kg)</Label>
+                <Label htmlFor="targetWeight">{t('settings.personalInfo.targetWeight')}</Label>
                 <Input
                   id="targetWeight"
                   type="number"
@@ -566,24 +586,24 @@ const SettingsPage = () => {
             {bmi && (
               <div className="p-3 rounded-lg bg-secondary/50 border border-border">
                 <p className="text-sm">
-                  <span className="font-medium">BMI:</span> {calculateBMI(currentWeightKg, heightCm)} - {" "}
+                  <span className="font-medium">{t('settings.personalInfo.bmi')}:</span> {calculateBMI(currentWeightKg, heightCm)} - {" "}
                   <span className={cn(
                     "font-medium",
                     getBMICategory(calculateBMI(currentWeightKg, heightCm)).color === "success" && "text-success",
                     getBMICategory(calculateBMI(currentWeightKg, heightCm)).color === "warning" && "text-warning",
                     getBMICategory(calculateBMI(currentWeightKg, heightCm)).color === "destructive" && "text-destructive"
                   )}>
-                    {getBMICategory(calculateBMI(currentWeightKg, heightCm)).label}
+                    {t(getBMICategory(calculateBMI(currentWeightKg, heightCm)).labelKey)}
                   </span>
                 </p>
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPersonalInfoOpen(false)}>İptal</Button>
+            <Button variant="outline" onClick={() => setPersonalInfoOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={savePersonalInfo} disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kaydet"}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -593,15 +613,15 @@ const SettingsPage = () => {
       <Dialog open={goalsOpen} onOpenChange={setGoalsOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Hedefler</DialogTitle>
+            <DialogTitle>{t('settings.goals.title')}</DialogTitle>
             <DialogDescription>
-              Kalori ve makro hedeflerinizi düzenleyin
+              {t('settings.goals.desc')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Aktivite Seviyesi</Label>
+              <Label>{t('settings.goals.activityLevel')}</Label>
               <RadioGroup
                 value={activityLevel}
                 onValueChange={(v) => setActivityLevel(v as ActivityLevel)}
@@ -618,7 +638,7 @@ const SettingsPage = () => {
                   >
                     <RadioGroupItem value={key} id={`activity-${key}`} />
                     <Label htmlFor={`activity-${key}`} className="cursor-pointer text-sm">
-                      {level.label}
+                      {t(`settings.goals.activity.${key}`)}
                     </Label>
                   </div>
                 ))}
@@ -626,7 +646,7 @@ const SettingsPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Hedef</Label>
+              <Label>{t('settings.goals.goalType')}</Label>
               <RadioGroup
                 value={goal}
                 onValueChange={(v) => setGoal(v as Goal)}
@@ -643,16 +663,16 @@ const SettingsPage = () => {
                   >
                     <RadioGroupItem value={key} id={`goal-${key}`} className="sr-only" />
                     <Label htmlFor={`goal-${key}`} className="cursor-pointer text-xs">
-                      {g.label}
+                      {t(`settings.goals.goal.${key}`)}
                     </Label>
                   </div>
                 ))}
               </RadioGroup>
             </div>
 
-            <Button 
-              variant="outline" 
-              className="w-full" 
+            <Button
+              variant="outline"
+              className="w-full"
               onClick={recalculateMacros}
               disabled={isRecalculating}
             >
@@ -661,14 +681,14 @@ const SettingsPage = () => {
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              {isRecalculating ? "AI Hesaplıyor..." : "AI ile Hedefleri Hesapla"}
+              {isRecalculating ? t('settings.goals.calculating') : t('settings.goals.aiCalculate')}
             </Button>
 
             <Separator />
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="calories">Kalori (kcal)</Label>
+                <Label htmlFor="calories">{t('settings.goals.calories')}</Label>
                 <Input
                   id="calories"
                   type="number"
@@ -677,7 +697,7 @@ const SettingsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="water">Su (ml)</Label>
+                <Label htmlFor="water">{t('settings.goals.water')}</Label>
                 <Input
                   id="water"
                   type="number"
@@ -690,7 +710,7 @@ const SettingsPage = () => {
 
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="protein">Protein (g)</Label>
+                <Label htmlFor="protein">{t('settings.goals.protein')}</Label>
                 <Input
                   id="protein"
                   type="number"
@@ -699,7 +719,7 @@ const SettingsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="carbs">Karb (g)</Label>
+                <Label htmlFor="carbs">{t('settings.goals.carbs')}</Label>
                 <Input
                   id="carbs"
                   type="number"
@@ -708,7 +728,7 @@ const SettingsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fat">Yağ (g)</Label>
+                <Label htmlFor="fat">{t('settings.goals.fat')}</Label>
                 <Input
                   id="fat"
                   type="number"
@@ -718,11 +738,11 @@ const SettingsPage = () => {
               </div>
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGoalsOpen(false)}>İptal</Button>
+            <Button variant="outline" onClick={() => setGoalsOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={saveGoals} disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kaydet"}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -732,18 +752,18 @@ const SettingsPage = () => {
       <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Bildirim Ayarları</DialogTitle>
+            <DialogTitle>{t('settings.notifications.title')}</DialogTitle>
             <DialogDescription>
-              Her bildirim türü için kanal ve zamanlama ayarlarını yapın
+              {t('settings.notifications.desc')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <NotificationPreferences />
           </div>
-          
+
           <DialogFooter>
-            <Button onClick={() => setNotificationsOpen(false)}>Kapat</Button>
+            <Button onClick={() => setNotificationsOpen(false)}>{t('common.close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -752,12 +772,12 @@ const SettingsPage = () => {
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Verileri İçe Aktar</DialogTitle>
+            <DialogTitle>{t('settings.import.title')}</DialogTitle>
             <DialogDescription>
-              Daha önce dışa aktardığınız JSON dosyasını seçin. Mevcut verileriniz korunacak, sadece yeni kayıtlar eklenecek.
+              {t('settings.import.desc')}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
               <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
@@ -765,7 +785,7 @@ const SettingsPage = () => {
                 htmlFor="import-file"
                 className="cursor-pointer text-primary hover:underline"
               >
-                {isImporting ? "İçe aktarılıyor..." : "Dosya Seçin"}
+                {isImporting ? t('settings.items.importing') : t('settings.import.fileSelect')}
               </Label>
               <input
                 id="import-file"
@@ -783,14 +803,14 @@ const SettingsPage = () => {
                 }}
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Sadece CaloriX JSON yedek dosyaları desteklenir
+                {t('settings.import.fileNote')}
               </p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
-              İptal
+              {t('common.cancel')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -805,7 +825,7 @@ const SettingsPage = () => {
               Yeni parolanızı girin
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="newPassword">Yeni Parola</Label>
@@ -817,7 +837,7 @@ const SettingsPage = () => {
                 onChange={(e) => setNewPassword(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Parola Tekrar</Label>
               <Input
@@ -829,7 +849,7 @@ const SettingsPage = () => {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
               İptal

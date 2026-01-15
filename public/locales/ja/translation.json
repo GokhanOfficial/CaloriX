@@ -1,0 +1,467 @@
+{
+    "common": {
+        "loading": "読み込み中...",
+        "error": "エラー",
+        "success": "成功",
+        "cancel": "キャンセル",
+        "save": "保存",
+        "close": "閉じる",
+        "send": "送信",
+        "back": "戻る",
+        "resend": "再送信",
+        "healthDisclaimer": "⚠️ このアプリは情報提供のみを目的としており、医療アドバイスではありません。栄養と健康に関しては専門家にご相談ください。",
+        "appName": "CaloriX",
+        "required": "必須項目",
+        "food": "食品",
+        "aiPoweredBy": "AI提供",
+        "today": "今日",
+        "yesterday": "昨日",
+        "tomorrow": "明日",
+        "meal": "食事",
+        "searchFood": "食品を検索",
+        "searchPlaceholder": "食品を検索...",
+        "version": "バージョン"
+    },
+    "header": {
+        "online": "オンライン",
+        "offline": "オフライン",
+        "signedOut": "ログアウト済み",
+        "goodbye": "さようなら!",
+        "user": "ユーザー"
+    },
+    "bmi": {
+        "underweight": "低体重",
+        "normal": "正常",
+        "overweight": "過体重",
+        "obese": "肥満"
+    },
+    "notificationTypes": {
+        "weighIn": {
+            "title": "体重計測リマインダー",
+            "description": "定期的な体重計測のリマインダー"
+        },
+        "dailyLog": {
+            "title": "デイリーログ",
+            "description": "24時間記録がない場合のリマインダー"
+        },
+        "water": {
+            "title": "水分リマインダー",
+            "description": "水分摂取のリマインダー"
+        },
+        "goalAchieved": {
+            "title": "目標達成",
+            "description": "目標達成時の通知"
+        },
+        "weeklySummary": {
+            "title": "週間サマリー",
+            "description": "週間進捗レポート"
+        },
+        "enablePush": "プッシュ通知を有効化",
+        "pushBlocked": "プッシュ通知がブロックされています",
+        "pushBlockedDesc": "ブラウザ設定で通知を許可してください。",
+        "push": "プッシュ",
+        "email": "メール"
+    },
+    "dialogs": {
+        "add": "追加",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "back": "戻る",
+        "search": "検索",
+        "results": "結果",
+        "noResults": "結果なし",
+        "analyzeWithAI": "AIで分析",
+        "reanalyze": "再分析",
+        "example": "例",
+        "optional": "任意",
+        "required": "必須",
+        "customAmount": "カスタム量",
+        "addWithAI": "AIで追加",
+        "addWithBarcode": "バーコードで追加",
+        "addFood": "食品を追加",
+        "editFood": "食品を編集",
+        "searchFood": "食品を検索",
+        "foodName": "食品名",
+        "searchPlaceholder": "食品を検索...",
+        "meal": "食事",
+        "amount": "量",
+        "amountGram": "量（グラム）",
+        "suggestedPortion": "推奨ポーション",
+        "calculatedValues": "計算値",
+        "per100g": "100gあたり",
+        "total": "合計",
+        "protein": "タンパク質",
+        "carbs": "炭水化物",
+        "fat": "脂質",
+        "recognizedFoods": "認識された食品",
+        "recognizing": "認識中...",
+        "aiAnalyzing": "AI分析中...",
+        "portionHint": "ポーション情報を追加",
+        "photoOrTextRequired": "写真またはテキストが必要",
+        "photo": "写真",
+        "takePhoto": "写真を撮る",
+        "selectFromGallery": "ギャラリーから選択",
+        "selectedFood": "選択した食品",
+        "whatDidYouEat": "何を食べましたか？",
+        "additionalInfo": "追加情報",
+        "photoAdditionalHint": "ポーション詳細を追加",
+        "textOrPhotoRequired": "写真をアップロードするか食べたものを説明してください",
+        "aiRequiresInternet": "AI分析にはインターネットが必要",
+        "analysisFailed": "分析に失敗",
+        "offlineMode": "オフライン：ローカル検索のみ",
+        "selectAtLeastOne": "少なくとも1つ選択してください",
+        "foodAdded": "食品を追加しました",
+        "foodsAdded": "件追加",
+        "saveFailed": "保存に失敗",
+        "inputText": "入力テキスト",
+        "confidence": "信頼度",
+        "calories": "カロリー",
+        "calPer100g": "カロリー/100g",
+        "proPer100g": "タンパク質/100g",
+        "carbPer100g": "炭水化物/100g",
+        "fatPer100g": "脂質/100g",
+        "barcode": {
+            "title": "バーコードで追加",
+            "scanning": "スキャン中...",
+            "productFound": "商品が見つかりました",
+            "productNotFound": "商品が見つかりません",
+            "tryAgain": "再試行",
+            "manualEntry": "手動入力"
+        },
+        "weight": {
+            "title": "体重を記録",
+            "currentWeight": "現在の体重",
+            "unit": "kg",
+            "saved": "体重を保存しました"
+        },
+        "edit": {
+            "title": "エントリーを編集",
+            "updated": "エントリーを更新しました",
+            "deleted": "エントリーを削除しました"
+        }
+    },
+    "export": {
+        "success": "エクスポート完了",
+        "mealEntries": "食事記録",
+        "waterEntries": "水分記録",
+        "weightEntries": "体重記録",
+        "imported": "インポート完了",
+        "foods": "食品"
+    },
+    "notifications": {
+        "title": "通知",
+        "new": "新着",
+        "markAllRead": "すべて既読にする",
+        "empty": "通知はありません"
+    },
+    "auth": {
+        "signIn": "ログイン",
+        "signUp": "新規登録",
+        "email": "メールアドレス",
+        "password": "パスワード",
+        "name": "名前",
+        "nameOptional": "名前（任意）",
+        "forgotPassword": "パスワードをお忘れですか",
+        "forgotPasswordTitle": "パスワードをお忘れですか",
+        "forgotPasswordDesc": "メールアドレスを入力してください。パスワードリセットリンクをお送りします",
+        "sendResetLink": "リセットリンクを送信",
+        "resetPassword": "パスワードをリセット",
+        "resetPasswordTitle": "新しいパスワードを設定",
+        "resetPasswordDesc": "アカウントの新しいパスワードを設定してください",
+        "newPassword": "新しいパスワード",
+        "confirmPassword": "パスワード確認",
+        "updatePassword": "パスワードを更新",
+        "signInTab": "ログイン",
+        "signUpTab": "新規登録",
+        "signInDesc": "アカウントにログイン",
+        "signUpDesc": "新しいアカウントを作成",
+        "tagline": "カロリーとマクロ栄養素を追跡するスマートアシスタント",
+        "validation": {
+            "invalidEmail": "有効なメールアドレスを入力してください",
+            "passwordLength": "パスワードは6文字以上必要です",
+            "passwordMismatch": "パスワードが一致しません",
+            "userAlreadyRegistered": "このメールアドレスは既に登録されています",
+            "invalidLogin": "メールアドレスまたはパスワードが無効です",
+            "emailNotConfirmed": "メールアドレスを確認してください"
+        },
+        "messages": {
+            "signInSuccess": "ログインしました",
+            "signUpSuccess": "登録完了！確認メールを送信しました。",
+            "resetEmailSent": "リセットリンクをメールで送信しました",
+            "passwordUpdated": "パスワードが更新されました",
+            "verificationSent": "新しい確認メールを送信しました",
+            "emailVerified": "メール確認完了！",
+            "emailVerifiedDesc": "アカウントが正常に確認されました。"
+        },
+        "pendingVerification": {
+            "title": "メール確認待ち",
+            "description": "{{email}}に確認メールを送信しました。受信トレイを確認し、確認リンクをクリックしてください。",
+            "spamNote": "メールが届かない場合は、迷惑メールフォルダを確認するか、再送信してください。",
+            "differentAccount": "別のアカウントでログイン"
+        },
+        "button": {
+            "signingIn": "ログイン中...",
+            "signingUp": "登録中...",
+            "sending": "送信中...",
+            "saving": "保存中..."
+        }
+    },
+    "meals": {
+        "breakfast": "朝食",
+        "lunch": "昼食",
+        "dinner": "夕食",
+        "snack": "間食"
+    },
+    "nav": {
+        "home": "ホーム",
+        "add": "追加",
+        "analytics": "分析",
+        "settings": "設定"
+    },
+    "settings": {
+        "title": "設定",
+        "darkTheme": "ダークテーマ",
+        "active": "オン",
+        "inactive": "オフ",
+        "sections": {
+            "profile": "プロフィール",
+            "app": "アプリ",
+            "data": "データ",
+            "account": "アカウント",
+            "about": "このアプリについて"
+        },
+        "items": {
+            "personalInfo": "個人情報",
+            "goals": "目標",
+            "notifications": "通知",
+            "exportData": "データをエクスポート",
+            "exporting": "エクスポート中...",
+            "exportDesc": "JSON形式でバックアップ",
+            "importData": "データをインポート",
+            "importing": "インポート中...",
+            "importDesc": "バックアップから復元",
+            "changePassword": "パスワード変更",
+            "changePasswordDesc": "アカウントのパスワードを更新",
+            "signOut": "ログアウト",
+            "signOutDesc": "アカウントからログアウト",
+            "aboutApp": "アプリについて"
+        },
+        "personalInfo": {
+            "title": "個人情報",
+            "desc": "プロフィール情報を更新",
+            "gender": "性別",
+            "male": "男性",
+            "female": "女性",
+            "other": "その他",
+            "birthDate": "生年月日",
+            "height": "身長 (cm)",
+            "weight": "体重 (kg)",
+            "targetWeight": "目標 (kg)",
+            "bmi": "BMI"
+        },
+        "goals": {
+            "title": "目標",
+            "desc": "カロリーとマクロの目標を編集",
+            "activityLevel": "活動レベル",
+            "goalType": "目標",
+            "aiCalculate": "AIで目標を計算",
+            "calculating": "AI計算中...",
+            "calories": "カロリー (kcal)",
+            "water": "水分 (ml)",
+            "protein": "タンパク質 (g)",
+            "carbs": "炭水化物 (g)",
+            "fat": "脂質 (g)",
+            "activity": {
+                "sedentary": "座りがち",
+                "light": "軽い運動",
+                "moderate": "適度な運動",
+                "active": "活発",
+                "very_active": "非常に活発"
+            },
+            "goal": {
+                "lose_fast": "速く減量",
+                "lose": "減量",
+                "maintain": "維持",
+                "gain": "筋肉増量"
+            }
+        },
+        "notifications": {
+            "title": "通知設定",
+            "desc": "通知チャンネルとタイミングを設定"
+        },
+        "import": {
+            "title": "データをインポート",
+            "desc": "以前エクスポートしたJSONファイルを選択してください。既存のデータは保持され、新しいレコードのみ追加されます。",
+            "fileSelect": "ファイルを選択",
+            "fileNote": "CaloriX JSONバックアップファイルのみサポート"
+        },
+        "messages": {
+            "personalInfoSaved": "個人情報を更新しました",
+            "goalsSaved": "目標を更新しました",
+            "settingsSaved": "設定を更新しました",
+            "passwordChanged": "パスワードを更新しました",
+            "aiSuccess": "AI計算完了",
+            "aiUpdate": "AIマクロ更新",
+            "error": "エラーが発生しました"
+        }
+    },
+    "dashboard": {
+        "title": "ホーム",
+        "welcome": "おかえりなさい",
+        "caloriesLeft": "残りカロリー",
+        "eaten": "摂取",
+        "burned": "消費",
+        "macros": "マクロ",
+        "water": "水分",
+        "noRecords": "記録なし",
+        "addFood": "食品を追加",
+        "waterTracker": "水分トラッカー",
+        "mlRemaining": "残り {{amount}} ml",
+        "goalReached": "目標達成！🎉",
+        "custom": "カスタム",
+        "logWeight": "体重を記録",
+        "weightOverdue": "{{days}}日間計測していません",
+        "lastWeight": "最後の計測: {{days}}日前",
+        "recordWeight": "体重を記録してください",
+        "quickAdd": "クイック追加",
+        "quick": {
+            "barcode": "バーコード",
+            "scan": "商品をスキャン",
+            "search": "検索",
+            "findFood": "食品を探す",
+            "ai": "AIで追加",
+            "photoText": "写真/テキスト",
+            "recent": "最近",
+            "history": "履歴から",
+            "favorites": "お気に入り",
+            "saved": "保存済み",
+            "offline": "オフラインモード: AI機能にはインターネットが必要です"
+        },
+        "dailySummary": "1日のまとめ",
+        "remaining": "残り kcal",
+        "consumed": "摂取",
+        "target": "目標",
+        "waterAdded": "+{{amount}}ml の水分を追加",
+        "dailyTotal": "1日の合計: {{total}}ml",
+        "errorWeight": "体重の保存エラー",
+        "weightSaved": "体重を保存しました",
+        "savedAs": "{{weight}} kg として保存",
+        "errorFood": "食品の追加エラー",
+        "foodAdded": "食品を追加しました",
+        "addedToMeal": "{{food}}を{{meal}}に追加しました",
+        "errorUpdate": "食品の更新エラー",
+        "foodUpdated": "食品を更新しました",
+        "updatedSuccessfully": "{{food}}を更新しました",
+        "errorDelete": "食品の削除エラー",
+        "foodDeleted": "食品を削除しました",
+        "deletedSuccessfully": "記録を削除しました"
+    },
+    "about": {
+        "title": "このアプリについて",
+        "subtitle": "カロリーとマクロ栄養素追跡アプリ",
+        "version": "バージョン {{version}}",
+        "features": {
+            "title": "機能",
+            "ai": "AI食品認識（写真とテキスト）",
+            "barcode": "バーコードスキャン",
+            "tracker": "水分と体重トラッカー",
+            "analytics": "詳細な分析とグラフ",
+            "notifications": "スマートリマインダー",
+            "offline": "オフラインサポート"
+        },
+        "developer": {
+            "title": "開発者",
+            "role": "ソフトウェア開発者"
+        },
+        "email": "メール",
+        "poweredBy": "提供",
+        "footer": {
+            "madeWith": "愛を込めて作成",
+            "inTurkey": "トルコで",
+            "copyright": "© 2025 CaloriX. All rights reserved."
+        }
+    },
+    "addFood": {
+        "title": "食品を追加",
+        "meal": "食事",
+        "ai": {
+            "title": "AI認識",
+            "buttonTitle": "AIで追加",
+            "buttonDesc": "写真またはテキストで食品を識別"
+        },
+        "offline": {
+            "title": "オフライン",
+            "desc": "AI認識にはインターネットが必要です"
+        },
+        "recent": {
+            "title": "最近",
+            "empty": "食品がまだ追加されていません"
+        },
+        "favorites": {
+            "title": "よく食べるもの",
+            "empty": "食品がまだ追加されていません"
+        },
+        "tabs": {
+            "search": "検索",
+            "barcode": "バーコード"
+        },
+        "search": {
+            "title": "食品を検索",
+            "placeholder": "食品名またはブランド...",
+            "noResults": "結果なし",
+            "promptTitle": "データベースから食品を検索",
+            "promptDesc": "2文字以上入力してください"
+        },
+        "barcode": {
+            "title": "バーコードをスキャン",
+            "scanTitle": "カメラでスキャン",
+            "scanDesc": "商品のバーコードをカメラに向けてください",
+            "openCamera": "カメラを開く"
+        },
+        "manual": {
+            "title": "手動入力",
+            "desc": "栄養成分を入力"
+        },
+        "toasts": {
+            "success": "食品を追加しました",
+            "error": "食品の追加エラー"
+        }
+    },
+    "analytics": {
+        "title": "分析",
+        "period": {
+            "week": "週",
+            "month": "月",
+            "3months": "3ヶ月"
+        },
+        "stats": {
+            "avgCalories": "平均カロリー",
+            "avgWater": "平均水分",
+            "avgProtein": "平均タンパク質",
+            "weightChange": "体重変化",
+            "target": "/ 目標"
+        },
+        "charts": {
+            "calories": {
+                "title": "カロリー推移"
+            },
+            "target": "目標",
+            "macros": {
+                "title": "マクロ推移（目標の%）",
+                "subtitle": "線 = 100%目標"
+            }
+        },
+        "averages": {
+            "title": "平均マクロ値"
+        },
+        "summary": {
+            "daysWithData": "データのある日数",
+            "day": "日"
+        },
+        "weightTrend": {
+            "first": "最初の記録",
+            "change": "変化",
+            "last": "最新の記録"
+        }
+    }
+}

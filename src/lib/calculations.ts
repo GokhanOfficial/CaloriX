@@ -23,7 +23,7 @@ export interface NutritionGoals {
  */
 export function calculateBMR(profile: Pick<UserProfile, 'weight' | 'height' | 'age' | 'gender'>): number {
   const { weight, height, age, gender } = profile;
-  
+
   if (gender === 'male') {
     return Math.round(10 * weight + 6.25 * height - 5 * age + 5);
   } else {
@@ -76,7 +76,7 @@ export function calculateNutritionGoals(profile: UserProfile): NutritionGoals {
   const bmr = calculateBMR(profile);
   const tdee = calculateTDEE(bmr, profile.activityLevel);
   const targetCalories = calculateTargetCalories(tdee, profile.goal);
-  
+
   return calculateMacros(targetCalories);
 }
 
@@ -88,7 +88,7 @@ export function calculateNutritionForAmount(
   amountGrams: number
 ): { kcal: number; protein: number; carbs: number; fat: number } {
   const multiplier = amountGrams / 100;
-  
+
   return {
     kcal: Math.round(per100g.kcal * multiplier),
     protein: Math.round(per100g.protein * multiplier * 10) / 10,
@@ -106,13 +106,13 @@ export function calculateBMI(weightKg: number, heightCm: number): number {
 }
 
 /**
- * Get BMI category
+ * Get BMI category - returns translation key instead of label
  */
-export function getBMICategory(bmi: number): { label: string; color: string } {
-  if (bmi < 18.5) return { label: 'Zayıf', color: 'info' };
-  if (bmi < 25) return { label: 'Normal', color: 'success' };
-  if (bmi < 30) return { label: 'Fazla Kilolu', color: 'warning' };
-  return { label: 'Obez', color: 'destructive' };
+export function getBMICategory(bmi: number): { labelKey: string; color: string } {
+  if (bmi < 18.5) return { labelKey: 'bmi.underweight', color: 'info' };
+  if (bmi < 25) return { labelKey: 'bmi.normal', color: 'success' };
+  if (bmi < 30) return { labelKey: 'bmi.overweight', color: 'warning' };
+  return { labelKey: 'bmi.obese', color: 'destructive' };
 }
 
 /**

@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+import { useTranslation } from "react-i18next";
 
 interface HeaderProps {
   title?: string;
@@ -21,6 +22,7 @@ interface HeaderProps {
 }
 
 export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
+  const { t } = useTranslation();
   const isOnline = useOnlineStatus();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -29,8 +31,8 @@ export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
   const handleSignOut = async () => {
     await signOut();
     toast({
-      title: "Çıkış Yapıldı",
-      description: "Güle güle!",
+      title: t('header.signedOut'),
+      description: t('header.goodbye'),
     });
     navigate("/auth", { replace: true });
   };
@@ -63,12 +65,12 @@ export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
               {isOnline ? (
                 <>
                   <Wifi className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Çevrimiçi</span>
+                  <span className="hidden sm:inline">{t('header.online')}</span>
                 </>
               ) : (
                 <>
                   <WifiOff className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Çevrimdışı</span>
+                  <span className="hidden sm:inline">{t('header.offline')}</span>
                 </>
               )}
             </div>
@@ -92,7 +94,7 @@ export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">
-                    {user.user_metadata?.display_name || "Kullanıcı"}
+                    {user.user_metadata?.display_name || t('header.user')}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {user.email}
@@ -101,7 +103,7 @@ export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Çıkış Yap
+                  {t('settings.items.signOut')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

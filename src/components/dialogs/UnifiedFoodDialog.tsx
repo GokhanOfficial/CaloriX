@@ -19,10 +19,10 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MEAL_TYPES, type MealType } from "@/lib/constants";
-import { 
-  Loader2, 
-  RefreshCw, 
-  Check, 
+import {
+  Loader2,
+  RefreshCw,
+  Check,
   AlertCircle,
   Search,
   Sparkles,
@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useFoodSearch, FoodSearchResult } from "@/hooks/useFoodSearch";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslation } from "react-i18next";
 
 interface RecognizedFood {
   name: string;
@@ -83,6 +84,7 @@ export function UnifiedFoodDialog({
   defaultTab = "search",
   onSubmit,
 }: UnifiedFoodDialogProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"search" | "ai">(defaultTab);
   const [step, setStep] = useState<"input" | "analyzing" | "results" | "manual">("input");
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
@@ -94,7 +96,7 @@ export function UnifiedFoodDialog({
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Manual entry state
   const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null);
   const [manualAmount, setManualAmount] = useState(100);
@@ -132,12 +134,12 @@ export function UnifiedFoodDialog({
   const analyzeWithAI = async () => {
     // Need either photo or text
     if (!imageData && !inputText.trim()) {
-      setError("Lütfen bir fotoğraf yükleyin veya ne yediğinizi yazın");
+      setError(t('dialogs.textOrPhotoRequired'));
       return;
     }
 
     if (!isOnline) {
-      setError("AI analizi için internet bağlantısı gerekli");
+      setError(t('dialogs.aiRequiresInternet'));
       return;
     }
 
@@ -147,7 +149,7 @@ export function UnifiedFoodDialog({
 
     try {
       let data;
-      
+
       if (imageData) {
         // Use photo recognition
         const response = await supabase.functions.invoke("recognize-food", {
@@ -193,7 +195,7 @@ export function UnifiedFoodDialog({
       setStep("results");
     } catch (err) {
       console.error("Recognition error:", err);
-      setError(err instanceof Error ? err.message : "Analiz başarısız oldu");
+      setError(err instanceof Error ? err.message : t('dialogs.analysisFailed'));
       setStep("input");
     } finally {
       setAnalyzing(false);
@@ -253,18 +255,18 @@ export function UnifiedFoodDialog({
     setSaving(false);
 
     if (!result.error) {
-      toast.success("Yiyecek eklendi");
+      toast.success(t('dialogs.foodAdded'));
       resetDialog();
       onOpenChange(false);
     } else {
-      toast.error("Kayıt başarısız: " + result.error.message);
+      toast.error(t('dialogs.saveFailed') + ": " + result.error.message);
     }
   };
 
   const handleSave = async () => {
     const selectedFoods = recognizedFoods.filter(f => f.selected);
     if (selectedFoods.length === 0) {
-      toast.error("En az bir yiyecek seçin");
+      toast.error(t('dialogs.selectAtLeastOne'));
       return;
     }
 
@@ -286,11 +288,11 @@ export function UnifiedFoodDialog({
     setSaving(false);
 
     if (!result.error) {
-      toast.success(`${selectedFoods.length} yiyecek eklendi`);
+      toast.success(`${selectedFoods.length} ${t('dialogs.foodsAdded')}`);
       resetDialog();
       onOpenChange(false);
     } else {
-      toast.error("Kayıt başarısız: " + result.error.message);
+      toast.error(t('dialogs.saveFailed') + ": " + result.error.message);
     }
   };
 
@@ -328,12 +330,12 @@ export function UnifiedFoodDialog({
             {mode === "search" ? (
               <>
                 <Search className="h-5 w-5 text-primary" />
-                Yiyecek Ara
+                {t('dialogs.searchFood')}
               </>
             ) : (
               <>
                 <Sparkles className="h-5 w-5 text-primary" />
-                AI ile Ekle
+                {t('dialogs.addWithAI')}
               </>
             )}
           </DialogTitle>
@@ -351,7 +353,7 @@ export function UnifiedFoodDialog({
                 onClick={() => setMode("search")}
               >
                 <Search className="mr-2 h-4 w-4" />
-                Ara
+                {t('dialogs.search')}
               </Button>
               <Button
                 variant={mode === "ai" ? "secondary" : "ghost"}
@@ -367,7 +369,7 @@ export function UnifiedFoodDialog({
 
             {/* Meal Type Selection */}
             <div className="space-y-2">
-              <Label>Öğün</Label>
+              <Label>{t('dialogs.meal')}</Label>
               <Select value={mealType} onValueChange={(v) => setMealType(v as MealType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -386,7 +388,7 @@ export function UnifiedFoodDialog({
               <>
                 {/* Search Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="searchFood">Yiyecek Adı</Label>
+                  <Label htmlFor="searchFood">{t('dialogs.foodName')}</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -394,7 +396,7 @@ export function UnifiedFoodDialog({
                       id="searchFood"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Yiyecek ara..."
+                      placeholder={t('dialogs.searchPlaceholder')}
                       className="pl-10"
                     />
                     {searchQuery && (
@@ -413,7 +415,7 @@ export function UnifiedFoodDialog({
                 {/* Search Results */}
                 {searchQuery.length >= 2 && (
                   <div className="space-y-2">
-                    <Label>Sonuçlar</Label>
+                    <Label>{t('dialogs.results')}</Label>
                     <ScrollArea className="h-64 rounded-lg border">
                       {searchLoading ? (
                         <div className="flex items-center justify-center h-20">
@@ -449,7 +451,7 @@ export function UnifiedFoodDialog({
                       ) : (
                         <div className="flex flex-col items-center justify-center h-32 text-center p-4">
                           <p className="text-sm text-muted-foreground">
-                            Sonuç bulunamadı
+                            {t('dialogs.noResults')}
                           </p>
                           {isOnline && (
                             <Button
@@ -461,7 +463,7 @@ export function UnifiedFoodDialog({
                               }}
                             >
                               <Sparkles className="mr-1 h-3 w-3" />
-                              AI ile analiz et
+                              {t('dialogs.analyzeWithAI')}
                             </Button>
                           )}
                         </div>
@@ -472,18 +474,18 @@ export function UnifiedFoodDialog({
 
                 {!isOnline && (
                   <p className="text-xs text-warning text-center">
-                    Çevrimdışı mod: Sadece yerel veritabanında arama yapılıyor
+                    {t('dialogs.offlineMode')}
                   </p>
                 )}
               </>
             ) : (
               <>
                 {/* AI Mode - Photo + Text */}
-                
+
                 {/* Photo Section */}
                 <div className="space-y-2">
                   <Label>
-                    Fotoğraf <span className="text-muted-foreground text-xs">(opsiyonel)</span>
+                    {t('dialogs.photo')} <span className="text-muted-foreground text-xs">({t('dialogs.optional')})</span>
                   </Label>
                   {imageData ? (
                     <div className="relative rounded-lg overflow-hidden border border-border">
@@ -509,7 +511,7 @@ export function UnifiedFoodDialog({
                         onClick={() => cameraInputRef.current?.click()}
                       >
                         <Camera className="h-5 w-5" />
-                        <span className="text-xs">Fotoğraf Çek</span>
+                        <span className="text-xs">{t('dialogs.takePhoto')}</span>
                       </Button>
                       <Button
                         variant="outline"
@@ -517,7 +519,7 @@ export function UnifiedFoodDialog({
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <ImagePlus className="h-5 w-5" />
-                        <span className="text-xs">Galeriden Seç</span>
+                        <span className="text-xs">{t('dialogs.selectFromGallery')}</span>
                       </Button>
                     </div>
                   )}
@@ -541,22 +543,22 @@ export function UnifiedFoodDialog({
                 {/* Text Input */}
                 <div className="space-y-2">
                   <Label htmlFor="foodText">
-                    Ne yediniz? <span className="text-muted-foreground text-xs">{imageData ? "(opsiyonel ek bilgi)" : "(zorunlu)"}</span>
+                    {t('dialogs.whatDidYouEat')} <span className="text-muted-foreground text-xs">{imageData ? `(${t('dialogs.optional')} ${t('dialogs.additionalInfo')})` : `(${t('dialogs.required')})`}</span>
                   </Label>
                   <Textarea
                     id="foodText"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder={imageData 
-                      ? "Ek bilgi: 2 dilim ekmek, yarım porsiyon pilav..." 
-                      : "Örn: 2 dilim ekmek, 1 yumurta, 1 bardak süt..."
+                    placeholder={imageData
+                      ? t('dialogs.photoAdditionalHint')
+                      : `${t('dialogs.example')} 2 dilim ekmek, 1 yumurta, 1 bardak süt...`
                     }
                     rows={3}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {imageData 
-                      ? "Porsiyon bilgisi veya içerik detayı ekleyebilirsiniz"
-                      : "Fotoğraf veya metin girmeniz gerekiyor"
+                    {imageData
+                      ? t('dialogs.portionHint')
+                      : t('dialogs.photoOrTextRequired')
                     }
                   </p>
                 </div>
@@ -570,14 +572,14 @@ export function UnifiedFoodDialog({
 
                 <DialogFooter>
                   <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                    İptal
+                    {t('dialogs.cancel')}
                   </Button>
-                  <Button 
-                    onClick={analyzeWithAI} 
+                  <Button
+                    onClick={analyzeWithAI}
                     disabled={(!imageData && !inputText.trim()) || !isOnline}
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Analiz Et
+                    {t('dialogs.analyzeWithAI')}
                   </Button>
                 </DialogFooter>
               </>
@@ -621,7 +623,7 @@ export function UnifiedFoodDialog({
 
             {/* Amount */}
             <div className="space-y-2">
-              <Label>Miktar (gram)</Label>
+              <Label>{t('dialogs.amountGram')}</Label>
               <Input
                 type="number"
                 value={manualAmount}
@@ -630,7 +632,7 @@ export function UnifiedFoodDialog({
               />
               {selectedFood.serving_size_g && (
                 <p className="text-xs text-muted-foreground">
-                  Önerilen porsiyon: {selectedFood.serving_size_g}g
+                  {t('dialogs.suggestedPortion')}: {selectedFood.serving_size_g}g
                 </p>
               )}
             </div>
@@ -638,7 +640,7 @@ export function UnifiedFoodDialog({
             {/* Calculated Preview */}
             <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
               <p className="text-xs text-muted-foreground mb-1">
-                {manualAmount}g için hesaplanan değerler:
+                {manualAmount}g {t('dialogs.calculatedValues')}:
               </p>
               <div className="flex justify-between text-sm font-medium">
                 <span>{Math.round((selectedFood.calories / 100) * manualAmount)} kcal</span>
@@ -653,7 +655,7 @@ export function UnifiedFoodDialog({
                 setSelectedFood(null);
                 setStep("input");
               }}>
-                Geri
+                {t('dialogs.back')}
               </Button>
               <Button onClick={handleSaveManual} disabled={saving || manualAmount <= 0}>
                 {saving ? (
@@ -661,7 +663,7 @@ export function UnifiedFoodDialog({
                 ) : (
                   <Check className="mr-2 h-4 w-4" />
                 )}
-                Kaydet
+                {t('dialogs.save')}
               </Button>
             </DialogFooter>
           </div>
@@ -685,9 +687,9 @@ export function UnifiedFoodDialog({
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             )}
             <div className="text-center">
-              <p className="font-medium">AI Analiz Ediyor...</p>
+              <p className="font-medium">{t('dialogs.aiAnalyzing')}</p>
               <p className="text-sm text-muted-foreground">
-                Yiyecekler tanınıyor ve besin değerleri hesaplanıyor
+                {t('dialogs.recognizing')}
               </p>
             </div>
           </div>
@@ -710,7 +712,7 @@ export function UnifiedFoodDialog({
             {/* Original Text */}
             {inputText && !imageData && (
               <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                <p className="text-muted-foreground mb-1">Girilen metin:</p>
+                <p className="text-muted-foreground mb-1">{t('dialogs.inputText')}:</p>
                 <p>{inputText}</p>
               </div>
             )}
@@ -741,7 +743,7 @@ export function UnifiedFoodDialog({
 
             {/* Recognized Foods */}
             <div className="space-y-2">
-              <Label>Tanınan Yiyecekler ({recognizedFoods.length})</Label>
+              <Label>{t('dialogs.recognizedFoods')} ({recognizedFoods.length})</Label>
               <div className="space-y-3 max-h-60 overflow-y-auto">
                 {recognizedFoods.map((food, index) => (
                   <div
@@ -772,7 +774,7 @@ export function UnifiedFoodDialog({
                         </div>
                         <div className="grid grid-cols-5 gap-1 text-xs">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Miktar (g)</Label>
+                            <Label className="text-xs text-muted-foreground">{t('dialogs.amount')} (g)</Label>
                             <Input
                               type="number"
                               value={food.amount_g_ml}
@@ -781,7 +783,7 @@ export function UnifiedFoodDialog({
                             />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Kal/100g</Label>
+                            <Label className="text-xs text-muted-foreground">{t('dialogs.calPer100g')}</Label>
                             <Input
                               type="number"
                               value={food.calories_per_100g}
@@ -790,7 +792,7 @@ export function UnifiedFoodDialog({
                             />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Pro/100g</Label>
+                            <Label className="text-xs text-muted-foreground">{t('dialogs.proPer100g')}</Label>
                             <Input
                               type="number"
                               value={food.protein_g_per_100g}
@@ -799,7 +801,7 @@ export function UnifiedFoodDialog({
                             />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Karb/100g</Label>
+                            <Label className="text-xs text-muted-foreground">{t('dialogs.carbPer100g')}</Label>
                             <Input
                               type="number"
                               value={food.carbs_g_per_100g}
@@ -808,7 +810,7 @@ export function UnifiedFoodDialog({
                             />
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Yağ/100g</Label>
+                            <Label className="text-xs text-muted-foreground">{t('dialogs.fatPer100g')}</Label>
                             <Input
                               type="number"
                               value={food.fat_g_per_100g}
@@ -819,11 +821,11 @@ export function UnifiedFoodDialog({
                         </div>
                         {/* Calculated totals */}
                         <div className="mt-2 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
-                          <span className="font-medium">Toplam: </span>
-                          {Math.round((food.calories_per_100g / 100) * food.amount_g_ml)} kcal, 
-                          {" "}{Math.round((food.protein_g_per_100g / 100) * food.amount_g_ml * 10) / 10}g protein, 
-                          {" "}{Math.round((food.carbs_g_per_100g / 100) * food.amount_g_ml * 10) / 10}g karb, 
-                          {" "}{Math.round((food.fat_g_per_100g / 100) * food.amount_g_ml * 10) / 10}g yağ
+                          <span className="font-medium">{t('dialogs.total')}: </span>
+                          {Math.round((food.calories_per_100g / 100) * food.amount_g_ml)} kcal,
+                          {" "}{Math.round((food.protein_g_per_100g / 100) * food.amount_g_ml * 10) / 10}g {t('dialogs.protein')},
+                          {" "}{Math.round((food.carbs_g_per_100g / 100) * food.amount_g_ml * 10) / 10}g {t('dialogs.carbs')},
+                          {" "}{Math.round((food.fat_g_per_100g / 100) * food.amount_g_ml * 10) / 10}g {t('dialogs.fat')}
                         </div>
                       </div>
                     </div>
@@ -847,11 +849,11 @@ export function UnifiedFoodDialog({
                 className="w-full sm:w-auto"
               >
                 <RefreshCw className={cn("mr-2 h-4 w-4", analyzing && "animate-spin")} />
-                Tekrar Analiz Et
+                {t('dialogs.reanalyze')}
               </Button>
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button variant="ghost" onClick={() => setStep("input")}>
-                  Geri
+                  {t('dialogs.back')}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -863,7 +865,7 @@ export function UnifiedFoodDialog({
                   ) : (
                     <Check className="mr-2 h-4 w-4" />
                   )}
-                  Kaydet ({recognizedFoods.filter(f => f.selected).length})
+                  {t('dialogs.save')} ({recognizedFoods.filter(f => f.selected).length})
                 </Button>
               </div>
             </DialogFooter>

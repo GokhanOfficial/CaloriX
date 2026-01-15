@@ -10,28 +10,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Loader2, 
-  ChevronLeft, 
-  ChevronRight, 
-  User, 
-  Ruler, 
-  Activity, 
+import {
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Ruler,
+  Activity,
   Target,
   Sparkles,
   Check
 } from "lucide-react";
 import { z } from "zod";
-import { 
-  calculateBMR, 
-  calculateTDEE, 
-  calculateTargetCalories, 
+import {
+  calculateBMR,
+  calculateTDEE,
+  calculateTargetCalories,
   calculateMacros,
   calculateBMI,
   getBMICategory
 } from "@/lib/calculations";
 import { ACTIVITY_LEVELS, GOALS, HEALTH_DISCLAIMER, type ActivityLevel, type Goal } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 const TOTAL_STEPS = 5;
 
@@ -67,7 +68,7 @@ export default function OnboardingPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [hasCalculated, setHasCalculated] = useState(false);
-  
+
   // Form state
   const [displayName, setDisplayName] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -77,7 +78,7 @@ export default function OnboardingPage() {
   const [targetWeightKg, setTargetWeightKg] = useState<number>(70);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>("moderate");
   const [goal, setGoal] = useState<Goal>("maintain");
-  
+
   // Calculated values
   const [calculatedGoals, setCalculatedGoals] = useState<{
     bmr: number;
@@ -90,32 +91,33 @@ export default function OnboardingPage() {
     waterTarget: number;
     explanation?: string;
   } | null>(null);
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const { user } = useAuth();
   const { profile, refetch: refetchProfile } = useProfile();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // Load existing profile data
   useEffect(() => {
     async function loadProfile() {
       if (!user) return;
-      
+
       setIsLoading(true);
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
-      
+
       if (data && !error) {
         if (data.onboarding_completed) {
           navigate("/", { replace: true });
           return;
         }
-        
+
         if (data.display_name) setDisplayName(data.display_name);
         if (data.birth_date) setBirthDate(data.birth_date);
         if (data.gender) setGender(data.gender as "male" | "female" | "other");
@@ -127,20 +129,20 @@ export default function OnboardingPage() {
       }
       setIsLoading(false);
     }
-    
+
     loadProfile();
   }, [user, navigate]);
 
   // Calculate goals using AI when moving to step 5
   const calculateWithAI = async (): Promise<boolean> => {
     if (!birthDate || !heightCm || !currentWeightKg) return false;
-    
+
     setIsCalculating(true);
-    
+
     try {
       const age = calculateAge(new Date(birthDate));
       const bmi = calculateBMI(currentWeightKg, heightCm);
-      
+
       const { data, error } = await supabase.functions.invoke('calculate-macros', {
         body: {
           age,
@@ -152,7 +154,7 @@ export default function OnboardingPage() {
           goal,
         },
       });
-      
+
       if (error) {
         console.error('AI calculation error:', error);
         // Fallback to local calculation
@@ -162,7 +164,7 @@ export default function OnboardingPage() {
         const targetCalories = calculateTargetCalories(tdee, goal);
         const macros = calculateMacros(targetCalories);
         const calculatedWater = Math.round(currentWeightKg * 33);
-        
+
         setCalculatedGoals({
           bmr,
           tdee,
@@ -173,7 +175,7 @@ export default function OnboardingPage() {
           bmi,
           waterTarget: calculatedWater,
         });
-        
+
         toast({
           title: "Bilgi",
           description: "AI hesaplama yapılamadı, yerel formüller kullanıldı",
@@ -190,13 +192,13 @@ export default function OnboardingPage() {
           waterTarget: data.daily_water_target_ml,
           explanation: data.explanation,
         });
-        
+
         toast({
           title: "AI Hesaplama Tamamlandı ✨",
           description: data.explanation || "Hedefleriniz hesaplandı",
         });
       }
-      
+
       setHasCalculated(true);
       return true;
     } catch (err) {
@@ -210,7 +212,7 @@ export default function OnboardingPage() {
       const macros = calculateMacros(targetCalories);
       const bmi = calculateBMI(currentWeightKg, heightCm);
       const calculatedWater = Math.round(currentWeightKg * 33);
-      
+
       setCalculatedGoals({
         bmr,
         tdee,
@@ -221,7 +223,7 @@ export default function OnboardingPage() {
         bmi,
         waterTarget: calculatedWater,
       });
-      
+
       setHasCalculated(true);
       return true;
     } finally {
@@ -231,7 +233,7 @@ export default function OnboardingPage() {
 
   const validateStep = (stepNumber: number): boolean => {
     setErrors({});
-    
+
     try {
       switch (stepNumber) {
         case 1:
@@ -264,7 +266,7 @@ export default function OnboardingPage() {
   const handleNext = async () => {
     if (validateStep(step)) {
       const nextStep = step + 1;
-      
+
       // Trigger AI calculation only once when moving from step 4 to step 5 (summary)
       if (nextStep === TOTAL_STEPS && !hasCalculated) {
         setStep(nextStep);
@@ -286,9 +288,9 @@ export default function OnboardingPage() {
 
   const handleComplete = async () => {
     if (!user || !calculatedGoals) return;
-    
+
     setIsSaving(true);
-    
+
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -311,9 +313,9 @@ export default function OnboardingPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
-    
+
     setIsSaving(false);
-    
+
     if (error) {
       toast({
         title: "Hata",
@@ -322,15 +324,15 @@ export default function OnboardingPage() {
       });
       return;
     }
-    
+
     // Refetch profile to update context state
     await refetchProfile();
-    
+
     toast({
       title: "Hoş Geldiniz! 🎉",
       description: "Profiliniz başarıyla oluşturuldu",
     });
-    
+
     navigate("/", { replace: true });
   };
 
@@ -508,7 +510,7 @@ export default function OnboardingPage() {
                         getBMICategory(calculatedGoals.bmi).color === "destructive" && "text-destructive",
                         getBMICategory(calculatedGoals.bmi).color === "info" && "text-info"
                       )}>
-                        {getBMICategory(calculatedGoals.bmi).label}
+                        {t(getBMICategory(calculatedGoals.bmi).labelKey)}
                       </span>
                     </p>
                   </div>
@@ -739,7 +741,7 @@ export default function OnboardingPage() {
                 Geri
               </Button>
             )}
-            
+
             {step < TOTAL_STEPS ? (
               <Button onClick={handleNext} disabled={isCalculating} className="flex-1">
                 {isCalculating ? (

@@ -19,8 +19,10 @@ import { useDailyData } from "@/hooks/useDailyData";
 import { useProfile } from "@/contexts/ProfileContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useTranslation } from "react-i18next";
 
 const Index = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [addMealOpen, setAddMealOpen] = useState(false);
@@ -75,8 +77,8 @@ const Index = () => {
       });
     } else {
       toast({
-        title: `+${amount}ml su eklendi`,
-        description: `Günlük toplam: ${totalWater + amount}ml`,
+        title: t('dashboard.waterAdded', { amount }),
+        description: t('dashboard.dailyTotal', { total: totalWater + amount }),
       });
     }
   };
@@ -89,8 +91,8 @@ const Index = () => {
     const { error } = await addWeightEntry(weight, note);
     if (error) {
       toast({
-        title: "Hata",
-        description: "Kilo kaydedilirken bir hata oluştu",
+        title: t('common.error'),
+        description: t('dashboard.errorWeight'),
         variant: "destructive",
       });
       return { error };
@@ -104,9 +106,9 @@ const Index = () => {
           body: {
             age: profile.birth_date
               ? Math.floor(
-                  (Date.now() - new Date(profile.birth_date).getTime()) /
-                    (365.25 * 24 * 60 * 60 * 1000)
-                )
+                (Date.now() - new Date(profile.birth_date).getTime()) /
+                (365.25 * 24 * 60 * 60 * 1000)
+              )
               : 30,
             gender: profile.gender || "other",
             height_cm: profile.height_cm || 170,
@@ -116,11 +118,11 @@ const Index = () => {
             goal: profile.goal || "maintain",
             previous_macros: profile.daily_calorie_target
               ? {
-                  daily_calorie_target: profile.daily_calorie_target,
-                  protein_target_g: profile.protein_target_g || 0,
-                  carbs_target_g: profile.carbs_target_g || 0,
-                  fat_target_g: profile.fat_target_g || 0,
-                }
+                daily_calorie_target: profile.daily_calorie_target,
+                protein_target_g: profile.protein_target_g || 0,
+                carbs_target_g: profile.carbs_target_g || 0,
+                fat_target_g: profile.fat_target_g || 0,
+              }
               : undefined,
             previous_weight_kg: profile.current_weight_kg,
           },
@@ -142,8 +144,8 @@ const Index = () => {
             .eq("id", profile.id);
 
           toast({
-            title: "Kilo kaydedildi",
-            description: response.data.explanation || "Makrolar yeni kiloya göre güncellendi",
+            title: t('dashboard.weightSaved'),
+            description: response.data.explanation || t('settings.messages.aiUpdateDesc'),
           });
         }
       } catch (err) {
@@ -151,8 +153,8 @@ const Index = () => {
       }
     } else {
       toast({
-        title: "Kilo kaydedildi",
-        description: `${weight} kg olarak kaydedildi`,
+        title: t('dashboard.weightSaved'),
+        description: t('dashboard.savedAs', { weight }),
       });
     }
 
@@ -189,16 +191,16 @@ const Index = () => {
 
     if (error) {
       toast({
-        title: "Hata",
-        description: "Yiyecek eklenirken bir hata oluştu",
+        title: t('common.error'),
+        description: t('dashboard.errorFood'),
         variant: "destructive",
       });
       return { error };
     }
 
     toast({
-      title: "Yiyecek eklendi",
-      description: `${data.custom_name} ${MEAL_TYPES[data.meal_type].label} öğününe eklendi`,
+      title: t('dashboard.foodAdded'),
+      description: t('dashboard.addedToMeal', { food: data.custom_name, meal: t(`meals.${data.meal_type}`) }),
     });
     return { error: null };
   };
@@ -209,7 +211,7 @@ const Index = () => {
     if (entry) {
       setEditingEntry({
         id: entry.id,
-        name: entry.custom_name || "Yiyecek",
+        name: entry.custom_name || t('common.food'),
         mealType: entry.meal_type,
         amount: entry.amount_g_ml,
         calories: entry.calculated_kcal,
@@ -243,16 +245,16 @@ const Index = () => {
 
     if (error) {
       toast({
-        title: "Hata",
-        description: "Yiyecek güncellenirken bir hata oluştu",
+        title: t('common.error'),
+        description: t('dashboard.errorUpdate'),
         variant: "destructive",
       });
       return { error };
     }
 
     toast({
-      title: "Yiyecek güncellendi",
-      description: `${data.custom_name} başarıyla güncellendi`,
+      title: t('dashboard.foodUpdated'),
+      description: t('dashboard.updatedSuccessfully', { food: data.custom_name }),
     });
     return { error: null };
   };
@@ -262,16 +264,16 @@ const Index = () => {
 
     if (error) {
       toast({
-        title: "Hata",
-        description: "Yiyecek silinirken bir hata oluştu",
+        title: t('common.error'),
+        description: t('dashboard.errorDelete'),
         variant: "destructive",
       });
       return { error };
     }
 
     toast({
-      title: "Yiyecek silindi",
-      description: "Kayıt başarıyla silindi",
+      title: t('dashboard.foodDeleted'),
+      description: t('dashboard.deletedSuccessfully'),
     });
     return { error: null };
   };
@@ -280,7 +282,7 @@ const Index = () => {
   const getMealEntries = (mealType: MealType) => {
     return (mealsByType[mealType] || []).map((entry) => ({
       id: entry.id,
-      name: entry.custom_name || "Yiyecek",
+      name: entry.custom_name || t('common.food'),
       amount: entry.amount_g_ml,
       unit: "g",
       calories: entry.calculated_kcal,

@@ -1,7 +1,12 @@
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from "date-fns";
-import { tr } from "date-fns/locale";
+import { format, addDays, subDays, isToday, isTomorrow, isYesterday, type Locale } from "date-fns";
+import { tr, enUS, es, fr, de, pt, it, ru, ja, ko, zhCN, ar } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+
+const locales: Record<string, Locale> = {
+  tr, en: enUS, es, fr, de, pt, it, ru, ja, ko, zh: zhCN, ar
+};
 
 interface DateSelectorProps {
   date: Date;
@@ -9,15 +14,18 @@ interface DateSelectorProps {
 }
 
 export function DateSelector({ date, onDateChange }: DateSelectorProps) {
+  const { t, i18n } = useTranslation();
   const handlePrevDay = () => onDateChange(subDays(date, 1));
   const handleNextDay = () => onDateChange(addDays(date, 1));
   const handleToday = () => onDateChange(new Date());
 
+  const currentLocale = locales[i18n.language.split('-')[0]] || enUS;
+
   const getDateLabel = () => {
-    if (isToday(date)) return "Bugün";
-    if (isYesterday(date)) return "Dün";
-    if (isTomorrow(date)) return "Yarın";
-    return format(date, "d MMMM yyyy", { locale: tr });
+    if (isToday(date)) return t('common.today');
+    if (isYesterday(date)) return t('common.yesterday');
+    if (isTomorrow(date)) return t('common.tomorrow');
+    return format(date, "d MMMM yyyy", { locale: currentLocale });
   };
 
   return (

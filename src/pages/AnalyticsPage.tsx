@@ -25,7 +25,10 @@ import { Flame, Droplets, Scale, TrendingUp, TrendingDown, Target } from "lucide
 
 type Period = "week" | "month" | "3months";
 
+import { useTranslation } from "react-i18next";
+
 const AnalyticsPage = () => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("week");
   const { dailyStats, weightTrend, averages, loading } = useAnalyticsData(period);
   const { profile } = useProfile();
@@ -63,7 +66,7 @@ const AnalyticsPage = () => {
 
   if (loading) {
     return (
-      <AppLayout title="Analiz">
+      <AppLayout title={t('analytics.title')}>
         <div className="container max-w-lg space-y-4 px-4 py-4">
           <Skeleton className="h-10 w-full" />
           <div className="grid grid-cols-2 gap-3">
@@ -80,14 +83,14 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <AppLayout title="Analiz">
+    <AppLayout title={t('analytics.title')}>
       <div className="container max-w-lg space-y-4 px-4 py-4">
         {/* Period Tabs */}
         <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-secondary">
-            <TabsTrigger value="week">Hafta</TabsTrigger>
-            <TabsTrigger value="month">Ay</TabsTrigger>
-            <TabsTrigger value="3months">3 Ay</TabsTrigger>
+            <TabsTrigger value="week">{t('analytics.period.week')}</TabsTrigger>
+            <TabsTrigger value="month">{t('analytics.period.month')}</TabsTrigger>
+            <TabsTrigger value="3months">{t('analytics.period.3months')}</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -97,14 +100,14 @@ const AnalyticsPage = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Flame className="h-4 w-4 text-primary" />
-                <span className="text-xs text-muted-foreground">Ort. Kalori</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.avgCalories')}</span>
               </div>
               <p className="text-xl font-bold text-foreground">{averages.avgCalories}</p>
               <div className="flex items-center gap-1 mt-1">
                 <span className={`text-xs ${avgCaloriesPercent >= 90 && avgCaloriesPercent <= 110 ? 'text-success' : avgCaloriesPercent < 90 ? 'text-warning' : 'text-destructive'}`}>
                   %{avgCaloriesPercent}
                 </span>
-                <span className="text-xs text-muted-foreground">/ hedef</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.target')}</span>
               </div>
             </CardContent>
           </Card>
@@ -113,14 +116,14 @@ const AnalyticsPage = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Droplets className="h-4 w-4 text-blue-400" />
-                <span className="text-xs text-muted-foreground">Ort. Su</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.avgWater')}</span>
               </div>
               <p className="text-xl font-bold text-foreground">{averages.avgWater} ml</p>
               <div className="flex items-center gap-1 mt-1">
                 <span className={`text-xs ${avgWaterPercent >= 80 ? 'text-success' : 'text-warning'}`}>
                   %{avgWaterPercent}
                 </span>
-                <span className="text-xs text-muted-foreground">/ hedef</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.target')}</span>
               </div>
             </CardContent>
           </Card>
@@ -129,14 +132,14 @@ const AnalyticsPage = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-macro-protein" />
-                <span className="text-xs text-muted-foreground">Ort. Protein</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.avgProtein')}</span>
               </div>
               <p className="text-xl font-bold text-foreground">{averages.avgProtein}g</p>
               <div className="flex items-center gap-1 mt-1">
                 <span className={`text-xs ${avgProteinPercent >= 90 ? 'text-success' : 'text-warning'}`}>
                   %{avgProteinPercent}
                 </span>
-                <span className="text-xs text-muted-foreground">/ hedef</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.target')}</span>
               </div>
             </CardContent>
           </Card>
@@ -145,7 +148,7 @@ const AnalyticsPage = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Scale className="h-4 w-4 text-success" />
-                <span className="text-xs text-muted-foreground">Kilo Değişimi</span>
+                <span className="text-xs text-muted-foreground">{t('analytics.stats.weightChange')}</span>
               </div>
               <p className="text-xl font-bold text-foreground">
                 {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
@@ -168,9 +171,9 @@ const AnalyticsPage = () => {
         <Card className="border-none bg-card shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
-              <span>Kalori Takibi</span>
+              <span>{t('analytics.charts.calories.title')}</span>
               <span className="text-xs text-muted-foreground font-normal">
-                Hedef: {targets.calories} kcal
+                {t('analytics.charts.target')}: {targets.calories} kcal
               </span>
             </CardTitle>
           </CardHeader>
@@ -236,9 +239,9 @@ const AnalyticsPage = () => {
         <Card className="border-none bg-card shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
-              <span>Makro Takibi (Hedefe Göre %)</span>
+              <span>{t('analytics.charts.macros.title')}</span>
               <span className="text-xs text-muted-foreground font-normal">
-                Çizgi = %100 hedef
+                {t('analytics.charts.macros.subtitle')}
               </span>
             </CardTitle>
           </CardHeader>
@@ -302,12 +305,12 @@ const AnalyticsPage = () => {
         {/* Macro Averages Detail */}
         <Card className="border-none bg-card shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Ortalama Makro Değerleri</CardTitle>
+            <CardTitle className="text-base">{t('analytics.averages.title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Protein</span>
+                <span className="text-muted-foreground">{t('settings.goals.protein')}</span>
                 <span className="font-medium text-foreground">{averages.avgProtein}g / {targets.protein}g</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -323,7 +326,7 @@ const AnalyticsPage = () => {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Karbonhidrat</span>
+                <span className="text-muted-foreground">{t('settings.goals.carbs')}</span>
                 <span className="font-medium text-foreground">{averages.avgCarbs}g / {targets.carbs}g</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -339,7 +342,7 @@ const AnalyticsPage = () => {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Yağ</span>
+                <span className="text-muted-foreground">{t('settings.goals.fat')}</span>
                 <span className="font-medium text-foreground">{averages.avgFat}g / {targets.fat}g</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -359,7 +362,7 @@ const AnalyticsPage = () => {
         {weightTrend.length > 0 && (
           <Card className="border-none bg-card shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Kilo Değişimi</CardTitle>
+              <CardTitle className="text-base">{t('analytics.stats.weightChange')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={180}>
@@ -392,17 +395,17 @@ const AnalyticsPage = () => {
               </ResponsiveContainer>
               <div className="mt-4 flex justify-between text-sm">
                 <div>
-                  <p className="text-muted-foreground">İlk Kayıt</p>
+                  <p className="text-muted-foreground">{t('analytics.weightTrend.first')}</p>
                   <p className="font-semibold text-foreground">{firstWeight?.toFixed(1) || "-"} kg</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-muted-foreground">Değişim</p>
+                  <p className="text-muted-foreground">{t('analytics.weightTrend.change')}</p>
                   <p className={`font-semibold ${weightChange <= 0 ? 'text-success' : 'text-warning'}`}>
                     {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-muted-foreground">Son Kayıt</p>
+                  <p className="text-muted-foreground">{t('analytics.weightTrend.last')}</p>
                   <p className="font-semibold text-foreground">{lastWeight?.toFixed(1) || "-"} kg</p>
                 </div>
               </div>
@@ -414,9 +417,9 @@ const AnalyticsPage = () => {
         <Card className="border-none bg-card shadow-lg">
           <CardContent className="p-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Veri bulunan gün sayısı</span>
+              <span className="text-muted-foreground">{t('analytics.summary.daysWithData')}</span>
               <span className="font-medium text-foreground">
-                {averages.daysWithData} / {averages.totalDays} gün
+                {averages.daysWithData} / {averages.totalDays} {t('analytics.summary.day')}
               </span>
             </div>
           </CardContent>

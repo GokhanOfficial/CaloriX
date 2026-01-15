@@ -12,12 +12,16 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { PollinationsCredit } from "@/components/common/PollinationsCredit";
 
-const emailSchema = z.string().email("Geçerli bir e-posta adresi giriniz");
-const passwordSchema = z.string().min(6, "Şifre en az 6 karakter olmalıdır");
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "@/components/LanguageSelector";
+
+const emailSchema = z.string().email();
+const passwordSchema = z.string().min(6);
 
 type AuthView = "auth" | "forgot-password" | "pending-verification" | "reset-password";
 
 export default function AuthPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,8 +48,8 @@ export default function AuthPage() {
   useEffect(() => {
     if (searchParams.get("verified") === "true" && user && isEmailVerified) {
       toast({
-        title: "E-posta Doğrulandı!",
-        description: "Hesabınız başarıyla doğrulandı.",
+        title: t('auth.messages.emailVerified'),
+        description: t('auth.messages.emailVerifiedDesc'),
       });
       navigate("/", { replace: true });
     }
@@ -68,12 +72,12 @@ export default function AuthPage() {
 
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
-      newErrors.email = emailResult.error.errors[0].message;
+      newErrors.email = t('auth.validation.invalidEmail');
     }
 
     const passwordResult = passwordSchema.safeParse(password);
     if (!passwordResult.success) {
-      newErrors.password = passwordResult.error.errors[0].message;
+      newErrors.password = t('auth.validation.passwordLength');
     }
 
     setErrors(newErrors);
@@ -89,17 +93,17 @@ export default function AuthPage() {
     setIsLoading(false);
 
     if (error) {
-      let message = "Giriş yapılırken bir hata oluştu";
+      let message = t('common.error');
       if (error.message.includes("Invalid login credentials")) {
-        message = "E-posta veya şifre hatalı";
+        message = t('auth.validation.invalidLogin');
       } else if (error.message.includes("Email not confirmed")) {
-        message = "Lütfen e-posta adresinizi doğrulayın";
+        message = t('auth.validation.emailNotConfirmed');
         setPendingEmail(email);
         setView("pending-verification");
         return;
       }
       toast({
-        title: "Giriş Başarısız",
+        title: t('common.error'),
         description: message,
         variant: "destructive",
       });
@@ -115,11 +119,11 @@ export default function AuthPage() {
     setIsLoading(false);
 
     if (error) {
-      let message = "Kayıt olurken bir hata oluştu";
+      let message = t('common.error');
       if (error.message.includes("User already registered")) {
-        message = "Bu e-posta adresi zaten kayıtlı";
+        message = t('auth.validation.userAlreadyRegistered');
       } else if (error.message.includes("Password should be")) {
-        message = "Şifre en az 6 karakter olmalıdır";
+        message = t('auth.validation.passwordLength');
       }
       toast({
         title: "Kayıt Başarısız",
@@ -128,8 +132,8 @@ export default function AuthPage() {
       });
     } else {
       toast({
-        title: "Kayıt Başarılı!",
-        description: "Doğrulama e-postası gönderildi.",
+        title: t('auth.messages.signUpSuccess'),
+        description: t('auth.messages.verificationSent'),
       });
       setPendingEmail(email);
       setView("pending-verification");
@@ -141,7 +145,7 @@ export default function AuthPage() {
 
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
-      setErrors({ email: emailResult.error.errors[0].message });
+      setErrors({ email: t('auth.validation.invalidEmail') });
       return;
     }
 
@@ -157,8 +161,8 @@ export default function AuthPage() {
       });
     } else {
       toast({
-        title: "E-posta Gönderildi",
-        description: "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi",
+        title: t('common.success'),
+        description: t('auth.messages.resetEmailSent'),
       });
       setView("auth");
     }
@@ -168,11 +172,11 @@ export default function AuthPage() {
     e.preventDefault();
 
     if (newPassword.length < 6) {
-      toast({ title: "Hata", description: "Şifre en az 6 karakter olmalı", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('auth.validation.passwordLength'), variant: "destructive" });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({ title: "Hata", description: "Şifreler eşleşmiyor", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('auth.validation.passwordMismatch'), variant: "destructive" });
       return;
     }
 
@@ -189,8 +193,8 @@ export default function AuthPage() {
     } else {
       clearPasswordRecovery();
       toast({
-        title: "Başarılı",
-        description: "Şifreniz güncellendi",
+        title: t('common.success'),
+        description: t('auth.messages.passwordUpdated'),
       });
       navigate("/", { replace: true });
     }
@@ -209,8 +213,8 @@ export default function AuthPage() {
       });
     } else {
       toast({
-        title: "E-posta Gönderildi",
-        description: "Yeni doğrulama e-postası gönderildi",
+        title: t('common.success'),
+        description: t('auth.messages.verificationSent'),
       });
     }
   };
@@ -224,7 +228,10 @@ export default function AuthPage() {
   // Pending Verification View
   if (view === "pending-verification") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageSelector />
+        </div>
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
             <div className="flex flex-col items-center justify-center mb-2">
@@ -247,7 +254,7 @@ export default function AuthPage() {
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-muted/50 p-4 text-center">
                 <p className="text-sm text-muted-foreground">
-                  E-posta gelmediyse spam klasörünüzü kontrol edin veya yeniden gönderin.
+                  {t('auth.pendingVerification.spamNote')}
                 </p>
               </div>
 
@@ -262,7 +269,7 @@ export default function AuthPage() {
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                Yeniden Gönder
+                {t('common.resend')}
               </Button>
 
               <Button
@@ -271,7 +278,7 @@ export default function AuthPage() {
                 onClick={handleSignOutAndBack}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Farklı bir hesapla giriş yap
+                {t('auth.pendingVerification.differentAccount')}
               </Button>
 
               <PollinationsCredit className="pt-4" />
@@ -285,7 +292,10 @@ export default function AuthPage() {
   // Reset Password View
   if (view === "reset-password") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageSelector />
+        </div>
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
             <div className="flex flex-col items-center justify-center mb-2">
@@ -296,15 +306,15 @@ export default function AuthPage() {
 
           <Card className="glass">
             <CardHeader>
-              <CardTitle>Yeni Şifre Belirle</CardTitle>
+              <CardTitle>{t('auth.resetPasswordTitle')}</CardTitle>
               <CardDescription>
-                Hesabınız için yeni bir şifre belirleyin
+                {t('auth.resetPasswordDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new-password">Yeni Şifre</Label>
+                  <Label htmlFor="new-password">{t('auth.newPassword')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -320,7 +330,7 @@ export default function AuthPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Şifre Tekrar</Label>
+                  <Label htmlFor="confirm-password">{t('auth.confirmPassword')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -339,10 +349,10 @@ export default function AuthPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Kaydediliyor...
+                      {t('auth.button.saving')}
                     </>
                   ) : (
-                    "Şifreyi Güncelle"
+                    t('auth.updatePassword')
                   )}
                 </Button>
               </form>
@@ -358,7 +368,10 @@ export default function AuthPage() {
   // Forgot Password View
   if (view === "forgot-password") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageSelector />
+        </div>
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
             <div className="flex flex-col items-center justify-center mb-2">
@@ -376,17 +389,17 @@ export default function AuthPage() {
                 onClick={() => setView("auth")}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Geri
+                {t('common.back')}
               </Button>
-              <CardTitle>Şifremi Unuttum</CardTitle>
+              <CardTitle>{t('auth.forgotPasswordTitle')}</CardTitle>
               <CardDescription>
-                E-posta adresinizi girin, şifre sıfırlama bağlantısı göndereceğiz
+                {t('auth.forgotPasswordDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="forgot-email">E-posta</Label>
+                  <Label htmlFor="forgot-email">{t('auth.email')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -408,10 +421,10 @@ export default function AuthPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Gönderiliyor...
+                      {t('auth.button.sending')}
                     </>
                   ) : (
-                    "Şifre Sıfırlama Bağlantısı Gönder"
+                    t('auth.sendResetLink')
                   )}
                 </Button>
               </form>
@@ -426,7 +439,10 @@ export default function AuthPage() {
 
   // Main Auth View (Sign In / Sign Up)
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSelector />
+      </div>
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -435,7 +451,7 @@ export default function AuthPage() {
             <h1 className="text-4xl font-bold text-gradient">CaloriX</h1>
           </div>
           <p className="text-muted-foreground">
-            Kalori ve makro takibi için akıllı asistanınız
+            {t('auth.tagline')}
           </p>
         </div>
 
@@ -443,8 +459,8 @@ export default function AuthPage() {
           <Tabs defaultValue="signin" className="w-full">
             <CardHeader className="pb-4">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Giriş Yap</TabsTrigger>
-                <TabsTrigger value="signup">Kayıt Ol</TabsTrigger>
+                <TabsTrigger value="signin">{t('auth.signInTab')}</TabsTrigger>
+                <TabsTrigger value="signup">{t('auth.signUpTab')}</TabsTrigger>
               </TabsList>
             </CardHeader>
 
@@ -452,11 +468,11 @@ export default function AuthPage() {
               {/* Sign In Tab */}
               <TabsContent value="signin" className="space-y-4 mt-0">
                 <CardDescription className="text-center">
-                  Hesabınıza giriş yapın
+                  {t('auth.signInDesc')}
                 </CardDescription>
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">E-posta</Label>
+                    <Label htmlFor="signin-email">{t('auth.email')}</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -476,13 +492,13 @@ export default function AuthPage() {
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="signin-password">Şifre</Label>
+                      <Label htmlFor="signin-password">{t('auth.password')}</Label>
                       <button
                         type="button"
                         onClick={() => setView("forgot-password")}
                         className="text-xs text-primary hover:underline"
                       >
-                        Şifremi Unuttum
+                        {t('auth.forgotPassword')}
                       </button>
                     </div>
                     <div className="relative">
@@ -510,10 +526,10 @@ export default function AuthPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Giriş yapılıyor...
+                        {t('auth.button.signingIn')}
                       </>
                     ) : (
-                      "Giriş Yap"
+                      t('auth.signIn')
                     )}
                   </Button>
                 </form>
@@ -522,17 +538,17 @@ export default function AuthPage() {
               {/* Sign Up Tab */}
               <TabsContent value="signup" className="space-y-4 mt-0">
                 <CardDescription className="text-center">
-                  Yeni hesap oluşturun
+                  {t('auth.signUpDesc')}
                 </CardDescription>
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">İsim (Opsiyonel)</Label>
+                    <Label htmlFor="signup-name">{t('auth.nameOptional')}</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="signup-name"
                         type="text"
-                        placeholder="Adınız"
+                        placeholder={t('auth.name')}
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         className="pl-10"
@@ -542,7 +558,7 @@ export default function AuthPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">E-posta</Label>
+                    <Label htmlFor="signup-email">{t('auth.email')}</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -561,7 +577,7 @@ export default function AuthPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Şifre</Label>
+                    <Label htmlFor="signup-password">{t('auth.password')}</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -587,10 +603,10 @@ export default function AuthPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Kayıt olunuyor...
+                        {t('auth.button.signingUp')}
                       </>
                     ) : (
-                      "Kayıt Ol"
+                      t('auth.signUp')
                     )}
                   </Button>
                 </form>
@@ -599,8 +615,7 @@ export default function AuthPage() {
               {/* Health Disclaimer */}
               <div className="pt-4 border-t border-border">
                 <p className="text-xs text-muted-foreground text-center">
-                  ⚠️ Bu uygulama yalnızca bilgi amaçlıdır ve tıbbi tavsiye niteliği taşımaz.
-                  Beslenme ve sağlık konularında profesyonel destek alınız.
+                  {t('common.healthDisclaimer')}
                 </p>
               </div>
 

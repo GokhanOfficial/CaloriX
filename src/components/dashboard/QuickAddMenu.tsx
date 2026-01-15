@@ -2,6 +2,7 @@ import { ScanBarcode, Sparkles, Search, History, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface QuickAddMenuProps {
   onBarcodeScan?: () => void;
@@ -19,40 +20,41 @@ export function QuickAddMenu({
   onFavorites,
 }: QuickAddMenuProps) {
   const isOnline = useOnlineStatus();
+  const { t } = useTranslation();
 
   const actions = [
     {
       icon: ScanBarcode,
-      label: "Barkod",
-      description: "Ürün tara",
+      label: t('dashboard.quick.barcode'),
+      description: t('dashboard.quick.scan'),
       onClick: onBarcodeScan,
       requiresOnline: false,
     },
     {
       icon: Search,
-      label: "Ara",
-      description: "Yiyecek ara",
+      label: t('dashboard.quick.search'),
+      description: t('dashboard.quick.findFood'),
       onClick: onTextAdd,
       requiresOnline: false,
     },
     {
       icon: Sparkles,
-      label: "AI ile Ekle",
-      description: "Fotoğraf/Yazı",
+      label: t('dashboard.quick.ai'),
+      description: t('dashboard.quick.photoText'),
       onClick: onPhotoAdd,
       requiresOnline: true,
     },
     {
       icon: History,
-      label: "Son Kullanılanlar",
-      description: "Geçmişten",
+      label: t('dashboard.quick.recent'),
+      description: t('dashboard.quick.history'),
       onClick: onRecent,
       requiresOnline: false,
     },
     {
       icon: Star,
-      label: "Favoriler",
-      description: "Kaydedilenler",
+      label: t('dashboard.quick.favorites'),
+      description: t('dashboard.quick.saved'),
       onClick: onFavorites,
       requiresOnline: false,
     },
@@ -61,7 +63,7 @@ export function QuickAddMenu({
   return (
     <Card className="border-none bg-card shadow-lg">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Hızlı Ekle</CardTitle>
+        <CardTitle className="text-lg font-semibold">{t('dashboard.quickAdd')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
@@ -102,7 +104,7 @@ export function QuickAddMenu({
         </div>
         {!isOnline && (
           <p className="mt-3 text-center text-xs text-warning">
-            Çevrimdışı mod: AI ile ekleme için internet gerekli
+            {t('dashboard.quick.offline')}
           </p>
         )}
       </CardContent>

@@ -1,14 +1,16 @@
 import pollinationsLogo from "@/assets/pollinations-logo.svg";
+import { useTranslation } from "react-i18next";
 
 interface PollinationsCreditProps {
   className?: string;
 }
 
 export function PollinationsCredit({ className }: PollinationsCreditProps) {
+  const { t } = useTranslation();
   return (
     <div className={className}>
       <p className="text-xs text-muted-foreground text-center mb-1">
-        AI destekçisi
+        {t('common.aiPoweredBy')}
       </p>
       <a
         href="https://pollinations.ai/"

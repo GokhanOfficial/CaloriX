@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MEAL_TYPES, type MealType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface MealEntry {
   id: string;
@@ -30,6 +31,7 @@ export function MealSection({
   onAddEntry,
   onEditEntry,
 }: MealSectionProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
   const meal = MEAL_TYPES[mealType];
 
@@ -47,7 +49,7 @@ export function MealSection({
         <div className="flex items-center gap-3">
           <span className="text-2xl">{meal.icon}</span>
           <div>
-            <h3 className="font-semibold text-foreground">{meal.label}</h3>
+            <h3 className="font-semibold text-foreground">{t(`meals.${mealType}`)}</h3>
             {entries.length > 0 && (
               <p className="text-sm text-muted-foreground">
                 {totalCalories} kcal • P: {totalProtein}g • K: {totalCarbs}g • Y: {totalFat}g
@@ -74,12 +76,12 @@ export function MealSection({
           )}
         </div>
       </CardHeader>
-      
+
       {isExpanded && (
         <CardContent className="p-0">
           {entries.length === 0 ? (
             <div className="border-t border-border p-4 text-center">
-              <p className="text-sm text-muted-foreground">Henüz kayıt yok</p>
+              <p className="text-sm text-muted-foreground">{t('dashboard.noRecords')}</p>
               <Button
                 variant="ghost"
                 size="sm"
@@ -87,7 +89,7 @@ export function MealSection({
                 onClick={onAddEntry}
               >
                 <Plus className="mr-1 h-4 w-4" />
-                Yiyecek Ekle
+                {t('dashboard.addFood')}
               </Button>
             </div>
           ) : (
