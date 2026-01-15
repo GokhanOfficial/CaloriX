@@ -1,16 +1,16 @@
 project_id = "oshafbahrwburzmanzzj"
 
 [functions.calculate-macros]
-verify_jwt = false
+verify_jwt = true
 
 [functions.recognize-food]
-verify_jwt = false
+verify_jwt = true
 
 [functions.recognize-food-text]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-reminders]
-verify_jwt = false
+verify_jwt = true

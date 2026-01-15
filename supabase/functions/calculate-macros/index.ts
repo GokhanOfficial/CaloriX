@@ -53,9 +53,16 @@ serve(async (req) => {
       target_weight_kg,
       activity_level,
       goal,
-      previous_macros,
       previous_weight_kg
     } = body;
+
+    // Input Validation
+    if (!age || !gender || !height_cm || !current_weight_kg || !target_weight_kg || !activity_level || !goal) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Build prompt for AI
     let systemPrompt = `Sen bir beslenme ve diyet uzmanısın. Kullanıcının verilerine göre günlük kalori, makro ve su hedeflerini hesaplayacaksın.
@@ -146,7 +153,7 @@ Kilo ${previous_weight_kg > current_weight_kg ? 'azaldı' : 'arttı'}. Yeni kilo
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
       return new Response(
-        JSON.stringify({ error: `OpenAI API error: ${response.status}` }),
+        JSON.stringify({ error: 'Failed to generate macros. Please try again later.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -175,7 +182,7 @@ Kilo ${previous_weight_kg > current_weight_kg ? 'azaldı' : 'arttı'}. Yeni kilo
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in calculate-macros function:', error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An unexpected error occurred' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

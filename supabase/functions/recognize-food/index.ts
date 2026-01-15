@@ -141,7 +141,8 @@ YANIT FORMATI (JSON):
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
       return new Response(
-        JSON.stringify({ error: 'AI service error', details: errorText }),
+      return new Response(
+        JSON.stringify({ error: 'AI service error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -170,7 +171,8 @@ YANIT FORMATI (JSON):
     console.error('Error in recognize-food function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+    return new Response(
+      JSON.stringify({ error: 'An unexpected error occurred' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
