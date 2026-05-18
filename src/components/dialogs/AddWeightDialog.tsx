@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogScrollArea,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -50,30 +51,34 @@ export function AddWeightDialog({
         <DialogHeader>
           <DialogTitle>Kilo Kaydet</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="weight">Kilo (kg)</Label>
-            <Input
-              id="weight"
-              type="number"
-              step="0.1"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              placeholder="75.5"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <DialogScrollArea>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="weight">Kilo (kg)</Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.1"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="75.5"
+                  required
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="note">Not (isteğe bağlı)</Label>
-            <Textarea
-              id="note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Sabah aç karnına..."
-              rows={2}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="note">Not (isteğe bağlı)</Label>
+                <Textarea
+                  id="note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Sabah aç karnına..."
+                  rows={2}
+                />
+              </div>
+            </div>
+          </DialogScrollArea>
 
           <DialogFooter>
             <Button

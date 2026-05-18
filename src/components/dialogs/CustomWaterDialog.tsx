@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogScrollArea,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -52,35 +53,37 @@ export function CustomWaterDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="waterAmount">{t('dashboard.water')} (ml)</Label>
-            <Input
-              id="waterAmount"
-              type="number"
-              placeholder={`${t('dialogs.example')} 330`}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              autoFocus
-            />
-          </div>
+        <DialogScrollArea>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="waterAmount">{t('dashboard.water')} (ml)</Label>
+              <Input
+                id="waterAmount"
+                type="number"
+                placeholder={`${t('dialogs.example')} 330`}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                autoFocus
+              />
+            </div>
 
-          {/* Quick presets */}
-          <div className="flex gap-2 flex-wrap">
-            {[150, 200, 330, 400, 600].map((preset) => (
-              <Button
-                key={preset}
-                variant="outline"
-                size="sm"
-                onClick={() => setAmount(String(preset))}
-                className="text-xs"
-              >
-                {preset} ml
-              </Button>
-            ))}
+            {/* Quick presets */}
+            <div className="flex gap-2 flex-wrap">
+              {[150, 200, 330, 400, 600].map((preset) => (
+                <Button
+                  key={preset}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAmount(String(preset))}
+                  className="text-xs"
+                >
+                  {preset} ml
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
+        </DialogScrollArea>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>

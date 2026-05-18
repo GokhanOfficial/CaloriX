@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogScrollArea,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -155,135 +156,139 @@ export function EditMealDialog({
           <DialogHeader>
             <DialogTitle>Yiyeceği Düzenle</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Yiyecek Adı</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Örn: Tavuk Göğsü"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-mealType">Öğün</Label>
-              <Select
-                value={formData.mealType}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, mealType: value as MealType }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(MEAL_TYPES) as MealType[]).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {MEAL_TYPES[type].icon} {MEAL_TYPES[type].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-amount">Miktar (g/ml)</Label>
-              <Input
-                id="edit-amount"
-                type="number"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, amount: e.target.value }))
-                }
-                placeholder="100"
-                required
-              />
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-3 space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">
-                100g başına besin değerleri
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="edit-caloriesPer100" className="text-xs">
-                    Kalori (kcal)
-                  </Label>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <DialogScrollArea>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Yiyecek Adı</Label>
                   <Input
-                    id="edit-caloriesPer100"
-                    type="number"
-                    value={formData.caloriesPer100}
+                    id="edit-name"
+                    value={formData.name}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, caloriesPer100: e.target.value }))
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    placeholder="0"
+                    placeholder="Örn: Tavuk Göğsü"
                     required
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="edit-proteinPer100" className="text-xs">
-                    Protein (g)
-                  </Label>
-                  <Input
-                    id="edit-proteinPer100"
-                    type="number"
-                    step="0.1"
-                    value={formData.proteinPer100}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, proteinPer100: e.target.value }))
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-mealType">Öğün</Label>
+                  <Select
+                    value={formData.mealType}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, mealType: value as MealType }))
                     }
-                    placeholder="0"
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(MEAL_TYPES) as MealType[]).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {MEAL_TYPES[type].icon} {MEAL_TYPES[type].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-amount">Miktar (g/ml)</Label>
+                  <Input
+                    id="edit-amount"
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, amount: e.target.value }))
+                    }
+                    placeholder="100"
                     required
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="edit-carbsPer100" className="text-xs">
-                    Karbonhidrat (g)
-                  </Label>
-                  <Input
-                    id="edit-carbsPer100"
-                    type="number"
-                    step="0.1"
-                    value={formData.carbsPer100}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, carbsPer100: e.target.value }))
-                    }
-                    placeholder="0"
-                    required
-                  />
+
+                <div className="bg-muted/50 rounded-lg p-3 space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    100g başına besin değerleri
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-caloriesPer100" className="text-xs">
+                        Kalori (kcal)
+                      </Label>
+                      <Input
+                        id="edit-caloriesPer100"
+                        type="number"
+                        value={formData.caloriesPer100}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, caloriesPer100: e.target.value }))
+                        }
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-proteinPer100" className="text-xs">
+                        Protein (g)
+                      </Label>
+                      <Input
+                        id="edit-proteinPer100"
+                        type="number"
+                        step="0.1"
+                        value={formData.proteinPer100}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, proteinPer100: e.target.value }))
+                        }
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-carbsPer100" className="text-xs">
+                        Karbonhidrat (g)
+                      </Label>
+                      <Input
+                        id="edit-carbsPer100"
+                        type="number"
+                        step="0.1"
+                        value={formData.carbsPer100}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, carbsPer100: e.target.value }))
+                        }
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-fatPer100" className="text-xs">
+                        Yağ (g)
+                      </Label>
+                      <Input
+                        id="edit-fatPer100"
+                        type="number"
+                        step="0.1"
+                        value={formData.fatPer100}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, fatPer100: e.target.value }))
+                        }
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="edit-fatPer100" className="text-xs">
-                    Yağ (g)
-                  </Label>
-                  <Input
-                    id="edit-fatPer100"
-                    type="number"
-                    step="0.1"
-                    value={formData.fatPer100}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, fatPer100: e.target.value }))
-                    }
-                    placeholder="0"
-                    required
-                  />
+
+                {/* Calculated totals preview */}
+                <div className="bg-primary/10 rounded-lg p-3">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    Hesaplanan toplam ({currentAmount}g)
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {calculatedCalories} kcal • P: {calculatedProtein}g • K: {calculatedCarbs}g • Y: {calculatedFat}g
+                  </p>
                 </div>
               </div>
-            </div>
-
-            {/* Calculated totals preview */}
-            <div className="bg-primary/10 rounded-lg p-3">
-              <p className="text-sm font-medium text-foreground mb-1">
-                Hesaplanan toplam ({currentAmount}g)
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {calculatedCalories} kcal • P: {calculatedProtein}g • K: {calculatedCarbs}g • Y: {calculatedFat}g
-              </p>
-            </div>
+            </DialogScrollArea>
 
             <DialogFooter className="flex-col gap-2 sm:flex-row">
               <Button

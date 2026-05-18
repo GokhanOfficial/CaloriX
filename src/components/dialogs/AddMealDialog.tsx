@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogScrollArea,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -88,112 +89,116 @@ export function AddMealDialog({
         <DialogHeader>
           <DialogTitle>Yiyecek Ekle</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Yiyecek Adı</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              placeholder="Örn: Tavuk Göğsü"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <DialogScrollArea>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Yiyecek Adı</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Örn: Tavuk Göğsü"
+                  required
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="mealType">Öğün</Label>
-            <Select
-              value={formData.mealType}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, mealType: value as MealType }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(MEAL_TYPES) as MealType[]).map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {MEAL_TYPES[type].icon} {MEAL_TYPES[type].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="mealType">Öğün</Label>
+                <Select
+                  value={formData.mealType}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, mealType: value as MealType }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(MEAL_TYPES) as MealType[]).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {MEAL_TYPES[type].icon} {MEAL_TYPES[type].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="amount">Miktar (g/ml)</Label>
-            <Input
-              id="amount"
-              type="number"
-              value={formData.amount}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, amount: e.target.value }))
-              }
-              placeholder="100"
-              required
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Miktar (g/ml)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={formData.amount}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, amount: e.target.value }))
+                  }
+                  placeholder="100"
+                  required
+                />
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="calories">Kalori (kcal)</Label>
-              <Input
-                id="calories"
-                type="number"
-                value={formData.calories}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, calories: e.target.value }))
-                }
-                placeholder="0"
-                required
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="calories">Kalori (kcal)</Label>
+                  <Input
+                    id="calories"
+                    type="number"
+                    value={formData.calories}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, calories: e.target.value }))
+                    }
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="protein">Protein (g)</Label>
+                  <Input
+                    id="protein"
+                    type="number"
+                    step="0.1"
+                    value={formData.protein}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, protein: e.target.value }))
+                    }
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="carbs">Karbonhidrat (g)</Label>
+                  <Input
+                    id="carbs"
+                    type="number"
+                    step="0.1"
+                    value={formData.carbs}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, carbs: e.target.value }))
+                    }
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fat">Yağ (g)</Label>
+                  <Input
+                    id="fat"
+                    type="number"
+                    step="0.1"
+                    value={formData.fat}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, fat: e.target.value }))
+                    }
+                    placeholder="0"
+                    required
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="protein">Protein (g)</Label>
-              <Input
-                id="protein"
-                type="number"
-                step="0.1"
-                value={formData.protein}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, protein: e.target.value }))
-                }
-                placeholder="0"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="carbs">Karbonhidrat (g)</Label>
-              <Input
-                id="carbs"
-                type="number"
-                step="0.1"
-                value={formData.carbs}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, carbs: e.target.value }))
-                }
-                placeholder="0"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fat">Yağ (g)</Label>
-              <Input
-                id="fat"
-                type="number"
-                step="0.1"
-                value={formData.fat}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, fat: e.target.value }))
-                }
-                placeholder="0"
-                required
-              />
-            </div>
-          </div>
+          </DialogScrollArea>
 
           <DialogFooter>
             <Button

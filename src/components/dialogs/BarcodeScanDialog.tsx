@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogScrollArea,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -426,7 +427,7 @@ export function BarcodeScanDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ScanBarcode className="h-5 w-5 text-primary" />
@@ -436,170 +437,178 @@ export function BarcodeScanDialog({
 
         {/* Scan Step */}
         {step === "scan" && (
-          <div className="space-y-4">
-            {/* Meal Type Selection */}
-            <div className="space-y-2">
-              <Label>Öğün</Label>
-              <Select value={mealType} onValueChange={(v) => setMealType(v as MealType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(MEAL_TYPES) as MealType[]).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {MEAL_TYPES[type].icon} {MEAL_TYPES[type].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <>
+            <DialogScrollArea>
+              <div className="space-y-4">
+                {/* Meal Type Selection */}
+                <div className="space-y-2">
+                  <Label>Öğün</Label>
+                  <Select value={mealType} onValueChange={(v) => setMealType(v as MealType)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(MEAL_TYPES) as MealType[]).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {MEAL_TYPES[type].icon} {MEAL_TYPES[type].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Camera View */}
-            <div className="space-y-2">
-              <Label>Barkod Tara</Label>
-              <div className="relative aspect-video rounded-lg overflow-hidden bg-muted border border-border">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                  muted
-                />
-                {scanning && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-64 h-32 border-2 border-primary rounded-lg animate-pulse" />
+                {/* Camera View */}
+                <div className="space-y-2">
+                  <Label>Barkod Tara</Label>
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-muted border border-border">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    {scanning && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-64 h-32 border-2 border-primary rounded-lg animate-pulse" />
+                      </div>
+                    )}
+                    {!scanning && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                        <Button onClick={startScanning}>
+                          <Camera className="mr-2 h-4 w-4" />
+                          Kamerayı Başlat
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                )}
-                {!scanning && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                    <Button onClick={startScanning}>
-                      <Camera className="mr-2 h-4 w-4" />
-                      Kamerayı Başlat
+                </div>
+
+                {/* Manual Barcode Entry */}
+                <div className="space-y-2">
+                  <Label>veya Elle Girin</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Barkod numarası..."
+                      value={manualBarcode}
+                      onChange={(e) => setManualBarcode(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleManualSearch()}
+                    />
+                    <Button onClick={handleManualSearch} disabled={!manualBarcode.trim()}>
+                      Ara
                     </Button>
                   </div>
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {error}
+                  </div>
                 )}
               </div>
-            </div>
-
-            {/* Manual Barcode Entry */}
-            <div className="space-y-2">
-              <Label>veya Elle Girin</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Barkod numarası..."
-                  value={manualBarcode}
-                  onChange={(e) => setManualBarcode(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleManualSearch()}
-                />
-                <Button onClick={handleManualSearch} disabled={!manualBarcode.trim()}>
-                  Ara
-                </Button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                <AlertCircle className="h-4 w-4" />
-                {error}
-              </div>
-            )}
+            </DialogScrollArea>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 İptal
               </Button>
             </DialogFooter>
-          </div>
+          </>
         )}
 
         {/* Not Found Step */}
         {step === "notFound" && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-warning/10 border border-warning/20 text-center">
-              <AlertCircle className="h-8 w-8 text-warning mx-auto mb-2" />
-              <p className="font-medium">Ürün Bulunamadı</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {barcodeValue && `Barkod: ${barcodeValue}`}
-              </p>
-            </div>
-
-            <p className="text-sm text-muted-foreground text-center">
-              Ürün etiketinin fotoğrafını çekin veya bilgileri yazın, AI analiz etsin.
-            </p>
-
-            {/* Image Capture */}
-            {imageData ? (
-              <div className="space-y-2">
-                <Label>Seçilen Fotoğraf</Label>
-                <div className="relative rounded-lg overflow-hidden border border-border">
-                  <img
-                    src={imageData}
-                    alt="Ürün etiketi"
-                    className="w-full h-32 object-cover"
-                  />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => setImageData(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+          <>
+            <DialogScrollArea>
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-warning/10 border border-warning/20 text-center">
+                  <AlertCircle className="h-8 w-8 text-warning mx-auto mb-2" />
+                  <p className="font-medium">Ürün Bulunamadı</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {barcodeValue && `Barkod: ${barcodeValue}`}
+                  </p>
                 </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = "image/*";
-                    input.capture = "environment";
-                    input.onchange = (e: Event) => handleFileSelect(e as unknown as React.ChangeEvent<HTMLInputElement>);
-                    input.click();
-                  }}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Fotoğraf Çek
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <ImagePlus className="mr-2 h-4 w-4" />
-                  Galeriden Seç
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </div>
-            )}
 
-            {/* Additional Text */}
-            <div className="space-y-2">
-              <Label htmlFor="productInfo">Ürün Bilgisi</Label>
-              <Textarea
-                id="productInfo"
-                value={additionalText}
-                onChange={(e) => setAdditionalText(e.target.value)}
-                placeholder="Ürün adı, markası, besin değerleri..."
-                rows={3}
-              />
-            </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Ürün etiketinin fotoğrafını çekin veya bilgileri yazın, AI analiz etsin.
+                </p>
 
-            {error && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                <AlertCircle className="h-4 w-4" />
-                {error}
+                {/* Image Capture */}
+                {imageData ? (
+                  <div className="space-y-2">
+                    <Label>Seçilen Fotoğraf</Label>
+                    <div className="relative rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={imageData}
+                        alt="Ürün etiketi"
+                        className="w-full h-32 object-cover"
+                      />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => setImageData(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "image/*";
+                        input.capture = "environment";
+                        input.onchange = (e: Event) => handleFileSelect(e as unknown as React.ChangeEvent<HTMLInputElement>);
+                        input.click();
+                      }}
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      Fotoğraf Çek
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImagePlus className="mr-2 h-4 w-4" />
+                      Galeriden Seç
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+                  </div>
+                )}
+
+                {/* Additional Text */}
+                <div className="space-y-2">
+                  <Label htmlFor="productInfo">Ürün Bilgisi</Label>
+                  <Textarea
+                    id="productInfo"
+                    value={additionalText}
+                    onChange={(e) => setAdditionalText(e.target.value)}
+                    placeholder="Ürün adı, markası, besin değerleri..."
+                    rows={3}
+                  />
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {error}
+                  </div>
+                )}
               </div>
-            )}
+            </DialogScrollArea>
 
             <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button variant="ghost" onClick={() => setStep("scan")}>
@@ -613,28 +622,32 @@ export function BarcodeScanDialog({
                 AI ile Analiz Et
               </Button>
             </DialogFooter>
-          </div>
+          </>
         )}
 
         {/* Analyzing Step */}
         {step === "analyzing" && (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <div className="text-center">
-              <p className="font-medium">
-                {barcodeValue ? "Ürün Aranıyor..." : "AI Analiz Ediyor..."}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {barcodeValue
-                  ? `Barkod: ${barcodeValue}`
-                  : "Besin değerleri hesaplanıyor"}
-              </p>
+          <DialogScrollArea>
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <div className="text-center">
+                <p className="font-medium">
+                  {barcodeValue ? "Ürün Aranıyor..." : "AI Analiz Ediyor..."}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {barcodeValue
+                    ? `Barkod: ${barcodeValue}`
+                    : "Besin değerleri hesaplanıyor"}
+                </p>
+              </div>
             </div>
-          </div>
+          </DialogScrollArea>
         )}
 
         {/* Result Step */}
         {step === "result" && foodData && (
+          <>
+          <DialogScrollArea>
           <div className="space-y-4">
             {/* Product Info */}
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
@@ -882,27 +895,30 @@ export function BarcodeScanDialog({
               </div>
             )}
 
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setFoodData(null);
-                  setStep("scan");
-                }}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Yeniden Tara
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                Kaydet
-              </Button>
-            </DialogFooter>
           </div>
+          </DialogScrollArea>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFoodData(null);
+                setStep("scan");
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Yeniden Tara
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              Kaydet
+            </Button>
+          </DialogFooter>
+          </>
         )}
       </DialogContent>
     </Dialog>

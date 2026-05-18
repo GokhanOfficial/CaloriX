@@ -3,6 +3,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogScrollArea,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,7 +95,8 @@ export function AddFromFoodDialog({
           <DialogTitle>Yiyecek Ekle</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
+        <DialogScrollArea>
+        <div className="space-y-4">
           {/* Food Name */}
           <div>
             <p className="font-medium text-foreground">{food.name}</p>
@@ -186,7 +189,10 @@ export function AddFromFoodDialog({
             </div>
           </div>
 
-          {/* Save Button */}
+        </div>
+        </DialogScrollArea>
+
+        <DialogFooter>
           <Button
             onClick={handleSave}
             disabled={saving || amountNum <= 0}
@@ -201,7 +207,7 @@ export function AddFromFoodDialog({
               "Kaydet"
             )}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -211,4 +211,32 @@
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* Dynamic viewport height — shrinks when the soft keyboard is open.
+     Falls back to 100vh for browsers that don't support dvh. */
+  .h-dvh {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .max-h-dvh {
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+
+  /* Keyboard-safe dialog max-height: 92% of the dynamic viewport so the
+     bottom of the sheet always clears the keyboard. */
+  .max-h-dialog-mobile {
+    max-height: 92vh;
+    max-height: 92dvh;
+  }
+}
+
+/* Prevent body scroll while a dialog is open on mobile.
+   Radix sets [data-scroll-locked] on <body> when a modal is open. */
+body[data-scroll-locked] {
+  /* Keep the page from jumping when the scrollbar disappears */
+  overflow: hidden !important;
+  /* Prevent iOS rubber-band scroll behind the overlay */
+  overscroll-behavior: none;
 }
