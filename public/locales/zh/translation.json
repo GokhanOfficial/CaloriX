@@ -1,467 +1,458 @@
 {
-    "common": {
-        "loading": "加载中...",
-        "error": "错误",
-        "success": "成功",
-        "cancel": "取消",
-        "save": "保存",
-        "close": "关闭",
-        "send": "发送",
-        "back": "返回",
-        "resend": "重新发送",
-        "healthDisclaimer": "⚠️ 本应用仅供参考，不构成医疗建议。如有营养和健康问题，请咨询专业人士。",
-        "appName": "CaloriX",
-        "required": "必填字段",
-        "food": "食物",
-        "aiPoweredBy": "AI驱动",
-        "today": "今天",
-        "yesterday": "昨天",
-        "tomorrow": "明天",
-        "meal": "餐次",
-        "searchFood": "搜索食物",
-        "searchPlaceholder": "搜索食物...",
-        "version": "版本"
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "cancel": "取消",
+    "save": "保存",
+    "close": "关闭",
+    "send": "发送",
+    "back": "返回",
+    "resend": "重新发送",
+    "healthDisclaimer": "⚠️ 本应用仅供参考，不构成医疗建议。如有营养和健康问题，请咨询专业人士。",
+    "appName": "CaloriX",
+    "required": "必填字段",
+    "food": "食物",
+    "aiPoweredBy": "AI驱动",
+    "today": "今天",
+    "yesterday": "昨天",
+    "tomorrow": "明天",
+    "meal": "餐次",
+    "searchFood": "搜索食物",
+    "searchPlaceholder": "搜索食物...",
+    "version": "版本"
+  },
+  "header": {
+    "signedOut": "已登出",
+    "goodbye": "再见!",
+    "user": "用户"
+  },
+  "bmi": {
+    "underweight": "体重过轻",
+    "normal": "正常",
+    "overweight": "超重",
+    "obese": "肥胖"
+  },
+  "notificationTypes": {
+    "weighIn": {
+      "title": "称重提醒",
+      "description": "定期称重提醒"
     },
-    "header": {
-        "online": "在线",
-        "offline": "离线",
-        "signedOut": "已登出",
-        "goodbye": "再见!",
-        "user": "用户"
+    "dailyLog": {
+      "title": "每日记录",
+      "description": "24小时无记录时提醒"
     },
-    "bmi": {
-        "underweight": "体重过轻",
-        "normal": "正常",
-        "overweight": "超重",
-        "obese": "肥胖"
+    "water": {
+      "title": "饮水提醒",
+      "description": "喝水提醒"
     },
-    "notificationTypes": {
-        "weighIn": {
-            "title": "称重提醒",
-            "description": "定期称重提醒"
-        },
-        "dailyLog": {
-            "title": "每日记录",
-            "description": "24小时无记录时提醒"
-        },
-        "water": {
-            "title": "饮水提醒",
-            "description": "喝水提醒"
-        },
-        "goalAchieved": {
-            "title": "目标达成",
-            "description": "达成目标时通知"
-        },
-        "weeklySummary": {
-            "title": "周报",
-            "description": "每周进度报告"
-        },
-        "enablePush": "启用推送通知",
-        "pushBlocked": "推送通知被阻止",
-        "pushBlockedDesc": "请在浏览器设置中允许通知。",
-        "push": "推送",
-        "email": "邮件"
+    "goalAchieved": {
+      "title": "目标达成",
+      "description": "达成目标时通知"
     },
-    "dialogs": {
-        "add": "添加",
-        "save": "保存",
-        "cancel": "取消",
-        "back": "返回",
-        "search": "搜索",
-        "results": "结果",
-        "noResults": "无结果",
-        "analyzeWithAI": "用AI分析",
-        "reanalyze": "重新分析",
-        "example": "例如",
-        "optional": "可选",
-        "required": "必填",
-        "customAmount": "自定义数量",
-        "addWithAI": "用AI添加",
-        "addWithBarcode": "用条码添加",
-        "addFood": "添加食物",
-        "editFood": "编辑食物",
-        "searchFood": "搜索食物",
-        "foodName": "食物名称",
-        "searchPlaceholder": "搜索食物...",
-        "meal": "餐次",
-        "amount": "数量",
-        "amountGram": "数量（克）",
-        "suggestedPortion": "建议份量",
-        "calculatedValues": "计算值",
-        "per100g": "每100克",
-        "total": "总计",
-        "protein": "蛋白质",
-        "carbs": "碳水化合物",
-        "fat": "脂肪",
-        "recognizedFoods": "识别的食物",
-        "recognizing": "识别中...",
-        "aiAnalyzing": "AI分析中...",
-        "portionHint": "添加份量信息",
-        "photoOrTextRequired": "需要照片或文字",
-        "photo": "照片",
-        "takePhoto": "拍照",
-        "selectFromGallery": "从相册选择",
-        "selectedFood": "选中的食物",
-        "whatDidYouEat": "您吃了什么？",
-        "additionalInfo": "附加信息",
-        "photoAdditionalHint": "添加份量详情",
-        "textOrPhotoRequired": "请上传照片或描述您吃了什么",
-        "aiRequiresInternet": "AI分析需要网络",
-        "analysisFailed": "分析失败",
-        "offlineMode": "离线模式：仅本地搜索",
-        "selectAtLeastOne": "请至少选择一个",
-        "foodAdded": "食物已添加",
-        "foodsAdded": "个已添加",
-        "saveFailed": "保存失败",
-        "inputText": "输入的文字",
-        "confidence": "置信度",
-        "calories": "卡路里",
-        "calPer100g": "卡/100克",
-        "proPer100g": "蛋白质/100克",
-        "carbPer100g": "碳水/100克",
-        "fatPer100g": "脂肪/100克",
-        "barcode": {
-            "title": "用条码添加",
-            "scanning": "扫描中...",
-            "productFound": "找到产品",
-            "productNotFound": "未找到产品",
-            "tryAgain": "重试",
-            "manualEntry": "手动输入"
-        },
-        "weight": {
-            "title": "记录体重",
-            "currentWeight": "当前体重",
-            "unit": "千克",
-            "saved": "体重已保存"
-        },
-        "edit": {
-            "title": "编辑条目",
-            "updated": "条目已更新",
-            "deleted": "条目已删除"
-        }
+    "weeklySummary": {
+      "title": "周报",
+      "description": "每周进度报告"
     },
-    "export": {
-        "success": "已导出",
-        "mealEntries": "餐食记录",
-        "waterEntries": "饮水记录",
-        "weightEntries": "体重记录",
-        "imported": "已导入",
-        "foods": "食物"
+    "enablePush": "启用推送通知",
+    "pushBlocked": "推送通知被阻止",
+    "pushBlockedDesc": "请在浏览器设置中允许通知。",
+    "push": "推送",
+    "email": "邮件"
+  },
+  "dialogs": {
+    "add": "添加",
+    "save": "保存",
+    "cancel": "取消",
+    "back": "返回",
+    "search": "搜索",
+    "results": "结果",
+    "noResults": "无结果",
+    "analyzeWithAI": "用AI分析",
+    "reanalyze": "重新分析",
+    "example": "例如",
+    "optional": "可选",
+    "required": "必填",
+    "customAmount": "自定义数量",
+    "addWithAI": "用AI添加",
+    "addWithBarcode": "用条码添加",
+    "addFood": "添加食物",
+    "editFood": "编辑食物",
+    "searchFood": "搜索食物",
+    "foodName": "食物名称",
+    "searchPlaceholder": "搜索食物...",
+    "meal": "餐次",
+    "amount": "数量",
+    "amountGram": "数量（克）",
+    "suggestedPortion": "建议份量",
+    "calculatedValues": "计算值",
+    "per100g": "每100克",
+    "total": "总计",
+    "protein": "蛋白质",
+    "carbs": "碳水化合物",
+    "fat": "脂肪",
+    "recognizedFoods": "识别的食物",
+    "recognizing": "识别中...",
+    "aiAnalyzing": "AI分析中...",
+    "portionHint": "添加份量信息",
+    "photoOrTextRequired": "需要照片或文字",
+    "photo": "照片",
+    "takePhoto": "拍照",
+    "selectFromGallery": "从相册选择",
+    "selectedFood": "选中的食物",
+    "whatDidYouEat": "您吃了什么？",
+    "additionalInfo": "附加信息",
+    "photoAdditionalHint": "添加份量详情",
+    "textOrPhotoRequired": "请上传照片或描述您吃了什么",
+    "aiRequiresInternet": "AI分析需要网络",
+    "analysisFailed": "分析失败",
+    "selectAtLeastOne": "请至少选择一个",
+    "foodAdded": "食物已添加",
+    "foodsAdded": "个已添加",
+    "saveFailed": "保存失败",
+    "inputText": "输入的文字",
+    "confidence": "置信度",
+    "calories": "卡路里",
+    "calPer100g": "卡/100克",
+    "proPer100g": "蛋白质/100克",
+    "carbPer100g": "碳水/100克",
+    "fatPer100g": "脂肪/100克",
+    "barcode": {
+      "title": "用条码添加",
+      "scanning": "扫描中...",
+      "productFound": "找到产品",
+      "productNotFound": "未找到产品",
+      "tryAgain": "重试",
+      "manualEntry": "手动输入"
+    },
+    "weight": {
+      "title": "记录体重",
+      "currentWeight": "当前体重",
+      "unit": "千克",
+      "saved": "体重已保存"
+    },
+    "edit": {
+      "title": "编辑条目",
+      "updated": "条目已更新",
+      "deleted": "条目已删除"
+    }
+  },
+  "export": {
+    "success": "已导出",
+    "mealEntries": "餐食记录",
+    "waterEntries": "饮水记录",
+    "weightEntries": "体重记录",
+    "imported": "已导入",
+    "foods": "食物"
+  },
+  "notifications": {
+    "title": "通知",
+    "new": "新",
+    "markAllRead": "全部标为已读",
+    "empty": "暂无通知"
+  },
+  "auth": {
+    "signIn": "登录",
+    "signUp": "注册",
+    "email": "电子邮件",
+    "password": "密码",
+    "name": "姓名",
+    "nameOptional": "姓名（可选）",
+    "forgotPassword": "忘记密码",
+    "forgotPasswordTitle": "忘记密码",
+    "forgotPasswordDesc": "输入您的电子邮件地址，我们将发送密码重置链接",
+    "sendResetLink": "发送重置链接",
+    "resetPassword": "重置密码",
+    "resetPasswordTitle": "设置新密码",
+    "resetPasswordDesc": "为您的账户设置新密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认密码",
+    "updatePassword": "更新密码",
+    "signInTab": "登录",
+    "signUpTab": "注册",
+    "signInDesc": "登录您的账户",
+    "signUpDesc": "创建新账户",
+    "tagline": "您的卡路里和宏量营养素追踪智能助手",
+    "validation": {
+      "invalidEmail": "请输入有效的电子邮件地址",
+      "passwordLength": "密码必须至少6个字符",
+      "passwordMismatch": "密码不匹配",
+      "userAlreadyRegistered": "此电子邮件地址已注册",
+      "invalidLogin": "电子邮件或密码无效",
+      "emailNotConfirmed": "请验证您的电子邮件地址"
+    },
+    "messages": {
+      "signInSuccess": "登录成功",
+      "signUpSuccess": "注册成功！验证邮件已发送。",
+      "resetEmailSent": "重置链接已发送至您的邮箱",
+      "passwordUpdated": "您的密码已更新",
+      "verificationSent": "新验证邮件已发送",
+      "emailVerified": "邮箱已验证！",
+      "emailVerifiedDesc": "您的账户已成功验证。"
+    },
+    "pendingVerification": {
+      "title": "等待邮箱验证",
+      "description": "我们已向 {{email}} 发送验证邮件。请检查您的收件箱并点击验证链接。",
+      "spamNote": "如果未收到邮件，请检查垃圾邮件文件夹或重新发送。",
+      "differentAccount": "使用其他账户登录"
+    },
+    "button": {
+      "signingIn": "登录中...",
+      "signingUp": "注册中...",
+      "sending": "发送中...",
+      "saving": "保存中..."
+    }
+  },
+  "meals": {
+    "breakfast": "早餐",
+    "lunch": "午餐",
+    "dinner": "晚餐",
+    "snack": "零食"
+  },
+  "nav": {
+    "home": "首页",
+    "add": "添加",
+    "analytics": "分析",
+    "settings": "设置"
+  },
+  "settings": {
+    "title": "设置",
+    "darkTheme": "深色主题",
+    "active": "开启",
+    "inactive": "关闭",
+    "sections": {
+      "profile": "个人资料",
+      "app": "应用",
+      "data": "数据",
+      "account": "账户",
+      "about": "关于"
+    },
+    "items": {
+      "personalInfo": "个人信息",
+      "goals": "目标",
+      "notifications": "通知",
+      "exportData": "导出数据",
+      "exporting": "导出中...",
+      "exportDesc": "JSON格式备份",
+      "importData": "导入数据",
+      "importing": "导入中...",
+      "importDesc": "从备份恢复",
+      "changePassword": "修改密码",
+      "changePasswordDesc": "更新您的账户密码",
+      "signOut": "退出登录",
+      "signOutDesc": "退出您的账户",
+      "aboutApp": "关于应用"
+    },
+    "personalInfo": {
+      "title": "个人信息",
+      "desc": "更新您的个人资料",
+      "gender": "性别",
+      "male": "男",
+      "female": "女",
+      "other": "其他",
+      "birthDate": "出生日期",
+      "height": "身高 (cm)",
+      "weight": "体重 (kg)",
+      "targetWeight": "目标 (kg)",
+      "bmi": "BMI"
+    },
+    "goals": {
+      "title": "目标",
+      "desc": "编辑您的卡路里和宏量营养素目标",
+      "activityLevel": "活动水平",
+      "goalType": "目标",
+      "aiCalculate": "用AI计算目标",
+      "calculating": "AI计算中...",
+      "calories": "卡路里 (kcal)",
+      "water": "水 (ml)",
+      "protein": "蛋白质 (g)",
+      "carbs": "碳水化合物 (g)",
+      "fat": "脂肪 (g)",
+      "activity": {
+        "sedentary": "久坐",
+        "light": "轻度活动",
+        "moderate": "中度活动",
+        "active": "活跃",
+        "very_active": "非常活跃"
+      },
+      "goal": {
+        "lose_fast": "快速减重",
+        "lose": "减重",
+        "maintain": "保持",
+        "gain": "增肌"
+      }
     },
     "notifications": {
-        "title": "通知",
-        "new": "新",
-        "markAllRead": "全部标为已读",
-        "empty": "暂无通知"
+      "title": "通知设置",
+      "desc": "配置通知渠道和时间"
     },
-    "auth": {
-        "signIn": "登录",
-        "signUp": "注册",
-        "email": "电子邮件",
-        "password": "密码",
-        "name": "姓名",
-        "nameOptional": "姓名（可选）",
-        "forgotPassword": "忘记密码",
-        "forgotPasswordTitle": "忘记密码",
-        "forgotPasswordDesc": "输入您的电子邮件地址，我们将发送密码重置链接",
-        "sendResetLink": "发送重置链接",
-        "resetPassword": "重置密码",
-        "resetPasswordTitle": "设置新密码",
-        "resetPasswordDesc": "为您的账户设置新密码",
-        "newPassword": "新密码",
-        "confirmPassword": "确认密码",
-        "updatePassword": "更新密码",
-        "signInTab": "登录",
-        "signUpTab": "注册",
-        "signInDesc": "登录您的账户",
-        "signUpDesc": "创建新账户",
-        "tagline": "您的卡路里和宏量营养素追踪智能助手",
-        "validation": {
-            "invalidEmail": "请输入有效的电子邮件地址",
-            "passwordLength": "密码必须至少6个字符",
-            "passwordMismatch": "密码不匹配",
-            "userAlreadyRegistered": "此电子邮件地址已注册",
-            "invalidLogin": "电子邮件或密码无效",
-            "emailNotConfirmed": "请验证您的电子邮件地址"
-        },
-        "messages": {
-            "signInSuccess": "登录成功",
-            "signUpSuccess": "注册成功！验证邮件已发送。",
-            "resetEmailSent": "重置链接已发送至您的邮箱",
-            "passwordUpdated": "您的密码已更新",
-            "verificationSent": "新验证邮件已发送",
-            "emailVerified": "邮箱已验证！",
-            "emailVerifiedDesc": "您的账户已成功验证。"
-        },
-        "pendingVerification": {
-            "title": "等待邮箱验证",
-            "description": "我们已向 {{email}} 发送验证邮件。请检查您的收件箱并点击验证链接。",
-            "spamNote": "如果未收到邮件，请检查垃圾邮件文件夹或重新发送。",
-            "differentAccount": "使用其他账户登录"
-        },
-        "button": {
-            "signingIn": "登录中...",
-            "signingUp": "注册中...",
-            "sending": "发送中...",
-            "saving": "保存中..."
-        }
+    "import": {
+      "title": "导入数据",
+      "desc": "选择之前导出的JSON文件。现有数据将被保留，只添加新记录。",
+      "fileSelect": "选择文件",
+      "fileNote": "仅支持CaloriX JSON备份文件"
     },
-    "meals": {
-        "breakfast": "早餐",
-        "lunch": "午餐",
-        "dinner": "晚餐",
-        "snack": "零食"
-    },
-    "nav": {
-        "home": "首页",
-        "add": "添加",
-        "analytics": "分析",
-        "settings": "设置"
-    },
-    "settings": {
-        "title": "设置",
-        "darkTheme": "深色主题",
-        "active": "开启",
-        "inactive": "关闭",
-        "sections": {
-            "profile": "个人资料",
-            "app": "应用",
-            "data": "数据",
-            "account": "账户",
-            "about": "关于"
-        },
-        "items": {
-            "personalInfo": "个人信息",
-            "goals": "目标",
-            "notifications": "通知",
-            "exportData": "导出数据",
-            "exporting": "导出中...",
-            "exportDesc": "JSON格式备份",
-            "importData": "导入数据",
-            "importing": "导入中...",
-            "importDesc": "从备份恢复",
-            "changePassword": "修改密码",
-            "changePasswordDesc": "更新您的账户密码",
-            "signOut": "退出登录",
-            "signOutDesc": "退出您的账户",
-            "aboutApp": "关于应用"
-        },
-        "personalInfo": {
-            "title": "个人信息",
-            "desc": "更新您的个人资料",
-            "gender": "性别",
-            "male": "男",
-            "female": "女",
-            "other": "其他",
-            "birthDate": "出生日期",
-            "height": "身高 (cm)",
-            "weight": "体重 (kg)",
-            "targetWeight": "目标 (kg)",
-            "bmi": "BMI"
-        },
-        "goals": {
-            "title": "目标",
-            "desc": "编辑您的卡路里和宏量营养素目标",
-            "activityLevel": "活动水平",
-            "goalType": "目标",
-            "aiCalculate": "用AI计算目标",
-            "calculating": "AI计算中...",
-            "calories": "卡路里 (kcal)",
-            "water": "水 (ml)",
-            "protein": "蛋白质 (g)",
-            "carbs": "碳水化合物 (g)",
-            "fat": "脂肪 (g)",
-            "activity": {
-                "sedentary": "久坐",
-                "light": "轻度活动",
-                "moderate": "中度活动",
-                "active": "活跃",
-                "very_active": "非常活跃"
-            },
-            "goal": {
-                "lose_fast": "快速减重",
-                "lose": "减重",
-                "maintain": "保持",
-                "gain": "增肌"
-            }
-        },
-        "notifications": {
-            "title": "通知设置",
-            "desc": "配置通知渠道和时间"
-        },
-        "import": {
-            "title": "导入数据",
-            "desc": "选择之前导出的JSON文件。现有数据将被保留，只添加新记录。",
-            "fileSelect": "选择文件",
-            "fileNote": "仅支持CaloriX JSON备份文件"
-        },
-        "messages": {
-            "personalInfoSaved": "个人信息已更新",
-            "goalsSaved": "目标已更新",
-            "settingsSaved": "设置已更新",
-            "passwordChanged": "密码已更新",
-            "aiSuccess": "AI计算完成",
-            "aiUpdate": "AI宏量营养素更新",
-            "error": "发生错误"
-        }
-    },
-    "dashboard": {
-        "title": "首页",
-        "welcome": "欢迎回来",
-        "caloriesLeft": "剩余卡路里",
-        "eaten": "已摄入",
-        "burned": "已消耗",
-        "macros": "宏量营养素",
-        "water": "水",
-        "noRecords": "暂无记录",
-        "addFood": "添加食物",
-        "waterTracker": "饮水追踪",
-        "mlRemaining": "剩余 {{amount}} ml",
-        "goalReached": "目标达成！🎉",
-        "custom": "自定义",
-        "logWeight": "记录体重",
-        "weightOverdue": "已有 {{days}} 天未称重",
-        "lastWeight": "上次称重：{{days}} 天前",
-        "recordWeight": "记录您的体重",
-        "quickAdd": "快速添加",
-        "quick": {
-            "barcode": "条形码",
-            "scan": "扫描产品",
-            "search": "搜索",
-            "findFood": "查找食物",
-            "ai": "用AI添加",
-            "photoText": "照片/文字",
-            "recent": "最近",
-            "history": "从历史记录",
-            "favorites": "收藏",
-            "saved": "已保存项目",
-            "offline": "离线模式：AI功能需要网络连接"
-        },
-        "dailySummary": "每日摘要",
-        "remaining": "剩余 kcal",
-        "consumed": "已摄入",
-        "target": "目标",
-        "waterAdded": "+{{amount}}ml 水已添加",
-        "dailyTotal": "每日总量：{{total}}ml",
-        "errorWeight": "保存体重时出错",
-        "weightSaved": "体重已保存",
-        "savedAs": "已保存为 {{weight}} kg",
-        "errorFood": "添加食物时出错",
-        "foodAdded": "食物已添加",
-        "addedToMeal": "{{food}} 已添加到 {{meal}}",
-        "errorUpdate": "更新食物时出错",
-        "foodUpdated": "食物已更新",
-        "updatedSuccessfully": "{{food}} 更新成功",
-        "errorDelete": "删除食物时出错",
-        "foodDeleted": "食物已删除",
-        "deletedSuccessfully": "记录已成功删除"
-    },
-    "about": {
-        "title": "关于",
-        "subtitle": "卡路里和宏量营养素追踪应用",
-        "version": "版本 {{version}}",
-        "features": {
-            "title": "功能",
-            "ai": "AI食物识别（照片和文字）",
-            "barcode": "条形码扫描",
-            "tracker": "饮水和体重追踪",
-            "analytics": "详细分析和图表",
-            "notifications": "智能提醒",
-            "offline": "离线支持"
-        },
-        "developer": {
-            "title": "开发者",
-            "role": "软件开发者"
-        },
-        "email": "邮箱",
-        "poweredBy": "技术支持",
-        "footer": {
-            "madeWith": "用心制作",
-            "inTurkey": "于土耳其",
-            "copyright": "© 2025 CaloriX. 保留所有权利。"
-        }
-    },
-    "addFood": {
-        "title": "添加食物",
-        "meal": "餐次",
-        "ai": {
-            "title": "AI识别",
-            "buttonTitle": "用AI添加",
-            "buttonDesc": "通过照片或文字识别食物"
-        },
-        "offline": {
-            "title": "离线",
-            "desc": "AI识别需要网络连接"
-        },
-        "recent": {
-            "title": "最近",
-            "empty": "暂无添加的食物"
-        },
-        "favorites": {
-            "title": "常吃食物",
-            "empty": "暂无添加的食物"
-        },
-        "tabs": {
-            "search": "搜索",
-            "barcode": "条形码"
-        },
-        "search": {
-            "title": "搜索食物",
-            "placeholder": "食物名称或品牌...",
-            "noResults": "无结果",
-            "promptTitle": "从数据库搜索食物",
-            "promptDesc": "请输入至少2个字符"
-        },
-        "barcode": {
-            "title": "扫描条形码",
-            "scanTitle": "用相机扫描",
-            "scanDesc": "将产品条形码对准相机",
-            "openCamera": "打开相机"
-        },
-        "manual": {
-            "title": "手动输入",
-            "desc": "自行输入营养成分"
-        },
-        "toasts": {
-            "success": "食物已添加",
-            "error": "添加食物时出错"
-        }
-    },
-    "analytics": {
-        "title": "分析",
-        "period": {
-            "week": "周",
-            "month": "月",
-            "3months": "3个月"
-        },
-        "stats": {
-            "avgCalories": "平均卡路里",
-            "avgWater": "平均饮水",
-            "avgProtein": "平均蛋白质",
-            "weightChange": "体重变化",
-            "target": "/ 目标"
-        },
-        "charts": {
-            "calories": {
-                "title": "卡路里追踪"
-            },
-            "target": "目标",
-            "macros": {
-                "title": "宏量营养素追踪（目标%）",
-                "subtitle": "线 = 100%目标"
-            }
-        },
-        "averages": {
-            "title": "平均宏量营养素值"
-        },
-        "summary": {
-            "daysWithData": "有数据的天数",
-            "day": "天"
-        },
-        "weightTrend": {
-            "first": "首次记录",
-            "change": "变化",
-            "last": "最近记录"
-        }
+    "messages": {
+      "personalInfoSaved": "个人信息已更新",
+      "goalsSaved": "目标已更新",
+      "settingsSaved": "设置已更新",
+      "passwordChanged": "密码已更新",
+      "aiSuccess": "AI计算完成",
+      "aiUpdate": "AI宏量营养素更新",
+      "error": "发生错误"
     }
+  },
+  "dashboard": {
+    "title": "首页",
+    "welcome": "欢迎回来",
+    "caloriesLeft": "剩余卡路里",
+    "eaten": "已摄入",
+    "burned": "已消耗",
+    "macros": "宏量营养素",
+    "water": "水",
+    "noRecords": "暂无记录",
+    "addFood": "添加食物",
+    "waterTracker": "饮水追踪",
+    "mlRemaining": "剩余 {{amount}} ml",
+    "goalReached": "目标达成！🎉",
+    "custom": "自定义",
+    "logWeight": "记录体重",
+    "weightOverdue": "已有 {{days}} 天未称重",
+    "lastWeight": "上次称重：{{days}} 天前",
+    "recordWeight": "记录您的体重",
+    "quickAdd": "快速添加",
+    "quick": {
+      "barcode": "条形码",
+      "scan": "扫描产品",
+      "search": "搜索",
+      "findFood": "查找食物",
+      "ai": "用AI添加",
+      "photoText": "照片/文字",
+      "recent": "最近",
+      "history": "从历史记录",
+      "favorites": "收藏",
+      "saved": "已保存项目"
+    },
+    "dailySummary": "每日摘要",
+    "remaining": "剩余 kcal",
+    "consumed": "已摄入",
+    "target": "目标",
+    "waterAdded": "+{{amount}}ml 水已添加",
+    "dailyTotal": "每日总量：{{total}}ml",
+    "errorWeight": "保存体重时出错",
+    "weightSaved": "体重已保存",
+    "savedAs": "已保存为 {{weight}} kg",
+    "errorFood": "添加食物时出错",
+    "foodAdded": "食物已添加",
+    "addedToMeal": "{{food}} 已添加到 {{meal}}",
+    "errorUpdate": "更新食物时出错",
+    "foodUpdated": "食物已更新",
+    "updatedSuccessfully": "{{food}} 更新成功",
+    "errorDelete": "删除食物时出错",
+    "foodDeleted": "食物已删除",
+    "deletedSuccessfully": "记录已成功删除"
+  },
+  "about": {
+    "title": "关于",
+    "subtitle": "卡路里和宏量营养素追踪应用",
+    "version": "版本 {{version}}",
+    "features": {
+      "title": "功能",
+      "ai": "AI食物识别（照片和文字）",
+      "barcode": "条形码扫描",
+      "tracker": "饮水和体重追踪",
+      "analytics": "详细分析和图表",
+      "notifications": "智能提醒"
+    },
+    "developer": {
+      "title": "开发者",
+      "role": "软件开发者"
+    },
+    "email": "邮箱",
+    "poweredBy": "技术支持",
+    "footer": {
+      "madeWith": "用心制作",
+      "inTurkey": "于土耳其",
+      "copyright": "© 2025 CaloriX. 保留所有权利。"
+    }
+  },
+  "addFood": {
+    "title": "添加食物",
+    "meal": "餐次",
+    "ai": {
+      "title": "AI识别",
+      "buttonTitle": "用AI添加",
+      "buttonDesc": "通过照片或文字识别食物"
+    },
+    "recent": {
+      "title": "最近",
+      "empty": "暂无添加的食物"
+    },
+    "favorites": {
+      "title": "常吃食物",
+      "empty": "暂无添加的食物"
+    },
+    "tabs": {
+      "search": "搜索",
+      "barcode": "条形码"
+    },
+    "search": {
+      "title": "搜索食物",
+      "placeholder": "食物名称或品牌...",
+      "noResults": "无结果",
+      "promptTitle": "从数据库搜索食物",
+      "promptDesc": "请输入至少2个字符"
+    },
+    "barcode": {
+      "title": "扫描条形码",
+      "scanTitle": "用相机扫描",
+      "scanDesc": "将产品条形码对准相机",
+      "openCamera": "打开相机"
+    },
+    "manual": {
+      "title": "手动输入",
+      "desc": "自行输入营养成分"
+    },
+    "toasts": {
+      "success": "食物已添加",
+      "error": "添加食物时出错"
+    }
+  },
+  "analytics": {
+    "title": "分析",
+    "period": {
+      "week": "周",
+      "month": "月",
+      "3months": "3个月"
+    },
+    "stats": {
+      "avgCalories": "平均卡路里",
+      "avgWater": "平均饮水",
+      "avgProtein": "平均蛋白质",
+      "weightChange": "体重变化",
+      "target": "/ 目标"
+    },
+    "charts": {
+      "calories": {
+        "title": "卡路里追踪"
+      },
+      "target": "目标",
+      "macros": {
+        "title": "宏量营养素追踪（目标%）",
+        "subtitle": "线 = 100%目标"
+      }
+    },
+    "averages": {
+      "title": "平均宏量营养素值"
+    },
+    "summary": {
+      "daysWithData": "有数据的天数",
+      "day": "天"
+    },
+    "weightTrend": {
+      "first": "首次记录",
+      "change": "变化",
+      "last": "最近记录"
+    }
+  }
 }

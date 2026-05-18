@@ -33,8 +33,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 
 interface FoodData {
@@ -95,7 +93,6 @@ export function BarcodeScanDialog({
   const [error, setError] = useState<string | null>(null);
   const [foodId, setFoodId] = useState<string | null>(null);
 
-  const isOnline = useOnlineStatus();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -235,10 +232,6 @@ export function BarcodeScanDialog({
       return;
     }
 
-    if (!isOnline) {
-      setError("AI analizi için internet bağlantısı gerekli");
-      return;
-    }
 
     setStep("analyzing");
     setAnalyzing(true);
@@ -564,7 +557,7 @@ export function BarcodeScanDialog({
                     input.type = "file";
                     input.accept = "image/*";
                     input.capture = "environment";
-                    input.onchange = (e) => handleFileSelect(e as any);
+                    input.onchange = (e: Event) => handleFileSelect(e as unknown as React.ChangeEvent<HTMLInputElement>);
                     input.click();
                   }}
                 >
@@ -614,7 +607,7 @@ export function BarcodeScanDialog({
               </Button>
               <Button
                 onClick={analyzeWithAI}
-                disabled={(!imageData && !additionalText.trim()) || !isOnline}
+                disabled={!imageData && !additionalText.trim()}
               >
                 <Sparkles className="mr-2 h-4 w-4" />
                 AI ile Analiz Et

@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScanBarcode, Pencil, Search, WifiOff, Sparkles, Loader2 } from "lucide-react";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { ScanBarcode, Pencil, Search, Sparkles, Loader2 } from "lucide-react";
 import { MEAL_TYPES, type MealType } from "@/lib/constants";
 import { UnifiedFoodDialog } from "@/components/dialogs/UnifiedFoodDialog";
 import { AddFromFoodDialog } from "@/components/dialogs/AddFromFoodDialog";
@@ -35,7 +34,6 @@ import { useTranslation } from "react-i18next";
 
 const AddPage = () => {
   const { t } = useTranslation();
-  const isOnline = useOnlineStatus();
   const [selectedMeal, setSelectedMeal] = useState<MealType>("lunch");
   const [searchQuery, setSearchQuery] = useState("");
   const [unifiedDialogOpen, setUnifiedDialogOpen] = useState(false);
@@ -210,38 +208,24 @@ const AddPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {isOnline ? (
-              <Button
-                variant="outline"
-                className="w-full h-16 justify-start gap-4"
-                onClick={() => {
-                  setUnifiedDialogTab("ai");
-                  setUnifiedDialogOpen(true);
-                }}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium">{t('addFood.ai.buttonTitle')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t('addFood.ai.buttonDesc')}
-                  </p>
-                </div>
-              </Button>
-            ) : (
-              <div className="flex flex-col items-center gap-4 py-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-warning/10">
-                  <WifiOff className="h-8 w-8 text-warning" />
-                </div>
-                <div className="text-center">
-                  <p className="font-medium text-foreground">{t('addFood.offline.title')}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t('addFood.offline.desc')}
-                  </p>
-                </div>
+            <Button
+              variant="outline"
+              className="w-full h-16 justify-start gap-4"
+              onClick={() => {
+                setUnifiedDialogTab("ai");
+                setUnifiedDialogOpen(true);
+              }}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Sparkles className="h-5 w-5 text-primary" />
               </div>
-            )}
+              <div className="text-left">
+                <p className="font-medium">{t('addFood.ai.buttonTitle')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('addFood.ai.buttonDesc')}
+                </p>
+              </div>
+            </Button>
           </CardContent>
         </Card>
 

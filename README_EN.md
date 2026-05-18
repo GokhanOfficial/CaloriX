@@ -52,7 +52,6 @@ CaloriX is a modern PWA (Progressive Web App) that allows you to track daily cal
 
 ### 🌙 Other
 - Dark/Light theme support
-- Offline-first architecture
 - Turkish interface (English support in documentation)
 - PWA installation support
 

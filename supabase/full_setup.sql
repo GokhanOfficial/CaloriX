@@ -5,7 +5,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ENUM TYPES
 CREATE TYPE public.meal_type AS ENUM ('breakfast', 'lunch', 'dinner', 'snack');
 CREATE TYPE public.food_source AS ENUM ('barcode', 'photo', 'text', 'manual');
-CREATE TYPE public.sync_state AS ENUM ('pending', 'synced', 'conflict', 'failed');
 CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
 
 -- PROFILES TABLE
@@ -62,8 +61,7 @@ CREATE TABLE public.foods (
   verified BOOLEAN DEFAULT false,
   created_by UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  last_synced_at TIMESTAMPTZ
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.foods ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_foods_barcode ON public.foods(barcode);
@@ -105,15 +103,12 @@ CREATE TABLE public.meal_entries (
   note TEXT,
   photo_url TEXT,
   source food_source NOT NULL DEFAULT 'manual',
-  sync_state sync_state NOT NULL DEFAULT 'synced',
-  client_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ
 );
 ALTER TABLE public.meal_entries ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_meal_entries_user_date ON public.meal_entries(user_id, entry_date);
-CREATE INDEX idx_meal_entries_sync_state ON public.meal_entries(user_id, sync_state) WHERE sync_state != 'synced';
 
 -- WATER ENTRIES TABLE
 CREATE TABLE public.water_entries (
@@ -122,8 +117,6 @@ CREATE TABLE public.water_entries (
   entry_date DATE NOT NULL,
   entry_time TIMESTAMPTZ NOT NULL DEFAULT now(),
   amount_ml INTEGER NOT NULL,
-  sync_state sync_state NOT NULL DEFAULT 'synced',
-  client_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ
@@ -138,8 +131,6 @@ CREATE TABLE public.weight_entries (
   entry_date DATE NOT NULL,
   weight_kg NUMERIC(5,2) NOT NULL,
   note TEXT,
-  sync_state sync_state NOT NULL DEFAULT 'synced',
-  client_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ
@@ -162,22 +153,6 @@ CREATE TABLE public.notifications (
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_notifications_user ON public.notifications(user_id, created_at DESC);
 CREATE INDEX idx_notifications_unread ON public.notifications(user_id, is_read) WHERE is_read = false;
-
--- SYNC LOG TABLE
-CREATE TABLE public.sync_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('meal_entry', 'water_entry', 'weight_entry', 'food')),
-  entity_id UUID NOT NULL,
-  operation TEXT NOT NULL CHECK (operation IN ('insert', 'update', 'delete')),
-  payload JSONB,
-  client_id TEXT,
-  synced_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE public.sync_log ENABLE ROW LEVEL SECURITY;
-CREATE INDEX idx_sync_log_user ON public.sync_log(user_id, created_at);
-CREATE INDEX idx_sync_log_pending ON public.sync_log(user_id) WHERE synced_at IS NULL;
 
 -- USER SETTINGS TABLE
 CREATE TABLE public.user_settings (
@@ -260,11 +235,6 @@ CREATE POLICY "Users can delete their own weight entries" ON public.weight_entri
 CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING (auth.uid() = user_id);
-
--- SYNC LOG POLICIES
-CREATE POLICY "Users can view their own sync logs" ON public.sync_log FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own sync logs" ON public.sync_log FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own sync logs" ON public.sync_log FOR UPDATE USING (auth.uid() = user_id);
 
 -- USER SETTINGS POLICIES
 CREATE POLICY "Users can view their own settings" ON public.user_settings FOR SELECT USING (auth.uid() = user_id);

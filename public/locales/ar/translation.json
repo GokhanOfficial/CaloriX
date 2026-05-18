@@ -1,467 +1,458 @@
 {
-    "common": {
-        "loading": "جار التحميل...",
-        "error": "خطأ",
-        "success": "نجاح",
-        "cancel": "إلغاء",
-        "save": "حفظ",
-        "close": "إغلاق",
-        "send": "إرسال",
-        "back": "رجوع",
-        "resend": "إعادة الإرسال",
-        "healthDisclaimer": "⚠️ هذا التطبيق للأغراض المعلوماتية فقط ولا يشكل نصيحة طبية. يرجى استشارة متخصص في شؤون التغذية والصحة.",
-        "appName": "CaloriX",
-        "required": "حقل مطلوب",
-        "food": "طعام",
-        "aiPoweredBy": "مدعوم بالذكاء الاصطناعي",
-        "today": "اليوم",
-        "yesterday": "أمس",
-        "tomorrow": "غداً",
-        "meal": "وجبة",
-        "searchFood": "بحث عن طعام",
-        "searchPlaceholder": "بحث عن طعام...",
-        "version": "الإصدار"
+  "common": {
+    "loading": "جار التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "close": "إغلاق",
+    "send": "إرسال",
+    "back": "رجوع",
+    "resend": "إعادة الإرسال",
+    "healthDisclaimer": "⚠️ هذا التطبيق للأغراض المعلوماتية فقط ولا يشكل نصيحة طبية. يرجى استشارة متخصص في شؤون التغذية والصحة.",
+    "appName": "CaloriX",
+    "required": "حقل مطلوب",
+    "food": "طعام",
+    "aiPoweredBy": "مدعوم بالذكاء الاصطناعي",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "tomorrow": "غداً",
+    "meal": "وجبة",
+    "searchFood": "بحث عن طعام",
+    "searchPlaceholder": "بحث عن طعام...",
+    "version": "الإصدار"
+  },
+  "header": {
+    "signedOut": "تم تسجيل الخروج",
+    "goodbye": "مع السلامة!",
+    "user": "مستخدم"
+  },
+  "bmi": {
+    "underweight": "نقص الوزن",
+    "normal": "طبيعي",
+    "overweight": "زيادة الوزن",
+    "obese": "سمنة"
+  },
+  "notificationTypes": {
+    "weighIn": {
+      "title": "تذكير الوزن",
+      "description": "تذكيرات منتظمة للوزن"
     },
-    "header": {
-        "online": "متصل",
-        "offline": "غير متصل",
-        "signedOut": "تم تسجيل الخروج",
-        "goodbye": "مع السلامة!",
-        "user": "مستخدم"
+    "dailyLog": {
+      "title": "السجل اليومي",
+      "description": "تذكير إذا لم يكن هناك سجل خلال 24 ساعة"
     },
-    "bmi": {
-        "underweight": "نقص الوزن",
-        "normal": "طبيعي",
-        "overweight": "زيادة الوزن",
-        "obese": "سمنة"
+    "water": {
+      "title": "تذكير الماء",
+      "description": "تذكيرات لشرب الماء"
     },
-    "notificationTypes": {
-        "weighIn": {
-            "title": "تذكير الوزن",
-            "description": "تذكيرات منتظمة للوزن"
-        },
-        "dailyLog": {
-            "title": "السجل اليومي",
-            "description": "تذكير إذا لم يكن هناك سجل خلال 24 ساعة"
-        },
-        "water": {
-            "title": "تذكير الماء",
-            "description": "تذكيرات لشرب الماء"
-        },
-        "goalAchieved": {
-            "title": "تحقق الهدف",
-            "description": "إشعار عند تحقيق الهدف"
-        },
-        "weeklySummary": {
-            "title": "الملخص الأسبوعي",
-            "description": "تقرير التقدم الأسبوعي"
-        },
-        "enablePush": "تفعيل الإشعارات الفورية",
-        "pushBlocked": "الإشعارات الفورية محظورة",
-        "pushBlockedDesc": "اسمح بالإشعارات في إعدادات المتصفح.",
-        "push": "فوري",
-        "email": "بريد إلكتروني"
+    "goalAchieved": {
+      "title": "تحقق الهدف",
+      "description": "إشعار عند تحقيق الهدف"
     },
-    "dialogs": {
-        "add": "إضافة",
-        "save": "حفظ",
-        "cancel": "إلغاء",
-        "back": "رجوع",
-        "search": "بحث",
-        "results": "النتائج",
-        "noResults": "لا نتائج",
-        "analyzeWithAI": "تحليل بالذكاء الاصطناعي",
-        "reanalyze": "إعادة التحليل",
-        "example": "مثال",
-        "optional": "اختياري",
-        "required": "مطلوب",
-        "customAmount": "كمية مخصصة",
-        "addWithAI": "إضافة بالذكاء الاصطناعي",
-        "addWithBarcode": "إضافة بالباركود",
-        "addFood": "إضافة طعام",
-        "editFood": "تعديل الطعام",
-        "searchFood": "بحث عن طعام",
-        "foodName": "اسم الطعام",
-        "searchPlaceholder": "بحث عن طعام...",
-        "meal": "وجبة",
-        "amount": "الكمية",
-        "amountGram": "الكمية (غرام)",
-        "suggestedPortion": "الحصة المقترحة",
-        "calculatedValues": "القيم المحسوبة",
-        "per100g": "لكل 100غ",
-        "total": "المجموع",
-        "protein": "بروتين",
-        "carbs": "كربوهيدرات",
-        "fat": "دهون",
-        "recognizedFoods": "الأطعمة المعترف بها",
-        "recognizing": "جار التعرف...",
-        "aiAnalyzing": "الذكاء الاصطناعي يحلل...",
-        "portionHint": "أضف معلومات الحصة",
-        "photoOrTextRequired": "صورة أو نص مطلوب",
-        "photo": "صورة",
-        "takePhoto": "التقاط صورة",
-        "selectFromGallery": "اختر من المعرض",
-        "selectedFood": "الطعام المحدد",
-        "whatDidYouEat": "ماذا أكلت؟",
-        "additionalInfo": "معلومات إضافية",
-        "photoAdditionalHint": "أضف تفاصيل الحصة",
-        "textOrPhotoRequired": "يرجى رفع صورة أو وصف ما أكلته",
-        "aiRequiresInternet": "تحليل الذكاء الاصطناعي يتطلب إنترنت",
-        "analysisFailed": "فشل التحليل",
-        "offlineMode": "وضع عدم الاتصال: بحث محلي فقط",
-        "selectAtLeastOne": "اختر واحداً على الأقل",
-        "foodAdded": "تمت إضافة الطعام",
-        "foodsAdded": "أطعمة مضافة",
-        "saveFailed": "فشل الحفظ",
-        "inputText": "النص المدخل",
-        "confidence": "الثقة",
-        "calories": "سعرات",
-        "calPer100g": "سعرات/100غ",
-        "proPer100g": "بروتين/100غ",
-        "carbPer100g": "كارب/100غ",
-        "fatPer100g": "دهون/100غ",
-        "barcode": {
-            "title": "إضافة بالباركود",
-            "scanning": "جار المسح...",
-            "productFound": "تم العثور على المنتج",
-            "productNotFound": "المنتج غير موجود",
-            "tryAgain": "أعد المحاولة",
-            "manualEntry": "إدخال يدوي"
-        },
-        "weight": {
-            "title": "تسجيل الوزن",
-            "currentWeight": "الوزن الحالي",
-            "unit": "كغ",
-            "saved": "تم حفظ الوزن"
-        },
-        "edit": {
-            "title": "تعديل الإدخال",
-            "updated": "تم تحديث الإدخال",
-            "deleted": "تم حذف الإدخال"
-        }
+    "weeklySummary": {
+      "title": "الملخص الأسبوعي",
+      "description": "تقرير التقدم الأسبوعي"
     },
-    "export": {
-        "success": "تم التصدير",
-        "mealEntries": "سجلات الوجبات",
-        "waterEntries": "سجلات الماء",
-        "weightEntries": "سجلات الوزن",
-        "imported": "تم الاستيراد",
-        "foods": "أطعمة"
+    "enablePush": "تفعيل الإشعارات الفورية",
+    "pushBlocked": "الإشعارات الفورية محظورة",
+    "pushBlockedDesc": "اسمح بالإشعارات في إعدادات المتصفح.",
+    "push": "فوري",
+    "email": "بريد إلكتروني"
+  },
+  "dialogs": {
+    "add": "إضافة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "back": "رجوع",
+    "search": "بحث",
+    "results": "النتائج",
+    "noResults": "لا نتائج",
+    "analyzeWithAI": "تحليل بالذكاء الاصطناعي",
+    "reanalyze": "إعادة التحليل",
+    "example": "مثال",
+    "optional": "اختياري",
+    "required": "مطلوب",
+    "customAmount": "كمية مخصصة",
+    "addWithAI": "إضافة بالذكاء الاصطناعي",
+    "addWithBarcode": "إضافة بالباركود",
+    "addFood": "إضافة طعام",
+    "editFood": "تعديل الطعام",
+    "searchFood": "بحث عن طعام",
+    "foodName": "اسم الطعام",
+    "searchPlaceholder": "بحث عن طعام...",
+    "meal": "وجبة",
+    "amount": "الكمية",
+    "amountGram": "الكمية (غرام)",
+    "suggestedPortion": "الحصة المقترحة",
+    "calculatedValues": "القيم المحسوبة",
+    "per100g": "لكل 100غ",
+    "total": "المجموع",
+    "protein": "بروتين",
+    "carbs": "كربوهيدرات",
+    "fat": "دهون",
+    "recognizedFoods": "الأطعمة المعترف بها",
+    "recognizing": "جار التعرف...",
+    "aiAnalyzing": "الذكاء الاصطناعي يحلل...",
+    "portionHint": "أضف معلومات الحصة",
+    "photoOrTextRequired": "صورة أو نص مطلوب",
+    "photo": "صورة",
+    "takePhoto": "التقاط صورة",
+    "selectFromGallery": "اختر من المعرض",
+    "selectedFood": "الطعام المحدد",
+    "whatDidYouEat": "ماذا أكلت؟",
+    "additionalInfo": "معلومات إضافية",
+    "photoAdditionalHint": "أضف تفاصيل الحصة",
+    "textOrPhotoRequired": "يرجى رفع صورة أو وصف ما أكلته",
+    "aiRequiresInternet": "تحليل الذكاء الاصطناعي يتطلب إنترنت",
+    "analysisFailed": "فشل التحليل",
+    "selectAtLeastOne": "اختر واحداً على الأقل",
+    "foodAdded": "تمت إضافة الطعام",
+    "foodsAdded": "أطعمة مضافة",
+    "saveFailed": "فشل الحفظ",
+    "inputText": "النص المدخل",
+    "confidence": "الثقة",
+    "calories": "سعرات",
+    "calPer100g": "سعرات/100غ",
+    "proPer100g": "بروتين/100غ",
+    "carbPer100g": "كارب/100غ",
+    "fatPer100g": "دهون/100غ",
+    "barcode": {
+      "title": "إضافة بالباركود",
+      "scanning": "جار المسح...",
+      "productFound": "تم العثور على المنتج",
+      "productNotFound": "المنتج غير موجود",
+      "tryAgain": "أعد المحاولة",
+      "manualEntry": "إدخال يدوي"
+    },
+    "weight": {
+      "title": "تسجيل الوزن",
+      "currentWeight": "الوزن الحالي",
+      "unit": "كغ",
+      "saved": "تم حفظ الوزن"
+    },
+    "edit": {
+      "title": "تعديل الإدخال",
+      "updated": "تم تحديث الإدخال",
+      "deleted": "تم حذف الإدخال"
+    }
+  },
+  "export": {
+    "success": "تم التصدير",
+    "mealEntries": "سجلات الوجبات",
+    "waterEntries": "سجلات الماء",
+    "weightEntries": "سجلات الوزن",
+    "imported": "تم الاستيراد",
+    "foods": "أطعمة"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "new": "جديد",
+    "markAllRead": "تعليم الكل مقروء",
+    "empty": "لا توجد إشعارات"
+  },
+  "auth": {
+    "signIn": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "name": "الاسم",
+    "nameOptional": "الاسم (اختياري)",
+    "forgotPassword": "نسيت كلمة المرور",
+    "forgotPasswordTitle": "نسيت كلمة المرور",
+    "forgotPasswordDesc": "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور",
+    "sendResetLink": "إرسال رابط إعادة التعيين",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "resetPasswordTitle": "تعيين كلمة مرور جديدة",
+    "resetPasswordDesc": "قم بتعيين كلمة مرور جديدة لحسابك",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "updatePassword": "تحديث كلمة المرور",
+    "signInTab": "تسجيل الدخول",
+    "signUpTab": "إنشاء حساب",
+    "signInDesc": "سجل الدخول إلى حسابك",
+    "signUpDesc": "أنشئ حساباً جديداً",
+    "tagline": "مساعدك الذكي لتتبع السعرات الحرارية والمغذيات الكبرى",
+    "validation": {
+      "invalidEmail": "يرجى إدخال بريد إلكتروني صالح",
+      "passwordLength": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين",
+      "userAlreadyRegistered": "هذا البريد الإلكتروني مسجل بالفعل",
+      "invalidLogin": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+      "emailNotConfirmed": "يرجى التحقق من بريدك الإلكتروني"
+    },
+    "messages": {
+      "signInSuccess": "تم تسجيل الدخول بنجاح",
+      "signUpSuccess": "تم التسجيل بنجاح! تم إرسال بريد التحقق.",
+      "resetEmailSent": "تم إرسال رابط إعادة التعيين إلى بريدك",
+      "passwordUpdated": "تم تحديث كلمة المرور",
+      "verificationSent": "تم إرسال بريد تحقق جديد",
+      "emailVerified": "تم التحقق من البريد!",
+      "emailVerifiedDesc": "تم التحقق من حسابك بنجاح."
+    },
+    "pendingVerification": {
+      "title": "في انتظار التحقق من البريد",
+      "description": "أرسلنا بريد تحقق إلى {{email}}. يرجى مراجعة صندوق الوارد والنقر على رابط التحقق.",
+      "spamNote": "إذا لم تستلم البريد، تحقق من مجلد الرسائل غير المرغوب فيها أو أعد الإرسال.",
+      "differentAccount": "تسجيل الدخول بحساب آخر"
+    },
+    "button": {
+      "signingIn": "جار تسجيل الدخول...",
+      "signingUp": "جار الإنشاء...",
+      "sending": "جار الإرسال...",
+      "saving": "جار الحفظ..."
+    }
+  },
+  "meals": {
+    "breakfast": "الإفطار",
+    "lunch": "الغداء",
+    "dinner": "العشاء",
+    "snack": "وجبة خفيفة"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "add": "إضافة",
+    "analytics": "التحليلات",
+    "settings": "الإعدادات"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "darkTheme": "الوضع الداكن",
+    "active": "مفعل",
+    "inactive": "معطل",
+    "sections": {
+      "profile": "الملف الشخصي",
+      "app": "التطبيق",
+      "data": "البيانات",
+      "account": "الحساب",
+      "about": "حول"
+    },
+    "items": {
+      "personalInfo": "المعلومات الشخصية",
+      "goals": "الأهداف",
+      "notifications": "الإشعارات",
+      "exportData": "تصدير البيانات",
+      "exporting": "جار التصدير...",
+      "exportDesc": "نسخ احتياطي بصيغة JSON",
+      "importData": "استيراد البيانات",
+      "importing": "جار الاستيراد...",
+      "importDesc": "استعادة من النسخة الاحتياطية",
+      "changePassword": "تغيير كلمة المرور",
+      "changePasswordDesc": "تحديث كلمة مرور حسابك",
+      "signOut": "تسجيل الخروج",
+      "signOutDesc": "تسجيل الخروج من حسابك",
+      "aboutApp": "حول التطبيق"
+    },
+    "personalInfo": {
+      "title": "المعلومات الشخصية",
+      "desc": "تحديث معلومات ملفك الشخصي",
+      "gender": "الجنس",
+      "male": "ذكر",
+      "female": "أنثى",
+      "other": "آخر",
+      "birthDate": "تاريخ الميلاد",
+      "height": "الطول (سم)",
+      "weight": "الوزن (كجم)",
+      "targetWeight": "الهدف (كجم)",
+      "bmi": "مؤشر كتلة الجسم"
+    },
+    "goals": {
+      "title": "الأهداف",
+      "desc": "تعديل أهداف السعرات الحرارية والمغذيات الكبرى",
+      "activityLevel": "مستوى النشاط",
+      "goalType": "الهدف",
+      "aiCalculate": "حساب الأهداف بالذكاء الاصطناعي",
+      "calculating": "الذكاء الاصطناعي يحسب...",
+      "calories": "السعرات الحرارية (kcal)",
+      "water": "الماء (مل)",
+      "protein": "البروتين (جم)",
+      "carbs": "الكربوهيدرات (جم)",
+      "fat": "الدهون (جم)",
+      "activity": {
+        "sedentary": "خامل",
+        "light": "نشاط خفيف",
+        "moderate": "نشاط معتدل",
+        "active": "نشيط",
+        "very_active": "نشيط جداً"
+      },
+      "goal": {
+        "lose_fast": "إنقاص سريع",
+        "lose": "إنقاص الوزن",
+        "maintain": "الحفاظ على الوزن",
+        "gain": "بناء العضلات"
+      }
     },
     "notifications": {
-        "title": "الإشعارات",
-        "new": "جديد",
-        "markAllRead": "تعليم الكل مقروء",
-        "empty": "لا توجد إشعارات"
+      "title": "إعدادات الإشعارات",
+      "desc": "تكوين قنوات ومواعيد الإشعارات"
     },
-    "auth": {
-        "signIn": "تسجيل الدخول",
-        "signUp": "إنشاء حساب",
-        "email": "البريد الإلكتروني",
-        "password": "كلمة المرور",
-        "name": "الاسم",
-        "nameOptional": "الاسم (اختياري)",
-        "forgotPassword": "نسيت كلمة المرور",
-        "forgotPasswordTitle": "نسيت كلمة المرور",
-        "forgotPasswordDesc": "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور",
-        "sendResetLink": "إرسال رابط إعادة التعيين",
-        "resetPassword": "إعادة تعيين كلمة المرور",
-        "resetPasswordTitle": "تعيين كلمة مرور جديدة",
-        "resetPasswordDesc": "قم بتعيين كلمة مرور جديدة لحسابك",
-        "newPassword": "كلمة المرور الجديدة",
-        "confirmPassword": "تأكيد كلمة المرور",
-        "updatePassword": "تحديث كلمة المرور",
-        "signInTab": "تسجيل الدخول",
-        "signUpTab": "إنشاء حساب",
-        "signInDesc": "سجل الدخول إلى حسابك",
-        "signUpDesc": "أنشئ حساباً جديداً",
-        "tagline": "مساعدك الذكي لتتبع السعرات الحرارية والمغذيات الكبرى",
-        "validation": {
-            "invalidEmail": "يرجى إدخال بريد إلكتروني صالح",
-            "passwordLength": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل",
-            "passwordMismatch": "كلمتا المرور غير متطابقتين",
-            "userAlreadyRegistered": "هذا البريد الإلكتروني مسجل بالفعل",
-            "invalidLogin": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-            "emailNotConfirmed": "يرجى التحقق من بريدك الإلكتروني"
-        },
-        "messages": {
-            "signInSuccess": "تم تسجيل الدخول بنجاح",
-            "signUpSuccess": "تم التسجيل بنجاح! تم إرسال بريد التحقق.",
-            "resetEmailSent": "تم إرسال رابط إعادة التعيين إلى بريدك",
-            "passwordUpdated": "تم تحديث كلمة المرور",
-            "verificationSent": "تم إرسال بريد تحقق جديد",
-            "emailVerified": "تم التحقق من البريد!",
-            "emailVerifiedDesc": "تم التحقق من حسابك بنجاح."
-        },
-        "pendingVerification": {
-            "title": "في انتظار التحقق من البريد",
-            "description": "أرسلنا بريد تحقق إلى {{email}}. يرجى مراجعة صندوق الوارد والنقر على رابط التحقق.",
-            "spamNote": "إذا لم تستلم البريد، تحقق من مجلد الرسائل غير المرغوب فيها أو أعد الإرسال.",
-            "differentAccount": "تسجيل الدخول بحساب آخر"
-        },
-        "button": {
-            "signingIn": "جار تسجيل الدخول...",
-            "signingUp": "جار الإنشاء...",
-            "sending": "جار الإرسال...",
-            "saving": "جار الحفظ..."
-        }
+    "import": {
+      "title": "استيراد البيانات",
+      "desc": "اختر ملف JSON تم تصديره مسبقاً. سيتم الحفاظ على البيانات الموجودة، وسيتم إضافة السجلات الجديدة فقط.",
+      "fileSelect": "اختيار ملف",
+      "fileNote": "يتم دعم ملفات النسخ الاحتياطي JSON من CaloriX فقط"
     },
-    "meals": {
-        "breakfast": "الإفطار",
-        "lunch": "الغداء",
-        "dinner": "العشاء",
-        "snack": "وجبة خفيفة"
-    },
-    "nav": {
-        "home": "الرئيسية",
-        "add": "إضافة",
-        "analytics": "التحليلات",
-        "settings": "الإعدادات"
-    },
-    "settings": {
-        "title": "الإعدادات",
-        "darkTheme": "الوضع الداكن",
-        "active": "مفعل",
-        "inactive": "معطل",
-        "sections": {
-            "profile": "الملف الشخصي",
-            "app": "التطبيق",
-            "data": "البيانات",
-            "account": "الحساب",
-            "about": "حول"
-        },
-        "items": {
-            "personalInfo": "المعلومات الشخصية",
-            "goals": "الأهداف",
-            "notifications": "الإشعارات",
-            "exportData": "تصدير البيانات",
-            "exporting": "جار التصدير...",
-            "exportDesc": "نسخ احتياطي بصيغة JSON",
-            "importData": "استيراد البيانات",
-            "importing": "جار الاستيراد...",
-            "importDesc": "استعادة من النسخة الاحتياطية",
-            "changePassword": "تغيير كلمة المرور",
-            "changePasswordDesc": "تحديث كلمة مرور حسابك",
-            "signOut": "تسجيل الخروج",
-            "signOutDesc": "تسجيل الخروج من حسابك",
-            "aboutApp": "حول التطبيق"
-        },
-        "personalInfo": {
-            "title": "المعلومات الشخصية",
-            "desc": "تحديث معلومات ملفك الشخصي",
-            "gender": "الجنس",
-            "male": "ذكر",
-            "female": "أنثى",
-            "other": "آخر",
-            "birthDate": "تاريخ الميلاد",
-            "height": "الطول (سم)",
-            "weight": "الوزن (كجم)",
-            "targetWeight": "الهدف (كجم)",
-            "bmi": "مؤشر كتلة الجسم"
-        },
-        "goals": {
-            "title": "الأهداف",
-            "desc": "تعديل أهداف السعرات الحرارية والمغذيات الكبرى",
-            "activityLevel": "مستوى النشاط",
-            "goalType": "الهدف",
-            "aiCalculate": "حساب الأهداف بالذكاء الاصطناعي",
-            "calculating": "الذكاء الاصطناعي يحسب...",
-            "calories": "السعرات الحرارية (kcal)",
-            "water": "الماء (مل)",
-            "protein": "البروتين (جم)",
-            "carbs": "الكربوهيدرات (جم)",
-            "fat": "الدهون (جم)",
-            "activity": {
-                "sedentary": "خامل",
-                "light": "نشاط خفيف",
-                "moderate": "نشاط معتدل",
-                "active": "نشيط",
-                "very_active": "نشيط جداً"
-            },
-            "goal": {
-                "lose_fast": "إنقاص سريع",
-                "lose": "إنقاص الوزن",
-                "maintain": "الحفاظ على الوزن",
-                "gain": "بناء العضلات"
-            }
-        },
-        "notifications": {
-            "title": "إعدادات الإشعارات",
-            "desc": "تكوين قنوات ومواعيد الإشعارات"
-        },
-        "import": {
-            "title": "استيراد البيانات",
-            "desc": "اختر ملف JSON تم تصديره مسبقاً. سيتم الحفاظ على البيانات الموجودة، وسيتم إضافة السجلات الجديدة فقط.",
-            "fileSelect": "اختيار ملف",
-            "fileNote": "يتم دعم ملفات النسخ الاحتياطي JSON من CaloriX فقط"
-        },
-        "messages": {
-            "personalInfoSaved": "تم تحديث المعلومات الشخصية",
-            "goalsSaved": "تم تحديث الأهداف",
-            "settingsSaved": "تم تحديث الإعدادات",
-            "passwordChanged": "تم تحديث كلمة المرور",
-            "aiSuccess": "اكتمل حساب الذكاء الاصطناعي",
-            "aiUpdate": "تحديث المغذيات الكبرى بالذكاء الاصطناعي",
-            "error": "حدث خطأ"
-        }
-    },
-    "dashboard": {
-        "title": "الرئيسية",
-        "welcome": "مرحباً بعودتك",
-        "caloriesLeft": "السعرات المتبقية",
-        "eaten": "مستهلكة",
-        "burned": "محروقة",
-        "macros": "المغذيات الكبرى",
-        "water": "الماء",
-        "noRecords": "لا توجد سجلات",
-        "addFood": "إضافة طعام",
-        "waterTracker": "تتبع الماء",
-        "mlRemaining": "{{amount}} مل متبقي",
-        "goalReached": "تم تحقيق الهدف! 🎉",
-        "custom": "مخصص",
-        "logWeight": "تسجيل الوزن",
-        "weightOverdue": "لم يتم الوزن منذ {{days}} يوم",
-        "lastWeight": "آخر وزن: منذ {{days}} يوم",
-        "recordWeight": "سجل وزنك",
-        "quickAdd": "إضافة سريعة",
-        "quick": {
-            "barcode": "الباركود",
-            "scan": "مسح المنتج",
-            "search": "بحث",
-            "findFood": "البحث عن طعام",
-            "ai": "إضافة بالذكاء الاصطناعي",
-            "photoText": "صورة/نص",
-            "recent": "الأخيرة",
-            "history": "من السجل",
-            "favorites": "المفضلة",
-            "saved": "العناصر المحفوظة",
-            "offline": "وضع عدم الاتصال: يلزم الإنترنت لميزات الذكاء الاصطناعي"
-        },
-        "dailySummary": "الملخص اليومي",
-        "remaining": "kcal متبقية",
-        "consumed": "مستهلكة",
-        "target": "الهدف",
-        "waterAdded": "+{{amount}} مل ماء مضاف",
-        "dailyTotal": "المجموع اليومي: {{total}} مل",
-        "errorWeight": "خطأ في حفظ الوزن",
-        "weightSaved": "تم حفظ الوزن",
-        "savedAs": "تم الحفظ كـ {{weight}} كجم",
-        "errorFood": "خطأ في إضافة الطعام",
-        "foodAdded": "تمت إضافة الطعام",
-        "addedToMeal": "تمت إضافة {{food}} إلى {{meal}}",
-        "errorUpdate": "خطأ في تحديث الطعام",
-        "foodUpdated": "تم تحديث الطعام",
-        "updatedSuccessfully": "تم تحديث {{food}} بنجاح",
-        "errorDelete": "خطأ في حذف الطعام",
-        "foodDeleted": "تم حذف الطعام",
-        "deletedSuccessfully": "تم حذف السجل بنجاح"
-    },
-    "about": {
-        "title": "حول",
-        "subtitle": "تطبيق تتبع السعرات الحرارية والمغذيات الكبرى",
-        "version": "الإصدار {{version}}",
-        "features": {
-            "title": "المميزات",
-            "ai": "التعرف على الطعام بالذكاء الاصطناعي (صورة ونص)",
-            "barcode": "مسح الباركود",
-            "tracker": "تتبع الماء والوزن",
-            "analytics": "تحليلات ورسوم بيانية مفصلة",
-            "notifications": "تذكيرات ذكية",
-            "offline": "دعم العمل بدون إنترنت"
-        },
-        "developer": {
-            "title": "المطور",
-            "role": "مطور برمجيات"
-        },
-        "email": "البريد الإلكتروني",
-        "poweredBy": "مدعوم بواسطة",
-        "footer": {
-            "madeWith": "صُنع بـ",
-            "inTurkey": "في تركيا",
-            "copyright": "© 2025 CaloriX. جميع الحقوق محفوظة."
-        }
-    },
-    "addFood": {
-        "title": "إضافة طعام",
-        "meal": "الوجبة",
-        "ai": {
-            "title": "التعرف بالذكاء الاصطناعي",
-            "buttonTitle": "إضافة بالذكاء الاصطناعي",
-            "buttonDesc": "التعرف على الطعام بالصورة أو النص"
-        },
-        "offline": {
-            "title": "غير متصل",
-            "desc": "يلزم الإنترنت للتعرف بالذكاء الاصطناعي"
-        },
-        "recent": {
-            "title": "الأخيرة",
-            "empty": "لم يتم إضافة طعام بعد"
-        },
-        "favorites": {
-            "title": "الأكثر استهلاكاً",
-            "empty": "لم يتم إضافة طعام بعد"
-        },
-        "tabs": {
-            "search": "بحث",
-            "barcode": "الباركود"
-        },
-        "search": {
-            "title": "بحث عن طعام",
-            "placeholder": "اسم الطعام أو العلامة التجارية...",
-            "noResults": "لا توجد نتائج",
-            "promptTitle": "البحث عن طعام في قاعدة البيانات",
-            "promptDesc": "أدخل حرفين على الأقل"
-        },
-        "barcode": {
-            "title": "مسح الباركود",
-            "scanTitle": "المسح بالكاميرا",
-            "scanDesc": "وجه باركود المنتج نحو الكاميرا",
-            "openCamera": "فتح الكاميرا"
-        },
-        "manual": {
-            "title": "إدخال يدوي",
-            "desc": "أدخل القيم الغذائية بنفسك"
-        },
-        "toasts": {
-            "success": "تمت إضافة الطعام",
-            "error": "خطأ في إضافة الطعام"
-        }
-    },
-    "analytics": {
-        "title": "التحليلات",
-        "period": {
-            "week": "أسبوع",
-            "month": "شهر",
-            "3months": "3 أشهر"
-        },
-        "stats": {
-            "avgCalories": "متوسط السعرات",
-            "avgWater": "متوسط الماء",
-            "avgProtein": "متوسط البروتين",
-            "weightChange": "تغير الوزن",
-            "target": "/ الهدف"
-        },
-        "charts": {
-            "calories": {
-                "title": "تتبع السعرات"
-            },
-            "target": "الهدف",
-            "macros": {
-                "title": "تتبع المغذيات الكبرى (% من الهدف)",
-                "subtitle": "الخط = 100% من الهدف"
-            }
-        },
-        "averages": {
-            "title": "متوسط قيم المغذيات الكبرى"
-        },
-        "summary": {
-            "daysWithData": "أيام مع بيانات",
-            "day": "يوم"
-        },
-        "weightTrend": {
-            "first": "أول سجل",
-            "change": "التغير",
-            "last": "آخر سجل"
-        }
+    "messages": {
+      "personalInfoSaved": "تم تحديث المعلومات الشخصية",
+      "goalsSaved": "تم تحديث الأهداف",
+      "settingsSaved": "تم تحديث الإعدادات",
+      "passwordChanged": "تم تحديث كلمة المرور",
+      "aiSuccess": "اكتمل حساب الذكاء الاصطناعي",
+      "aiUpdate": "تحديث المغذيات الكبرى بالذكاء الاصطناعي",
+      "error": "حدث خطأ"
     }
+  },
+  "dashboard": {
+    "title": "الرئيسية",
+    "welcome": "مرحباً بعودتك",
+    "caloriesLeft": "السعرات المتبقية",
+    "eaten": "مستهلكة",
+    "burned": "محروقة",
+    "macros": "المغذيات الكبرى",
+    "water": "الماء",
+    "noRecords": "لا توجد سجلات",
+    "addFood": "إضافة طعام",
+    "waterTracker": "تتبع الماء",
+    "mlRemaining": "{{amount}} مل متبقي",
+    "goalReached": "تم تحقيق الهدف! 🎉",
+    "custom": "مخصص",
+    "logWeight": "تسجيل الوزن",
+    "weightOverdue": "لم يتم الوزن منذ {{days}} يوم",
+    "lastWeight": "آخر وزن: منذ {{days}} يوم",
+    "recordWeight": "سجل وزنك",
+    "quickAdd": "إضافة سريعة",
+    "quick": {
+      "barcode": "الباركود",
+      "scan": "مسح المنتج",
+      "search": "بحث",
+      "findFood": "البحث عن طعام",
+      "ai": "إضافة بالذكاء الاصطناعي",
+      "photoText": "صورة/نص",
+      "recent": "الأخيرة",
+      "history": "من السجل",
+      "favorites": "المفضلة",
+      "saved": "العناصر المحفوظة"
+    },
+    "dailySummary": "الملخص اليومي",
+    "remaining": "kcal متبقية",
+    "consumed": "مستهلكة",
+    "target": "الهدف",
+    "waterAdded": "+{{amount}} مل ماء مضاف",
+    "dailyTotal": "المجموع اليومي: {{total}} مل",
+    "errorWeight": "خطأ في حفظ الوزن",
+    "weightSaved": "تم حفظ الوزن",
+    "savedAs": "تم الحفظ كـ {{weight}} كجم",
+    "errorFood": "خطأ في إضافة الطعام",
+    "foodAdded": "تمت إضافة الطعام",
+    "addedToMeal": "تمت إضافة {{food}} إلى {{meal}}",
+    "errorUpdate": "خطأ في تحديث الطعام",
+    "foodUpdated": "تم تحديث الطعام",
+    "updatedSuccessfully": "تم تحديث {{food}} بنجاح",
+    "errorDelete": "خطأ في حذف الطعام",
+    "foodDeleted": "تم حذف الطعام",
+    "deletedSuccessfully": "تم حذف السجل بنجاح"
+  },
+  "about": {
+    "title": "حول",
+    "subtitle": "تطبيق تتبع السعرات الحرارية والمغذيات الكبرى",
+    "version": "الإصدار {{version}}",
+    "features": {
+      "title": "المميزات",
+      "ai": "التعرف على الطعام بالذكاء الاصطناعي (صورة ونص)",
+      "barcode": "مسح الباركود",
+      "tracker": "تتبع الماء والوزن",
+      "analytics": "تحليلات ورسوم بيانية مفصلة",
+      "notifications": "تذكيرات ذكية"
+    },
+    "developer": {
+      "title": "المطور",
+      "role": "مطور برمجيات"
+    },
+    "email": "البريد الإلكتروني",
+    "poweredBy": "مدعوم بواسطة",
+    "footer": {
+      "madeWith": "صُنع بـ",
+      "inTurkey": "في تركيا",
+      "copyright": "© 2025 CaloriX. جميع الحقوق محفوظة."
+    }
+  },
+  "addFood": {
+    "title": "إضافة طعام",
+    "meal": "الوجبة",
+    "ai": {
+      "title": "التعرف بالذكاء الاصطناعي",
+      "buttonTitle": "إضافة بالذكاء الاصطناعي",
+      "buttonDesc": "التعرف على الطعام بالصورة أو النص"
+    },
+    "recent": {
+      "title": "الأخيرة",
+      "empty": "لم يتم إضافة طعام بعد"
+    },
+    "favorites": {
+      "title": "الأكثر استهلاكاً",
+      "empty": "لم يتم إضافة طعام بعد"
+    },
+    "tabs": {
+      "search": "بحث",
+      "barcode": "الباركود"
+    },
+    "search": {
+      "title": "بحث عن طعام",
+      "placeholder": "اسم الطعام أو العلامة التجارية...",
+      "noResults": "لا توجد نتائج",
+      "promptTitle": "البحث عن طعام في قاعدة البيانات",
+      "promptDesc": "أدخل حرفين على الأقل"
+    },
+    "barcode": {
+      "title": "مسح الباركود",
+      "scanTitle": "المسح بالكاميرا",
+      "scanDesc": "وجه باركود المنتج نحو الكاميرا",
+      "openCamera": "فتح الكاميرا"
+    },
+    "manual": {
+      "title": "إدخال يدوي",
+      "desc": "أدخل القيم الغذائية بنفسك"
+    },
+    "toasts": {
+      "success": "تمت إضافة الطعام",
+      "error": "خطأ في إضافة الطعام"
+    }
+  },
+  "analytics": {
+    "title": "التحليلات",
+    "period": {
+      "week": "أسبوع",
+      "month": "شهر",
+      "3months": "3 أشهر"
+    },
+    "stats": {
+      "avgCalories": "متوسط السعرات",
+      "avgWater": "متوسط الماء",
+      "avgProtein": "متوسط البروتين",
+      "weightChange": "تغير الوزن",
+      "target": "/ الهدف"
+    },
+    "charts": {
+      "calories": {
+        "title": "تتبع السعرات"
+      },
+      "target": "الهدف",
+      "macros": {
+        "title": "تتبع المغذيات الكبرى (% من الهدف)",
+        "subtitle": "الخط = 100% من الهدف"
+      }
+    },
+    "averages": {
+      "title": "متوسط قيم المغذيات الكبرى"
+    },
+    "summary": {
+      "daysWithData": "أيام مع بيانات",
+      "day": "يوم"
+    },
+    "weightTrend": {
+      "first": "أول سجل",
+      "change": "التغير",
+      "last": "آخر سجل"
+    }
+  }
 }

@@ -52,7 +52,6 @@ CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi ya
 
 ### 🌙 Diğer
 - Koyu/Açık tema desteği
-- Offline-first mimari
 - Türkçe arayüz
 - PWA kurulum desteği
 

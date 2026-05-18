@@ -116,7 +116,6 @@ export type Database = {
           created_by: string | null
           id: string
           image_url: string | null
-          last_synced_at: string | null
           name: string
           popularity_count: number | null
           serving_description: string | null
@@ -132,7 +131,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           image_url?: string | null
-          last_synced_at?: string | null
           name: string
           popularity_count?: number | null
           serving_description?: string | null
@@ -148,7 +146,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           image_url?: string | null
-          last_synced_at?: string | null
           name?: string
           popularity_count?: number | null
           serving_description?: string | null
@@ -166,7 +163,6 @@ export type Database = {
           calculated_fat: number
           calculated_kcal: number
           calculated_protein: number
-          client_id: string | null
           created_at: string
           custom_name: string | null
           deleted_at: string | null
@@ -177,7 +173,6 @@ export type Database = {
           note: string | null
           photo_url: string | null
           source: Database["public"]["Enums"]["food_source"]
-          sync_state: Database["public"]["Enums"]["sync_state"]
           updated_at: string
           user_id: string
         }
@@ -187,7 +182,6 @@ export type Database = {
           calculated_fat: number
           calculated_kcal: number
           calculated_protein: number
-          client_id?: string | null
           created_at?: string
           custom_name?: string | null
           deleted_at?: string | null
@@ -198,7 +192,6 @@ export type Database = {
           note?: string | null
           photo_url?: string | null
           source?: Database["public"]["Enums"]["food_source"]
-          sync_state?: Database["public"]["Enums"]["sync_state"]
           updated_at?: string
           user_id: string
         }
@@ -208,7 +201,6 @@ export type Database = {
           calculated_fat?: number
           calculated_kcal?: number
           calculated_protein?: number
-          client_id?: string | null
           created_at?: string
           custom_name?: string | null
           deleted_at?: string | null
@@ -219,7 +211,6 @@ export type Database = {
           note?: string | null
           photo_url?: string | null
           source?: Database["public"]["Enums"]["food_source"]
-          sync_state?: Database["public"]["Enums"]["sync_state"]
           updated_at?: string
           user_id?: string
         }
@@ -469,42 +460,6 @@ export type Database = {
           },
         ]
       }
-      sync_log: {
-        Row: {
-          client_id: string | null
-          created_at: string
-          entity_id: string
-          entity_type: string
-          id: string
-          operation: string
-          payload: Json | null
-          synced_at: string | null
-          user_id: string
-        }
-        Insert: {
-          client_id?: string | null
-          created_at?: string
-          entity_id: string
-          entity_type: string
-          id?: string
-          operation: string
-          payload?: Json | null
-          synced_at?: string | null
-          user_id: string
-        }
-        Update: {
-          client_id?: string | null
-          created_at?: string
-          entity_id?: string
-          entity_type?: string
-          id?: string
-          operation?: string
-          payload?: Json | null
-          synced_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -556,37 +511,31 @@ export type Database = {
       water_entries: {
         Row: {
           amount_ml: number
-          client_id: string | null
           created_at: string
           deleted_at: string | null
           entry_date: string
           entry_time: string
           id: string
-          sync_state: Database["public"]["Enums"]["sync_state"]
           updated_at: string
           user_id: string
         }
         Insert: {
           amount_ml: number
-          client_id?: string | null
           created_at?: string
           deleted_at?: string | null
           entry_date: string
           entry_time?: string
           id?: string
-          sync_state?: Database["public"]["Enums"]["sync_state"]
           updated_at?: string
           user_id: string
         }
         Update: {
           amount_ml?: number
-          client_id?: string | null
           created_at?: string
           deleted_at?: string | null
           entry_date?: string
           entry_time?: string
           id?: string
-          sync_state?: Database["public"]["Enums"]["sync_state"]
           updated_at?: string
           user_id?: string
         }
@@ -594,37 +543,31 @@ export type Database = {
       }
       weight_entries: {
         Row: {
-          client_id: string | null
           created_at: string
           deleted_at: string | null
           entry_date: string
           id: string
           note: string | null
-          sync_state: Database["public"]["Enums"]["sync_state"]
           updated_at: string
           user_id: string
           weight_kg: number
         }
         Insert: {
-          client_id?: string | null
           created_at?: string
           deleted_at?: string | null
           entry_date: string
           id?: string
           note?: string | null
-          sync_state?: Database["public"]["Enums"]["sync_state"]
           updated_at?: string
           user_id: string
           weight_kg: number
         }
         Update: {
-          client_id?: string | null
           created_at?: string
           deleted_at?: string | null
           entry_date?: string
           id?: string
           note?: string | null
-          sync_state?: Database["public"]["Enums"]["sync_state"]
           updated_at?: string
           user_id?: string
           weight_kg?: number
@@ -648,7 +591,6 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       food_source: "barcode" | "photo" | "text" | "manual"
       meal_type: "breakfast" | "lunch" | "dinner" | "snack"
-      sync_state: "pending" | "synced" | "conflict" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -779,7 +721,6 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       food_source: ["barcode", "photo", "text", "manual"],
       meal_type: ["breakfast", "lunch", "dinner", "snack"],
-      sync_state: ["pending", "synced", "conflict", "failed"],
     },
   },
 } as const

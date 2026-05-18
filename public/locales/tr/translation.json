@@ -1,467 +1,458 @@
 {
-    "common": {
-        "loading": "Yükleniyor...",
-        "error": "Hata",
-        "success": "Başarılı",
-        "cancel": "İptal",
-        "save": "Kaydet",
-        "close": "Kapat",
-        "send": "Gönder",
-        "back": "Geri",
-        "resend": "Tekrar Gönder",
-        "healthDisclaimer": "⚠️ Bu uygulama yalnızca bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Beslenme ve sağlık konularında lütfen bir uzmana danışın.",
-        "appName": "CaloriX",
-        "required": "Zorunlu alan",
-        "food": "Yiyecek",
-        "aiPoweredBy": "Yapay zeka desteği",
-        "today": "Bugün",
-        "yesterday": "Dün",
-        "tomorrow": "Yarın",
-        "meal": "Öğün",
-        "searchFood": "Yiyecek Ara",
-        "searchPlaceholder": "Yiyecek ara...",
-        "version": "Sürüm"
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Hata",
+    "success": "Başarılı",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "close": "Kapat",
+    "send": "Gönder",
+    "back": "Geri",
+    "resend": "Tekrar Gönder",
+    "healthDisclaimer": "⚠️ Bu uygulama yalnızca bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Beslenme ve sağlık konularında lütfen bir uzmana danışın.",
+    "appName": "CaloriX",
+    "required": "Zorunlu alan",
+    "food": "Yiyecek",
+    "aiPoweredBy": "Yapay zeka desteği",
+    "today": "Bugün",
+    "yesterday": "Dün",
+    "tomorrow": "Yarın",
+    "meal": "Öğün",
+    "searchFood": "Yiyecek Ara",
+    "searchPlaceholder": "Yiyecek ara...",
+    "version": "Sürüm"
+  },
+  "header": {
+    "signedOut": "Çıkış Yapıldı",
+    "goodbye": "Güle güle!",
+    "user": "Kullanıcı"
+  },
+  "bmi": {
+    "underweight": "Zayıf",
+    "normal": "Normal",
+    "overweight": "Fazla Kilolu",
+    "obese": "Obez"
+  },
+  "notificationTypes": {
+    "weighIn": {
+      "title": "Tartılma Hatırlatıcısı",
+      "description": "Düzenli aralıklarla tartılma hatırlatması"
     },
-    "header": {
-        "online": "Çevrimiçi",
-        "offline": "Çevrimdışı",
-        "signedOut": "Çıkış Yapıldı",
-        "goodbye": "Güle güle!",
-        "user": "Kullanıcı"
+    "dailyLog": {
+      "title": "Günlük Kayıt",
+      "description": "24 saat kayıt yoksa motive edici hatırlatma"
     },
-    "bmi": {
-        "underweight": "Zayıf",
-        "normal": "Normal",
-        "overweight": "Fazla Kilolu",
-        "obese": "Obez"
+    "water": {
+      "title": "Su İçme Hatırlatıcısı",
+      "description": "Belirli saatlerde su içme hatırlatması"
     },
-    "notificationTypes": {
-        "weighIn": {
-            "title": "Tartılma Hatırlatıcısı",
-            "description": "Düzenli aralıklarla tartılma hatırlatması"
-        },
-        "dailyLog": {
-            "title": "Günlük Kayıt",
-            "description": "24 saat kayıt yoksa motive edici hatırlatma"
-        },
-        "water": {
-            "title": "Su İçme Hatırlatıcısı",
-            "description": "Belirli saatlerde su içme hatırlatması"
-        },
-        "goalAchieved": {
-            "title": "Hedef Başarısı",
-            "description": "Günlük hedefe ulaştığında bildirim"
-        },
-        "weeklySummary": {
-            "title": "Haftalık Özet",
-            "description": "Haftalık ilerleme raporu"
-        },
-        "enablePush": "Push Bildirimlerini Etkinleştir",
-        "pushBlocked": "Push bildirimleri engellendi",
-        "pushBlockedDesc": "Tarayıcı ayarlarından bu site için bildirimlere izin verin.",
-        "push": "Push",
-        "email": "E-posta"
+    "goalAchieved": {
+      "title": "Hedef Başarısı",
+      "description": "Günlük hedefe ulaştığında bildirim"
     },
-    "dialogs": {
-        "add": "Ekle",
-        "save": "Kaydet",
-        "cancel": "İptal",
-        "back": "Geri",
-        "search": "Ara",
-        "results": "Sonuçlar",
-        "noResults": "Sonuç bulunamadı",
-        "analyzeWithAI": "AI ile analiz et",
-        "reanalyze": "Tekrar Analiz Et",
-        "example": "Örn.",
-        "optional": "opsiyonel",
-        "required": "zorunlu",
-        "customAmount": "Özel Miktar Ekle",
-        "addWithAI": "AI ile Ekle",
-        "addWithBarcode": "Barkod ile Ekle",
-        "addFood": "Yiyecek Ekle",
-        "editFood": "Yiyeceği Düzenle",
-        "searchFood": "Yiyecek Ara",
-        "foodName": "Yiyecek Adı",
-        "searchPlaceholder": "Yiyecek ara...",
-        "meal": "Öğün",
-        "amount": "Miktar",
-        "amountGram": "Miktar (gram)",
-        "suggestedPortion": "Önerilen porsiyon",
-        "calculatedValues": "için hesaplanan değerler",
-        "per100g": "100g başına",
-        "total": "Toplam",
-        "protein": "protein",
-        "carbs": "karb",
-        "fat": "yağ",
-        "recognizedFoods": "Tanınan Yiyecekler",
-        "recognizing": "Yiyecekler tanınıyor ve besin değerleri hesaplanıyor",
-        "aiAnalyzing": "AI Analiz Ediyor...",
-        "portionHint": "Porsiyon bilgisi veya içerik detayı ekleyebilirsiniz",
-        "photoOrTextRequired": "Fotoğraf veya metin girmeniz gerekiyor",
-        "photo": "Fotoğraf",
-        "takePhoto": "Fotoğraf Çek",
-        "selectFromGallery": "Galeriden Seç",
-        "selectedFood": "Seçilen yemek",
-        "whatDidYouEat": "Ne yediniz?",
-        "additionalInfo": "Ek bilgi",
-        "photoAdditionalHint": "2 dilim ekmek, yarım porsiyon pilav...",
-        "textOrPhotoRequired": "Lütfen bir fotoğraf yükleyin veya ne yediğinizi yazın",
-        "aiRequiresInternet": "AI analizi için internet bağlantısı gerekli",
-        "analysisFailed": "Analiz başarısız oldu",
-        "offlineMode": "Çevrimdışı mod: Sadece yerel veritabanında arama yapılıyor",
-        "selectAtLeastOne": "En az bir yiyecek seçin",
-        "foodAdded": "Yiyecek eklendi",
-        "foodsAdded": "yiyecek eklendi",
-        "saveFailed": "Kayıt başarısız",
-        "inputText": "Girilen metin",
-        "confidence": "güvenilirlik",
-        "calories": "Kal",
-        "calPer100g": "Kal/100g",
-        "proPer100g": "Pro/100g",
-        "carbPer100g": "Karb/100g",
-        "fatPer100g": "Yağ/100g",
-        "barcode": {
-            "title": "Barkod ile Ekle",
-            "scanning": "Taranıyor...",
-            "productFound": "Ürün bulundu",
-            "productNotFound": "Ürün bulunamadı",
-            "tryAgain": "Tekrar dene",
-            "manualEntry": "Manuel giriş"
-        },
-        "weight": {
-            "title": "Kilo Kaydet",
-            "currentWeight": "Mevcut Kilo",
-            "unit": "kg",
-            "saved": "Kilo kaydedildi"
-        },
-        "edit": {
-            "title": "Kaydı Düzenle",
-            "updated": "Kayıt güncellendi",
-            "deleted": "Kayıt silindi"
-        }
+    "weeklySummary": {
+      "title": "Haftalık Özet",
+      "description": "Haftalık ilerleme raporu"
     },
-    "export": {
-        "success": "dışa aktarıldı",
-        "mealEntries": "öğün",
-        "waterEntries": "su kaydı",
-        "weightEntries": "kilo kaydı",
-        "imported": "içe aktarıldı",
-        "foods": "yemek"
+    "enablePush": "Push Bildirimlerini Etkinleştir",
+    "pushBlocked": "Push bildirimleri engellendi",
+    "pushBlockedDesc": "Tarayıcı ayarlarından bu site için bildirimlere izin verin.",
+    "push": "Push",
+    "email": "E-posta"
+  },
+  "dialogs": {
+    "add": "Ekle",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "back": "Geri",
+    "search": "Ara",
+    "results": "Sonuçlar",
+    "noResults": "Sonuç bulunamadı",
+    "analyzeWithAI": "AI ile analiz et",
+    "reanalyze": "Tekrar Analiz Et",
+    "example": "Örn.",
+    "optional": "opsiyonel",
+    "required": "zorunlu",
+    "customAmount": "Özel Miktar Ekle",
+    "addWithAI": "AI ile Ekle",
+    "addWithBarcode": "Barkod ile Ekle",
+    "addFood": "Yiyecek Ekle",
+    "editFood": "Yiyeceği Düzenle",
+    "searchFood": "Yiyecek Ara",
+    "foodName": "Yiyecek Adı",
+    "searchPlaceholder": "Yiyecek ara...",
+    "meal": "Öğün",
+    "amount": "Miktar",
+    "amountGram": "Miktar (gram)",
+    "suggestedPortion": "Önerilen porsiyon",
+    "calculatedValues": "için hesaplanan değerler",
+    "per100g": "100g başına",
+    "total": "Toplam",
+    "protein": "protein",
+    "carbs": "karb",
+    "fat": "yağ",
+    "recognizedFoods": "Tanınan Yiyecekler",
+    "recognizing": "Yiyecekler tanınıyor ve besin değerleri hesaplanıyor",
+    "aiAnalyzing": "AI Analiz Ediyor...",
+    "portionHint": "Porsiyon bilgisi veya içerik detayı ekleyebilirsiniz",
+    "photoOrTextRequired": "Fotoğraf veya metin girmeniz gerekiyor",
+    "photo": "Fotoğraf",
+    "takePhoto": "Fotoğraf Çek",
+    "selectFromGallery": "Galeriden Seç",
+    "selectedFood": "Seçilen yemek",
+    "whatDidYouEat": "Ne yediniz?",
+    "additionalInfo": "Ek bilgi",
+    "photoAdditionalHint": "2 dilim ekmek, yarım porsiyon pilav...",
+    "textOrPhotoRequired": "Lütfen bir fotoğraf yükleyin veya ne yediğinizi yazın",
+    "aiRequiresInternet": "AI analizi için internet bağlantısı gerekli",
+    "analysisFailed": "Analiz başarısız oldu",
+    "selectAtLeastOne": "En az bir yiyecek seçin",
+    "foodAdded": "Yiyecek eklendi",
+    "foodsAdded": "yiyecek eklendi",
+    "saveFailed": "Kayıt başarısız",
+    "inputText": "Girilen metin",
+    "confidence": "güvenilirlik",
+    "calories": "Kal",
+    "calPer100g": "Kal/100g",
+    "proPer100g": "Pro/100g",
+    "carbPer100g": "Karb/100g",
+    "fatPer100g": "Yağ/100g",
+    "barcode": {
+      "title": "Barkod ile Ekle",
+      "scanning": "Taranıyor...",
+      "productFound": "Ürün bulundu",
+      "productNotFound": "Ürün bulunamadı",
+      "tryAgain": "Tekrar dene",
+      "manualEntry": "Manuel giriş"
+    },
+    "weight": {
+      "title": "Kilo Kaydet",
+      "currentWeight": "Mevcut Kilo",
+      "unit": "kg",
+      "saved": "Kilo kaydedildi"
+    },
+    "edit": {
+      "title": "Kaydı Düzenle",
+      "updated": "Kayıt güncellendi",
+      "deleted": "Kayıt silindi"
+    }
+  },
+  "export": {
+    "success": "dışa aktarıldı",
+    "mealEntries": "öğün",
+    "waterEntries": "su kaydı",
+    "weightEntries": "kilo kaydı",
+    "imported": "içe aktarıldı",
+    "foods": "yemek"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "new": "yeni",
+    "markAllRead": "Tümünü Oku",
+    "empty": "Henüz bildirim yok"
+  },
+  "auth": {
+    "signIn": "Giriş Yap",
+    "signUp": "Kayıt Ol",
+    "email": "E-posta",
+    "password": "Şifre",
+    "name": "Ad",
+    "nameOptional": "Ad (İsteğe Bağlı)",
+    "forgotPassword": "Şifremi Unuttum",
+    "forgotPasswordTitle": "Şifremi Unuttum",
+    "forgotPasswordDesc": "E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim",
+    "sendResetLink": "Şifre Sıfırlama Bağlantısı Gönder",
+    "resetPassword": "Şifreyi Sıfırla",
+    "resetPasswordTitle": "Yeni Şifre Belirle",
+    "resetPasswordDesc": "Hesabınız için yeni bir şifre belirleyin",
+    "newPassword": "Yeni Şifre",
+    "confirmPassword": "Şifreyi Onayla",
+    "updatePassword": "Şifreyi Güncelle",
+    "signInTab": "Giriş Yap",
+    "signUpTab": "Kayıt Ol",
+    "signInDesc": "Hesabınıza giriş yapın",
+    "signUpDesc": "Yeni bir hesap oluşturun",
+    "tagline": "Kalori ve makro takibi için akıllı asistanınız",
+    "validation": {
+      "invalidEmail": "Lütfen geçerli bir e-posta adresi girin",
+      "passwordLength": "Şifre en az 6 karakter olmalıdır",
+      "passwordMismatch": "Şifreler eşleşmiyor",
+      "userAlreadyRegistered": "Bu e-posta adresi zaten kayıtlı",
+      "invalidLogin": "Geçersiz e-posta veya şifre",
+      "emailNotConfirmed": "Lütfen e-posta adresinizi doğrulayın"
+    },
+    "messages": {
+      "signInSuccess": "Başarıyla giriş yapıldı",
+      "signUpSuccess": "Kayıt başarılı! Doğrulama e-postası gönderildi.",
+      "resetEmailSent": "Şifre sıfırlama bağlantısı e-postanıza gönderildi",
+      "passwordUpdated": "Şifreniz güncellendi",
+      "verificationSent": "Yeni doğrulama e-postası gönderildi",
+      "emailVerified": "E-posta Doğrulandı!",
+      "emailVerifiedDesc": "Hesabınız başarıyla doğrulandı."
+    },
+    "pendingVerification": {
+      "title": "E-posta Doğrulaması Bekleniyor",
+      "description": "{{email}} adresine doğrulama e-postası gönderdik. Lütfen gelen kutunuzu kontrol edin ve doğrulama bağlantısına tıklayın.",
+      "spamNote": "E-postayı almadıysanız spam klasörünü kontrol edin veya tekrar gönderin.",
+      "differentAccount": "Farklı bir hesapla giriş yap"
+    },
+    "button": {
+      "signingIn": "Giriş yapılıyor...",
+      "signingUp": "Kayıt olunuyor...",
+      "sending": "Gönderiliyor...",
+      "saving": "Kaydediliyor..."
+    }
+  },
+  "meals": {
+    "breakfast": "Kahvaltı",
+    "lunch": "Öğle Yemeği",
+    "dinner": "Akşam Yemeği",
+    "snack": "Atıştırmalık"
+  },
+  "nav": {
+    "home": "Ana Sayfa",
+    "add": "Ekle",
+    "analytics": "Analiz",
+    "settings": "Ayarlar"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "darkTheme": "Karanlık Tema",
+    "active": "Açık",
+    "inactive": "Kapalı",
+    "sections": {
+      "profile": "Profil",
+      "app": "Uygulama",
+      "data": "Veri",
+      "account": "Hesap",
+      "about": "Hakkında"
+    },
+    "items": {
+      "personalInfo": "Kişisel Bilgiler",
+      "goals": "Hedefler",
+      "notifications": "Bildirimler",
+      "exportData": "Verileri Dışa Aktar",
+      "exporting": "Dışa aktarılıyor...",
+      "exportDesc": "JSON formatında yedekle",
+      "importData": "Verileri İçe Aktar",
+      "importing": "İçe aktarılıyor...",
+      "importDesc": "Yedekten geri yükle",
+      "changePassword": "Şifre Değiştir",
+      "changePasswordDesc": "Hesap şifrenizi güncelleyin",
+      "signOut": "Çıkış Yap",
+      "signOutDesc": "Hesabınızdan çıkış yapın",
+      "aboutApp": "Uygulama Hakkında"
+    },
+    "personalInfo": {
+      "title": "Kişisel Bilgiler",
+      "desc": "Profil bilgilerinizi güncelleyin",
+      "gender": "Cinsiyet",
+      "male": "Erkek",
+      "female": "Kadın",
+      "other": "Diğer",
+      "birthDate": "Doğum Tarihi",
+      "height": "Boy (cm)",
+      "weight": "Kilo (kg)",
+      "targetWeight": "Hedef (kg)",
+      "bmi": "VKİ"
+    },
+    "goals": {
+      "title": "Hedefler",
+      "desc": "Kalori ve makro hedeflerinizi düzenleyin",
+      "activityLevel": "Aktivite Seviyesi",
+      "goalType": "Hedef",
+      "aiCalculate": "Yapay Zeka ile Hesapla",
+      "calculating": "Yapay Zeka Hesaplıyor...",
+      "calories": "Kalori (kcal)",
+      "water": "Su (ml)",
+      "protein": "Protein (g)",
+      "carbs": "Karbonhidrat (g)",
+      "fat": "Yağ (g)",
+      "activity": {
+        "sedentary": "Hareketsiz",
+        "light": "Az Hareketli",
+        "moderate": "Orta Hareketli",
+        "active": "Hareketli",
+        "very_active": "Çok Hareketli"
+      },
+      "goal": {
+        "lose_fast": "Hızlı Kilo Ver",
+        "lose": "Kilo Ver",
+        "maintain": "Koru",
+        "gain": "Kas Kazan"
+      }
     },
     "notifications": {
-        "title": "Bildirimler",
-        "new": "yeni",
-        "markAllRead": "Tümünü Oku",
-        "empty": "Henüz bildirim yok"
+      "title": "Bildirim Ayarları",
+      "desc": "Bildirim kanallarını ve zamanlamayı yapılandırın"
     },
-    "auth": {
-        "signIn": "Giriş Yap",
-        "signUp": "Kayıt Ol",
-        "email": "E-posta",
-        "password": "Şifre",
-        "name": "Ad",
-        "nameOptional": "Ad (İsteğe Bağlı)",
-        "forgotPassword": "Şifremi Unuttum",
-        "forgotPasswordTitle": "Şifremi Unuttum",
-        "forgotPasswordDesc": "E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim",
-        "sendResetLink": "Şifre Sıfırlama Bağlantısı Gönder",
-        "resetPassword": "Şifreyi Sıfırla",
-        "resetPasswordTitle": "Yeni Şifre Belirle",
-        "resetPasswordDesc": "Hesabınız için yeni bir şifre belirleyin",
-        "newPassword": "Yeni Şifre",
-        "confirmPassword": "Şifreyi Onayla",
-        "updatePassword": "Şifreyi Güncelle",
-        "signInTab": "Giriş Yap",
-        "signUpTab": "Kayıt Ol",
-        "signInDesc": "Hesabınıza giriş yapın",
-        "signUpDesc": "Yeni bir hesap oluşturun",
-        "tagline": "Kalori ve makro takibi için akıllı asistanınız",
-        "validation": {
-            "invalidEmail": "Lütfen geçerli bir e-posta adresi girin",
-            "passwordLength": "Şifre en az 6 karakter olmalıdır",
-            "passwordMismatch": "Şifreler eşleşmiyor",
-            "userAlreadyRegistered": "Bu e-posta adresi zaten kayıtlı",
-            "invalidLogin": "Geçersiz e-posta veya şifre",
-            "emailNotConfirmed": "Lütfen e-posta adresinizi doğrulayın"
-        },
-        "messages": {
-            "signInSuccess": "Başarıyla giriş yapıldı",
-            "signUpSuccess": "Kayıt başarılı! Doğrulama e-postası gönderildi.",
-            "resetEmailSent": "Şifre sıfırlama bağlantısı e-postanıza gönderildi",
-            "passwordUpdated": "Şifreniz güncellendi",
-            "verificationSent": "Yeni doğrulama e-postası gönderildi",
-            "emailVerified": "E-posta Doğrulandı!",
-            "emailVerifiedDesc": "Hesabınız başarıyla doğrulandı."
-        },
-        "pendingVerification": {
-            "title": "E-posta Doğrulaması Bekleniyor",
-            "description": "{{email}} adresine doğrulama e-postası gönderdik. Lütfen gelen kutunuzu kontrol edin ve doğrulama bağlantısına tıklayın.",
-            "spamNote": "E-postayı almadıysanız spam klasörünü kontrol edin veya tekrar gönderin.",
-            "differentAccount": "Farklı bir hesapla giriş yap"
-        },
-        "button": {
-            "signingIn": "Giriş yapılıyor...",
-            "signingUp": "Kayıt olunuyor...",
-            "sending": "Gönderiliyor...",
-            "saving": "Kaydediliyor..."
-        }
+    "import": {
+      "title": "Verileri İçe Aktar",
+      "desc": "Daha önce dışa aktarılmış bir JSON dosyası seçin. Mevcut veriler korunacak, yalnızca yeni kayıtlar eklenecektir.",
+      "fileSelect": "Dosya Seç",
+      "fileNote": "Yalnızca CaloriX JSON yedek dosyaları desteklenir"
     },
-    "meals": {
-        "breakfast": "Kahvaltı",
-        "lunch": "Öğle Yemeği",
-        "dinner": "Akşam Yemeği",
-        "snack": "Atıştırmalık"
-    },
-    "nav": {
-        "home": "Ana Sayfa",
-        "add": "Ekle",
-        "analytics": "Analiz",
-        "settings": "Ayarlar"
-    },
-    "settings": {
-        "title": "Ayarlar",
-        "darkTheme": "Karanlık Tema",
-        "active": "Açık",
-        "inactive": "Kapalı",
-        "sections": {
-            "profile": "Profil",
-            "app": "Uygulama",
-            "data": "Veri",
-            "account": "Hesap",
-            "about": "Hakkında"
-        },
-        "items": {
-            "personalInfo": "Kişisel Bilgiler",
-            "goals": "Hedefler",
-            "notifications": "Bildirimler",
-            "exportData": "Verileri Dışa Aktar",
-            "exporting": "Dışa aktarılıyor...",
-            "exportDesc": "JSON formatında yedekle",
-            "importData": "Verileri İçe Aktar",
-            "importing": "İçe aktarılıyor...",
-            "importDesc": "Yedekten geri yükle",
-            "changePassword": "Şifre Değiştir",
-            "changePasswordDesc": "Hesap şifrenizi güncelleyin",
-            "signOut": "Çıkış Yap",
-            "signOutDesc": "Hesabınızdan çıkış yapın",
-            "aboutApp": "Uygulama Hakkında"
-        },
-        "personalInfo": {
-            "title": "Kişisel Bilgiler",
-            "desc": "Profil bilgilerinizi güncelleyin",
-            "gender": "Cinsiyet",
-            "male": "Erkek",
-            "female": "Kadın",
-            "other": "Diğer",
-            "birthDate": "Doğum Tarihi",
-            "height": "Boy (cm)",
-            "weight": "Kilo (kg)",
-            "targetWeight": "Hedef (kg)",
-            "bmi": "VKİ"
-        },
-        "goals": {
-            "title": "Hedefler",
-            "desc": "Kalori ve makro hedeflerinizi düzenleyin",
-            "activityLevel": "Aktivite Seviyesi",
-            "goalType": "Hedef",
-            "aiCalculate": "Yapay Zeka ile Hesapla",
-            "calculating": "Yapay Zeka Hesaplıyor...",
-            "calories": "Kalori (kcal)",
-            "water": "Su (ml)",
-            "protein": "Protein (g)",
-            "carbs": "Karbonhidrat (g)",
-            "fat": "Yağ (g)",
-            "activity": {
-                "sedentary": "Hareketsiz",
-                "light": "Az Hareketli",
-                "moderate": "Orta Hareketli",
-                "active": "Hareketli",
-                "very_active": "Çok Hareketli"
-            },
-            "goal": {
-                "lose_fast": "Hızlı Kilo Ver",
-                "lose": "Kilo Ver",
-                "maintain": "Koru",
-                "gain": "Kas Kazan"
-            }
-        },
-        "notifications": {
-            "title": "Bildirim Ayarları",
-            "desc": "Bildirim kanallarını ve zamanlamayı yapılandırın"
-        },
-        "import": {
-            "title": "Verileri İçe Aktar",
-            "desc": "Daha önce dışa aktarılmış bir JSON dosyası seçin. Mevcut veriler korunacak, yalnızca yeni kayıtlar eklenecektir.",
-            "fileSelect": "Dosya Seç",
-            "fileNote": "Yalnızca CaloriX JSON yedek dosyaları desteklenir"
-        },
-        "messages": {
-            "personalInfoSaved": "Kişisel bilgiler güncellendi",
-            "goalsSaved": "Hedefler güncellendi",
-            "settingsSaved": "Ayarlar güncellendi",
-            "passwordChanged": "Şifre güncellendi",
-            "aiSuccess": "Yapay Zeka Hesaplaması Tamamlandı",
-            "aiUpdate": "Yapay Zeka Makro Güncellemesi",
-            "error": "Bir hata oluştu"
-        }
-    },
-    "dashboard": {
-        "title": "Ana Sayfa",
-        "welcome": "Tekrar hoş geldiniz",
-        "caloriesLeft": "Kalan Kalori",
-        "eaten": "Alınan",
-        "burned": "Yakılan",
-        "macros": "Makrolar",
-        "water": "Su",
-        "noRecords": "Henüz kayıt yok",
-        "addFood": "Yiyecek Ekle",
-        "waterTracker": "Su Takibi",
-        "mlRemaining": "{{amount}} ml kaldı",
-        "goalReached": "Hedefe ulaşıldı! 🎉",
-        "custom": "Özel",
-        "logWeight": "Kilo Kaydet",
-        "weightOverdue": "{{days}} gündür tartılmadınız",
-        "lastWeight": "Son tartı: {{days}} gün önce",
-        "recordWeight": "Kilonuzu kaydedin",
-        "quickAdd": "Hızlı Ekle",
-        "quick": {
-            "barcode": "Barkod",
-            "scan": "Ürün tara",
-            "search": "Ara",
-            "findFood": "Yiyecek bul",
-            "ai": "Yapay Zeka ile Ekle",
-            "photoText": "Fotoğraf/Yazı",
-            "recent": "Son Eklenenler",
-            "history": "Geçmişten seç",
-            "favorites": "Favoriler",
-            "saved": "Kayıtlı öğeler",
-            "offline": "Çevrimdışı mod: Yapay zeka özellikleri için internet gerekli"
-        },
-        "dailySummary": "Günlük Özet",
-        "remaining": "kalan kcal",
-        "consumed": "Tüketilen",
-        "target": "Hedef",
-        "waterAdded": "+{{amount}}ml su eklendi",
-        "dailyTotal": "Günlük toplam: {{total}}ml",
-        "errorWeight": "Kilo kaydedilemedi",
-        "weightSaved": "Kilo kaydedildi",
-        "savedAs": "{{weight}} kg olarak kaydedildi",
-        "errorFood": "Yiyecek eklenemedi",
-        "foodAdded": "Yiyecek eklendi",
-        "addedToMeal": "{{food}}, {{meal}} öğününe eklendi",
-        "errorUpdate": "Yiyecek güncellenemedi",
-        "foodUpdated": "Yiyecek güncellendi",
-        "updatedSuccessfully": "{{food}} başarıyla güncellendi",
-        "errorDelete": "Yiyecek silinemedi",
-        "foodDeleted": "Yiyecek silindi",
-        "deletedSuccessfully": "Kayıt başarıyla silindi"
-    },
-    "about": {
-        "title": "Hakkında",
-        "subtitle": "Kalori ve Makro Takip Uygulaması",
-        "version": "Sürüm {{version}}",
-        "features": {
-            "title": "Özellikler",
-            "ai": "Yapay zeka destekli yiyecek tanıma (fotoğraf ve metin)",
-            "barcode": "Barkod ile yiyecek ekleme",
-            "tracker": "Su ve kilo takibi",
-            "analytics": "Detaylı analiz ve grafikler",
-            "notifications": "Akıllı bildirim hatırlatıcıları",
-            "offline": "Çevrimdışı çalışma desteği"
-        },
-        "developer": {
-            "title": "Geliştirici",
-            "role": "Yazılım Geliştirici"
-        },
-        "email": "E-posta",
-        "poweredBy": "Destekleyenler",
-        "footer": {
-            "madeWith": "Sevgiyle yapıldı",
-            "inTurkey": "Türkiye'de",
-            "copyright": "© 2025 CaloriX. Tüm hakları saklıdır."
-        }
-    },
-    "addFood": {
-        "title": "Yiyecek Ekle",
-        "meal": "Öğün",
-        "ai": {
-            "title": "Yapay Zeka ile Tanıma",
-            "buttonTitle": "Yapay Zeka ile Ekle",
-            "buttonDesc": "Fotoğraf veya yazı ile yiyecek tanıt"
-        },
-        "offline": {
-            "title": "Çevrimdışı",
-            "desc": "Yapay zeka tanıma için internet gerekli"
-        },
-        "recent": {
-            "title": "Son Eklenenler",
-            "empty": "Henüz yiyecek eklenmedi"
-        },
-        "favorites": {
-            "title": "En Çok Yenenler",
-            "empty": "Henüz yiyecek eklenmedi"
-        },
-        "tabs": {
-            "search": "Ara",
-            "barcode": "Barkod"
-        },
-        "search": {
-            "title": "Yiyecek Ara",
-            "placeholder": "Yiyecek adı veya marka...",
-            "noResults": "Sonuç bulunamadı",
-            "promptTitle": "Veritabanından yiyecek ara",
-            "promptDesc": "En az 2 karakter girin"
-        },
-        "barcode": {
-            "title": "Barkod Tara",
-            "scanTitle": "Kamera ile Tara",
-            "scanDesc": "Ürün barkodunu kameraya gösterin",
-            "openCamera": "Kamerayı Aç"
-        },
-        "manual": {
-            "title": "Manuel Giriş",
-            "desc": "Besin değerlerini kendiniz girin"
-        },
-        "toasts": {
-            "success": "Yiyecek eklendi",
-            "error": "Yiyecek eklenemedi"
-        }
-    },
-    "analytics": {
-        "title": "Analiz",
-        "period": {
-            "week": "Hafta",
-            "month": "Ay",
-            "3months": "3 Ay"
-        },
-        "stats": {
-            "avgCalories": "Ort. Kalori",
-            "avgWater": "Ort. Su",
-            "avgProtein": "Ort. Protein",
-            "weightChange": "Kilo Değişimi",
-            "target": "/ hedef"
-        },
-        "charts": {
-            "calories": {
-                "title": "Kalori Takibi"
-            },
-            "target": "Hedef",
-            "macros": {
-                "title": "Makro Takibi (Hedefe Göre %)",
-                "subtitle": "Çizgi = %100 hedef"
-            }
-        },
-        "averages": {
-            "title": "Ortalama Makro Değerleri"
-        },
-        "summary": {
-            "daysWithData": "Veri bulunan gün sayısı",
-            "day": "gün"
-        },
-        "weightTrend": {
-            "first": "İlk Kayıt",
-            "change": "Değişim",
-            "last": "Son Kayıt"
-        }
+    "messages": {
+      "personalInfoSaved": "Kişisel bilgiler güncellendi",
+      "goalsSaved": "Hedefler güncellendi",
+      "settingsSaved": "Ayarlar güncellendi",
+      "passwordChanged": "Şifre güncellendi",
+      "aiSuccess": "Yapay Zeka Hesaplaması Tamamlandı",
+      "aiUpdate": "Yapay Zeka Makro Güncellemesi",
+      "error": "Bir hata oluştu"
     }
+  },
+  "dashboard": {
+    "title": "Ana Sayfa",
+    "welcome": "Tekrar hoş geldiniz",
+    "caloriesLeft": "Kalan Kalori",
+    "eaten": "Alınan",
+    "burned": "Yakılan",
+    "macros": "Makrolar",
+    "water": "Su",
+    "noRecords": "Henüz kayıt yok",
+    "addFood": "Yiyecek Ekle",
+    "waterTracker": "Su Takibi",
+    "mlRemaining": "{{amount}} ml kaldı",
+    "goalReached": "Hedefe ulaşıldı! 🎉",
+    "custom": "Özel",
+    "logWeight": "Kilo Kaydet",
+    "weightOverdue": "{{days}} gündür tartılmadınız",
+    "lastWeight": "Son tartı: {{days}} gün önce",
+    "recordWeight": "Kilonuzu kaydedin",
+    "quickAdd": "Hızlı Ekle",
+    "quick": {
+      "barcode": "Barkod",
+      "scan": "Ürün tara",
+      "search": "Ara",
+      "findFood": "Yiyecek bul",
+      "ai": "Yapay Zeka ile Ekle",
+      "photoText": "Fotoğraf/Yazı",
+      "recent": "Son Eklenenler",
+      "history": "Geçmişten seç",
+      "favorites": "Favoriler",
+      "saved": "Kayıtlı öğeler"
+    },
+    "dailySummary": "Günlük Özet",
+    "remaining": "kalan kcal",
+    "consumed": "Tüketilen",
+    "target": "Hedef",
+    "waterAdded": "+{{amount}}ml su eklendi",
+    "dailyTotal": "Günlük toplam: {{total}}ml",
+    "errorWeight": "Kilo kaydedilemedi",
+    "weightSaved": "Kilo kaydedildi",
+    "savedAs": "{{weight}} kg olarak kaydedildi",
+    "errorFood": "Yiyecek eklenemedi",
+    "foodAdded": "Yiyecek eklendi",
+    "addedToMeal": "{{food}}, {{meal}} öğününe eklendi",
+    "errorUpdate": "Yiyecek güncellenemedi",
+    "foodUpdated": "Yiyecek güncellendi",
+    "updatedSuccessfully": "{{food}} başarıyla güncellendi",
+    "errorDelete": "Yiyecek silinemedi",
+    "foodDeleted": "Yiyecek silindi",
+    "deletedSuccessfully": "Kayıt başarıyla silindi"
+  },
+  "about": {
+    "title": "Hakkında",
+    "subtitle": "Kalori ve Makro Takip Uygulaması",
+    "version": "Sürüm {{version}}",
+    "features": {
+      "title": "Özellikler",
+      "ai": "Yapay zeka destekli yiyecek tanıma (fotoğraf ve metin)",
+      "barcode": "Barkod ile yiyecek ekleme",
+      "tracker": "Su ve kilo takibi",
+      "analytics": "Detaylı analiz ve grafikler",
+      "notifications": "Akıllı bildirim hatırlatıcıları"
+    },
+    "developer": {
+      "title": "Geliştirici",
+      "role": "Yazılım Geliştirici"
+    },
+    "email": "E-posta",
+    "poweredBy": "Destekleyenler",
+    "footer": {
+      "madeWith": "Sevgiyle yapıldı",
+      "inTurkey": "Türkiye'de",
+      "copyright": "© 2025 CaloriX. Tüm hakları saklıdır."
+    }
+  },
+  "addFood": {
+    "title": "Yiyecek Ekle",
+    "meal": "Öğün",
+    "ai": {
+      "title": "Yapay Zeka ile Tanıma",
+      "buttonTitle": "Yapay Zeka ile Ekle",
+      "buttonDesc": "Fotoğraf veya yazı ile yiyecek tanıt"
+    },
+    "recent": {
+      "title": "Son Eklenenler",
+      "empty": "Henüz yiyecek eklenmedi"
+    },
+    "favorites": {
+      "title": "En Çok Yenenler",
+      "empty": "Henüz yiyecek eklenmedi"
+    },
+    "tabs": {
+      "search": "Ara",
+      "barcode": "Barkod"
+    },
+    "search": {
+      "title": "Yiyecek Ara",
+      "placeholder": "Yiyecek adı veya marka...",
+      "noResults": "Sonuç bulunamadı",
+      "promptTitle": "Veritabanından yiyecek ara",
+      "promptDesc": "En az 2 karakter girin"
+    },
+    "barcode": {
+      "title": "Barkod Tara",
+      "scanTitle": "Kamera ile Tara",
+      "scanDesc": "Ürün barkodunu kameraya gösterin",
+      "openCamera": "Kamerayı Aç"
+    },
+    "manual": {
+      "title": "Manuel Giriş",
+      "desc": "Besin değerlerini kendiniz girin"
+    },
+    "toasts": {
+      "success": "Yiyecek eklendi",
+      "error": "Yiyecek eklenemedi"
+    }
+  },
+  "analytics": {
+    "title": "Analiz",
+    "period": {
+      "week": "Hafta",
+      "month": "Ay",
+      "3months": "3 Ay"
+    },
+    "stats": {
+      "avgCalories": "Ort. Kalori",
+      "avgWater": "Ort. Su",
+      "avgProtein": "Ort. Protein",
+      "weightChange": "Kilo Değişimi",
+      "target": "/ hedef"
+    },
+    "charts": {
+      "calories": {
+        "title": "Kalori Takibi"
+      },
+      "target": "Hedef",
+      "macros": {
+        "title": "Makro Takibi (Hedefe Göre %)",
+        "subtitle": "Çizgi = %100 hedef"
+      }
+    },
+    "averages": {
+      "title": "Ortalama Makro Değerleri"
+    },
+    "summary": {
+      "daysWithData": "Veri bulunan gün sayısı",
+      "day": "gün"
+    },
+    "weightTrend": {
+      "first": "İlk Kayıt",
+      "change": "Değişim",
+      "last": "Son Kayıt"
+    }
+  }
 }

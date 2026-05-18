@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useOnlineStatus } from "./useOnlineStatus";
 import { useDebounce } from "./useDebounce";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +20,6 @@ export function useFoodSearch(query: string) {
   const [results, setResults] = useState<FoodSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const isOnline = useOnlineStatus();
   const { user } = useAuth();
   const debouncedQuery = useDebounce(query, 300);
 
@@ -154,6 +152,5 @@ export function useFoodSearch(query: string) {
     results,
     loading,
     error,
-    isOnline,
   };
 }

@@ -35,7 +35,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useFoodSearch, FoodSearchResult } from "@/hooks/useFoodSearch";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "react-i18next";
 
@@ -57,6 +56,33 @@ interface RecognizedFood {
   confidence: number;
   selected?: boolean;
   food_id?: string;
+}
+
+interface RecognitionFoodResponse {
+  name?: string;
+  amount_g_ml?: number;
+  calories_per_100g?: number;
+  calories?: number;
+  protein_g_per_100g?: number;
+  protein_g?: number;
+  carbs_g_per_100g?: number;
+  carbs_g?: number;
+  fat_g_per_100g?: number;
+  fat_g?: number;
+  saturated_fat_g_per_100g?: number;
+  trans_fat_g_per_100g?: number;
+  sugars_g_per_100g?: number;
+  fiber_g_per_100g?: number;
+  salt_g_per_100g?: number;
+  nova_score?: number;
+  nutri_score?: string;
+  confidence?: number;
+}
+
+interface RecognitionResponse {
+  foods?: RecognitionFoodResponse[];
+  description?: string;
+  error?: string;
 }
 
 interface UnifiedFoodDialogProps {
@@ -101,7 +127,6 @@ export function UnifiedFoodDialog({
   const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null);
   const [manualAmount, setManualAmount] = useState(100);
 
-  const isOnline = useOnlineStatus();
   const { results: searchResults, loading: searchLoading } = useFoodSearch(searchQuery);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,17 +163,13 @@ export function UnifiedFoodDialog({
       return;
     }
 
-    if (!isOnline) {
-      setError(t('dialogs.aiRequiresInternet'));
-      return;
-    }
 
     setStep("analyzing");
     setAnalyzing(true);
     setError(null);
 
     try {
-      let data;
+      let data: RecognitionResponse;
 
       if (imageData) {
         // Use photo recognition
@@ -171,8 +192,8 @@ export function UnifiedFoodDialog({
         data = response.data;
       }
 
-      const foods = (data.foods || []).map((food: any) => ({
-        name: food.name,
+      const foods = (data.foods || []).map((food) => ({
+        name: food.name || t('common.food'),
         amount_g_ml: food.amount_g_ml || 100,
         calories_per_100g: food.calories_per_100g || food.calories || 0,
         protein_g_per_100g: food.protein_g_per_100g || food.protein_g || 0,
@@ -273,7 +294,7 @@ export function UnifiedFoodDialog({
     setSaving(true);
 
     const foodsToSave = selectedFoods.map(food => ({
-      custom_name: food.name,
+      custom_name: food.name || t('common.food'),
       meal_type: mealType,
       amount_g_ml: food.amount_g_ml,
       calculated_kcal: Math.round((food.calories_per_100g / 100) * food.amount_g_ml),
@@ -360,7 +381,6 @@ export function UnifiedFoodDialog({
                 size="sm"
                 className="flex-1"
                 onClick={() => setMode("ai")}
-                disabled={!isOnline}
               >
                 <Sparkles className="mr-2 h-4 w-4" />
                 AI
@@ -453,30 +473,23 @@ export function UnifiedFoodDialog({
                           <p className="text-sm text-muted-foreground">
                             {t('dialogs.noResults')}
                           </p>
-                          {isOnline && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              onClick={() => {
-                                setMode("ai");
-                                setInputText(searchQuery);
-                              }}
-                            >
-                              <Sparkles className="mr-1 h-3 w-3" />
-                              {t('dialogs.analyzeWithAI')}
-                            </Button>
-                          )}
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => {
+                              setMode("ai");
+                              setInputText(searchQuery);
+                            }}
+                          >
+                            <Sparkles className="mr-1 h-3 w-3" />
+                            {t('dialogs.analyzeWithAI')}
+                          </Button>
                         </div>
                       )}
                     </ScrollArea>
                   </div>
                 )}
 
-                {!isOnline && (
-                  <p className="text-xs text-warning text-center">
-                    {t('dialogs.offlineMode')}
-                  </p>
-                )}
               </>
             ) : (
               <>
@@ -576,7 +589,7 @@ export function UnifiedFoodDialog({
                   </Button>
                   <Button
                     onClick={analyzeWithAI}
-                    disabled={(!imageData && !inputText.trim()) || !isOnline}
+                    disabled={!imageData && !inputText.trim()}
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
                     {t('dialogs.analyzeWithAI')}

@@ -1,7 +1,5 @@
-import { Wifi, WifiOff, LogOut } from "lucide-react";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,9 +19,8 @@ interface HeaderProps {
   showStatus?: boolean;
 }
 
-export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
+export function Header({ title = "CaloriX" }: HeaderProps) {
   const { t } = useTranslation();
-  const isOnline = useOnlineStatus();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,29 +49,6 @@ export function Header({ title = "CaloriX", showStatus = true }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Online/Offline Status */}
-          {showStatus && (
-            <div
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                isOnline
-                  ? "bg-success/10 text-success"
-                  : "bg-warning/10 text-warning"
-              )}
-            >
-              {isOnline ? (
-                <>
-                  <Wifi className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t('header.online')}</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t('header.offline')}</span>
-                </>
-              )}
-            </div>
-          )}
 
           {/* Notifications Panel */}
           <NotificationPanel />

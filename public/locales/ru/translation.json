@@ -1,467 +1,458 @@
 {
-    "common": {
-        "loading": "Загрузка...",
-        "error": "Ошибка",
-        "success": "Успешно",
-        "cancel": "Отмена",
-        "save": "Сохранить",
-        "close": "Закрыть",
-        "send": "Отправить",
-        "back": "Назад",
-        "resend": "Отправить снова",
-        "healthDisclaimer": "⚠️ Это приложение предназначено только для информационных целей и не является медицинской консультацией. Пожалуйста, обратитесь к специалисту по вопросам питания и здоровья.",
-        "appName": "CaloriX",
-        "required": "Обязательное поле",
-        "food": "Продукт",
-        "aiPoweredBy": "На базе ИИ",
-        "today": "Сегодня",
-        "yesterday": "Вчера",
-        "tomorrow": "Завтра",
-        "meal": "Приём пищи",
-        "searchFood": "Поиск продукта",
-        "searchPlaceholder": "Поиск продукта...",
-        "version": "Версия"
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успешно",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "close": "Закрыть",
+    "send": "Отправить",
+    "back": "Назад",
+    "resend": "Отправить снова",
+    "healthDisclaimer": "⚠️ Это приложение предназначено только для информационных целей и не является медицинской консультацией. Пожалуйста, обратитесь к специалисту по вопросам питания и здоровья.",
+    "appName": "CaloriX",
+    "required": "Обязательное поле",
+    "food": "Продукт",
+    "aiPoweredBy": "На базе ИИ",
+    "today": "Сегодня",
+    "yesterday": "Вчера",
+    "tomorrow": "Завтра",
+    "meal": "Приём пищи",
+    "searchFood": "Поиск продукта",
+    "searchPlaceholder": "Поиск продукта...",
+    "version": "Версия"
+  },
+  "header": {
+    "signedOut": "Выход выполнен",
+    "goodbye": "До свидания!",
+    "user": "Пользователь"
+  },
+  "bmi": {
+    "underweight": "Недостаточный вес",
+    "normal": "Нормальный",
+    "overweight": "Избыточный вес",
+    "obese": "Ожирение"
+  },
+  "notificationTypes": {
+    "weighIn": {
+      "title": "Напоминание о взвешивании",
+      "description": "Регулярные напоминания о взвешивании"
     },
-    "header": {
-        "online": "В сети",
-        "offline": "Не в сети",
-        "signedOut": "Выход выполнен",
-        "goodbye": "До свидания!",
-        "user": "Пользователь"
+    "dailyLog": {
+      "title": "Ежедневный журнал",
+      "description": "Напоминание если нет записей за 24ч"
     },
-    "bmi": {
-        "underweight": "Недостаточный вес",
-        "normal": "Нормальный",
-        "overweight": "Избыточный вес",
-        "obese": "Ожирение"
+    "water": {
+      "title": "Напоминание о воде",
+      "description": "Напоминания пить воду"
     },
-    "notificationTypes": {
-        "weighIn": {
-            "title": "Напоминание о взвешивании",
-            "description": "Регулярные напоминания о взвешивании"
-        },
-        "dailyLog": {
-            "title": "Ежедневный журнал",
-            "description": "Напоминание если нет записей за 24ч"
-        },
-        "water": {
-            "title": "Напоминание о воде",
-            "description": "Напоминания пить воду"
-        },
-        "goalAchieved": {
-            "title": "Цель достигнута",
-            "description": "Уведомление при достижении цели"
-        },
-        "weeklySummary": {
-            "title": "Еженедельный отчёт",
-            "description": "Отчёт о прогрессе"
-        },
-        "enablePush": "Включить push-уведомления",
-        "pushBlocked": "Push-уведомления заблокированы",
-        "pushBlockedDesc": "Разрешите уведомления в настройках браузера.",
-        "push": "Push",
-        "email": "Email"
+    "goalAchieved": {
+      "title": "Цель достигнута",
+      "description": "Уведомление при достижении цели"
     },
-    "dialogs": {
-        "add": "Добавить",
-        "save": "Сохранить",
-        "cancel": "Отмена",
-        "back": "Назад",
-        "search": "Поиск",
-        "results": "Результаты",
-        "noResults": "Нет результатов",
-        "analyzeWithAI": "Анализ с ИИ",
-        "reanalyze": "Повторный анализ",
-        "example": "напр.",
-        "optional": "необязательно",
-        "required": "обязательно",
-        "customAmount": "Своё количество",
-        "addWithAI": "Добавить с ИИ",
-        "addWithBarcode": "Добавить по штрих-коду",
-        "addFood": "Добавить продукт",
-        "editFood": "Редактировать продукт",
-        "searchFood": "Поиск продукта",
-        "foodName": "Название продукта",
-        "searchPlaceholder": "Поиск продукта...",
-        "meal": "Приём пищи",
-        "amount": "Количество",
-        "amountGram": "Количество (г)",
-        "suggestedPortion": "Рекомендуемая порция",
-        "calculatedValues": "Рассчитанные значения для",
-        "per100g": "на 100г",
-        "total": "Всего",
-        "protein": "белок",
-        "carbs": "углеводы",
-        "fat": "жиры",
-        "recognizedFoods": "Распознанные продукты",
-        "recognizing": "Распознавание...",
-        "aiAnalyzing": "ИИ анализирует...",
-        "portionHint": "Добавьте информацию о порции",
-        "photoOrTextRequired": "Требуется фото или текст",
-        "photo": "Фото",
-        "takePhoto": "Сделать фото",
-        "selectFromGallery": "Выбрать из галереи",
-        "selectedFood": "Выбранный продукт",
-        "whatDidYouEat": "Что вы съели?",
-        "additionalInfo": "Доп. информация",
-        "photoAdditionalHint": "Добавьте детали порции",
-        "textOrPhotoRequired": "Загрузите фото или опишите что вы съели",
-        "aiRequiresInternet": "Для ИИ-анализа нужен интернет",
-        "analysisFailed": "Анализ не удался",
-        "offlineMode": "Офлайн: только локальный поиск",
-        "selectAtLeastOne": "Выберите хотя бы один продукт",
-        "foodAdded": "Продукт добавлен",
-        "foodsAdded": "продуктов добавлено",
-        "saveFailed": "Ошибка сохранения",
-        "inputText": "Введённый текст",
-        "confidence": "уверенность",
-        "calories": "Кал",
-        "calPer100g": "Кал/100г",
-        "proPer100g": "Бел/100г",
-        "carbPer100g": "Угл/100г",
-        "fatPer100g": "Жир/100г",
-        "barcode": {
-            "title": "Добавить по штрих-коду",
-            "scanning": "Сканирование...",
-            "productFound": "Продукт найден",
-            "productNotFound": "Продукт не найден",
-            "tryAgain": "Попробовать снова",
-            "manualEntry": "Ручной ввод"
-        },
-        "weight": {
-            "title": "Записать вес",
-            "currentWeight": "Текущий вес",
-            "unit": "кг",
-            "saved": "Вес сохранён"
-        },
-        "edit": {
-            "title": "Редактировать запись",
-            "updated": "Запись обновлена",
-            "deleted": "Запись удалена"
-        }
+    "weeklySummary": {
+      "title": "Еженедельный отчёт",
+      "description": "Отчёт о прогрессе"
     },
-    "export": {
-        "success": "экспортировано",
-        "mealEntries": "записей приёмов пищи",
-        "waterEntries": "записей воды",
-        "weightEntries": "записей веса",
-        "imported": "импортировано",
-        "foods": "продуктов"
+    "enablePush": "Включить push-уведомления",
+    "pushBlocked": "Push-уведомления заблокированы",
+    "pushBlockedDesc": "Разрешите уведомления в настройках браузера.",
+    "push": "Push",
+    "email": "Email"
+  },
+  "dialogs": {
+    "add": "Добавить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "back": "Назад",
+    "search": "Поиск",
+    "results": "Результаты",
+    "noResults": "Нет результатов",
+    "analyzeWithAI": "Анализ с ИИ",
+    "reanalyze": "Повторный анализ",
+    "example": "напр.",
+    "optional": "необязательно",
+    "required": "обязательно",
+    "customAmount": "Своё количество",
+    "addWithAI": "Добавить с ИИ",
+    "addWithBarcode": "Добавить по штрих-коду",
+    "addFood": "Добавить продукт",
+    "editFood": "Редактировать продукт",
+    "searchFood": "Поиск продукта",
+    "foodName": "Название продукта",
+    "searchPlaceholder": "Поиск продукта...",
+    "meal": "Приём пищи",
+    "amount": "Количество",
+    "amountGram": "Количество (г)",
+    "suggestedPortion": "Рекомендуемая порция",
+    "calculatedValues": "Рассчитанные значения для",
+    "per100g": "на 100г",
+    "total": "Всего",
+    "protein": "белок",
+    "carbs": "углеводы",
+    "fat": "жиры",
+    "recognizedFoods": "Распознанные продукты",
+    "recognizing": "Распознавание...",
+    "aiAnalyzing": "ИИ анализирует...",
+    "portionHint": "Добавьте информацию о порции",
+    "photoOrTextRequired": "Требуется фото или текст",
+    "photo": "Фото",
+    "takePhoto": "Сделать фото",
+    "selectFromGallery": "Выбрать из галереи",
+    "selectedFood": "Выбранный продукт",
+    "whatDidYouEat": "Что вы съели?",
+    "additionalInfo": "Доп. информация",
+    "photoAdditionalHint": "Добавьте детали порции",
+    "textOrPhotoRequired": "Загрузите фото или опишите что вы съели",
+    "aiRequiresInternet": "Для ИИ-анализа нужен интернет",
+    "analysisFailed": "Анализ не удался",
+    "selectAtLeastOne": "Выберите хотя бы один продукт",
+    "foodAdded": "Продукт добавлен",
+    "foodsAdded": "продуктов добавлено",
+    "saveFailed": "Ошибка сохранения",
+    "inputText": "Введённый текст",
+    "confidence": "уверенность",
+    "calories": "Кал",
+    "calPer100g": "Кал/100г",
+    "proPer100g": "Бел/100г",
+    "carbPer100g": "Угл/100г",
+    "fatPer100g": "Жир/100г",
+    "barcode": {
+      "title": "Добавить по штрих-коду",
+      "scanning": "Сканирование...",
+      "productFound": "Продукт найден",
+      "productNotFound": "Продукт не найден",
+      "tryAgain": "Попробовать снова",
+      "manualEntry": "Ручной ввод"
+    },
+    "weight": {
+      "title": "Записать вес",
+      "currentWeight": "Текущий вес",
+      "unit": "кг",
+      "saved": "Вес сохранён"
+    },
+    "edit": {
+      "title": "Редактировать запись",
+      "updated": "Запись обновлена",
+      "deleted": "Запись удалена"
+    }
+  },
+  "export": {
+    "success": "экспортировано",
+    "mealEntries": "записей приёмов пищи",
+    "waterEntries": "записей воды",
+    "weightEntries": "записей веса",
+    "imported": "импортировано",
+    "foods": "продуктов"
+  },
+  "notifications": {
+    "title": "Уведомления",
+    "new": "новое",
+    "markAllRead": "Отметить всё прочитанным",
+    "empty": "Нет уведомлений"
+  },
+  "auth": {
+    "signIn": "Войти",
+    "signUp": "Регистрация",
+    "email": "Электронная почта",
+    "password": "Пароль",
+    "name": "Имя",
+    "nameOptional": "Имя (необязательно)",
+    "forgotPassword": "Забыли пароль",
+    "forgotPasswordTitle": "Забыли пароль",
+    "forgotPasswordDesc": "Введите ваш email, и мы отправим ссылку для сброса пароля",
+    "sendResetLink": "Отправить ссылку для сброса",
+    "resetPassword": "Сбросить пароль",
+    "resetPasswordTitle": "Установить новый пароль",
+    "resetPasswordDesc": "Установите новый пароль для вашего аккаунта",
+    "newPassword": "Новый пароль",
+    "confirmPassword": "Подтвердите пароль",
+    "updatePassword": "Обновить пароль",
+    "signInTab": "Войти",
+    "signUpTab": "Регистрация",
+    "signInDesc": "Войдите в свой аккаунт",
+    "signUpDesc": "Создайте новый аккаунт",
+    "tagline": "Ваш умный помощник для отслеживания калорий и макронутриентов",
+    "validation": {
+      "invalidEmail": "Пожалуйста, введите корректный email",
+      "passwordLength": "Пароль должен содержать минимум 6 символов",
+      "passwordMismatch": "Пароли не совпадают",
+      "userAlreadyRegistered": "Этот email уже зарегистрирован",
+      "invalidLogin": "Неверный email или пароль",
+      "emailNotConfirmed": "Пожалуйста, подтвердите ваш email"
+    },
+    "messages": {
+      "signInSuccess": "Вход выполнен успешно",
+      "signUpSuccess": "Регистрация успешна! Письмо с подтверждением отправлено.",
+      "resetEmailSent": "Ссылка для сброса отправлена на ваш email",
+      "passwordUpdated": "Ваш пароль обновлён",
+      "verificationSent": "Новое письмо с подтверждением отправлено",
+      "emailVerified": "Email подтверждён!",
+      "emailVerifiedDesc": "Ваш аккаунт успешно подтверждён."
+    },
+    "pendingVerification": {
+      "title": "Ожидание подтверждения email",
+      "description": "Мы отправили письмо с подтверждением на {{email}}. Проверьте входящие и нажмите на ссылку для подтверждения.",
+      "spamNote": "Если вы не получили письмо, проверьте папку спам или отправьте снова.",
+      "differentAccount": "Войти с другим аккаунтом"
+    },
+    "button": {
+      "signingIn": "Вход...",
+      "signingUp": "Регистрация...",
+      "sending": "Отправка...",
+      "saving": "Сохранение..."
+    }
+  },
+  "meals": {
+    "breakfast": "Завтрак",
+    "lunch": "Обед",
+    "dinner": "Ужин",
+    "snack": "Перекус"
+  },
+  "nav": {
+    "home": "Главная",
+    "add": "Добавить",
+    "analytics": "Аналитика",
+    "settings": "Настройки"
+  },
+  "settings": {
+    "title": "Настройки",
+    "darkTheme": "Тёмная тема",
+    "active": "Включено",
+    "inactive": "Выключено",
+    "sections": {
+      "profile": "Профиль",
+      "app": "Приложение",
+      "data": "Данные",
+      "account": "Аккаунт",
+      "about": "О приложении"
+    },
+    "items": {
+      "personalInfo": "Личные данные",
+      "goals": "Цели",
+      "notifications": "Уведомления",
+      "exportData": "Экспорт данных",
+      "exporting": "Экспорт...",
+      "exportDesc": "Резервная копия в JSON",
+      "importData": "Импорт данных",
+      "importing": "Импорт...",
+      "importDesc": "Восстановить из резервной копии",
+      "changePassword": "Изменить пароль",
+      "changePasswordDesc": "Обновите пароль вашего аккаунта",
+      "signOut": "Выйти",
+      "signOutDesc": "Выйти из аккаунта",
+      "aboutApp": "О приложении"
+    },
+    "personalInfo": {
+      "title": "Личные данные",
+      "desc": "Обновите информацию профиля",
+      "gender": "Пол",
+      "male": "Мужской",
+      "female": "Женский",
+      "other": "Другой",
+      "birthDate": "Дата рождения",
+      "height": "Рост (см)",
+      "weight": "Вес (кг)",
+      "targetWeight": "Цель (кг)",
+      "bmi": "ИМТ"
+    },
+    "goals": {
+      "title": "Цели",
+      "desc": "Редактируйте цели по калориям и макронутриентам",
+      "activityLevel": "Уровень активности",
+      "goalType": "Цель",
+      "aiCalculate": "Рассчитать цели с помощью ИИ",
+      "calculating": "ИИ рассчитывает...",
+      "calories": "Калории (ккал)",
+      "water": "Вода (мл)",
+      "protein": "Белок (г)",
+      "carbs": "Углеводы (г)",
+      "fat": "Жиры (г)",
+      "activity": {
+        "sedentary": "Сидячий",
+        "light": "Низкая активность",
+        "moderate": "Умеренная активность",
+        "active": "Активный",
+        "very_active": "Очень активный"
+      },
+      "goal": {
+        "lose_fast": "Быстро похудеть",
+        "lose": "Похудеть",
+        "maintain": "Поддерживать",
+        "gain": "Набрать мышцы"
+      }
     },
     "notifications": {
-        "title": "Уведомления",
-        "new": "новое",
-        "markAllRead": "Отметить всё прочитанным",
-        "empty": "Нет уведомлений"
+      "title": "Настройки уведомлений",
+      "desc": "Настройте каналы и время уведомлений"
     },
-    "auth": {
-        "signIn": "Войти",
-        "signUp": "Регистрация",
-        "email": "Электронная почта",
-        "password": "Пароль",
-        "name": "Имя",
-        "nameOptional": "Имя (необязательно)",
-        "forgotPassword": "Забыли пароль",
-        "forgotPasswordTitle": "Забыли пароль",
-        "forgotPasswordDesc": "Введите ваш email, и мы отправим ссылку для сброса пароля",
-        "sendResetLink": "Отправить ссылку для сброса",
-        "resetPassword": "Сбросить пароль",
-        "resetPasswordTitle": "Установить новый пароль",
-        "resetPasswordDesc": "Установите новый пароль для вашего аккаунта",
-        "newPassword": "Новый пароль",
-        "confirmPassword": "Подтвердите пароль",
-        "updatePassword": "Обновить пароль",
-        "signInTab": "Войти",
-        "signUpTab": "Регистрация",
-        "signInDesc": "Войдите в свой аккаунт",
-        "signUpDesc": "Создайте новый аккаунт",
-        "tagline": "Ваш умный помощник для отслеживания калорий и макронутриентов",
-        "validation": {
-            "invalidEmail": "Пожалуйста, введите корректный email",
-            "passwordLength": "Пароль должен содержать минимум 6 символов",
-            "passwordMismatch": "Пароли не совпадают",
-            "userAlreadyRegistered": "Этот email уже зарегистрирован",
-            "invalidLogin": "Неверный email или пароль",
-            "emailNotConfirmed": "Пожалуйста, подтвердите ваш email"
-        },
-        "messages": {
-            "signInSuccess": "Вход выполнен успешно",
-            "signUpSuccess": "Регистрация успешна! Письмо с подтверждением отправлено.",
-            "resetEmailSent": "Ссылка для сброса отправлена на ваш email",
-            "passwordUpdated": "Ваш пароль обновлён",
-            "verificationSent": "Новое письмо с подтверждением отправлено",
-            "emailVerified": "Email подтверждён!",
-            "emailVerifiedDesc": "Ваш аккаунт успешно подтверждён."
-        },
-        "pendingVerification": {
-            "title": "Ожидание подтверждения email",
-            "description": "Мы отправили письмо с подтверждением на {{email}}. Проверьте входящие и нажмите на ссылку для подтверждения.",
-            "spamNote": "Если вы не получили письмо, проверьте папку спам или отправьте снова.",
-            "differentAccount": "Войти с другим аккаунтом"
-        },
-        "button": {
-            "signingIn": "Вход...",
-            "signingUp": "Регистрация...",
-            "sending": "Отправка...",
-            "saving": "Сохранение..."
-        }
+    "import": {
+      "title": "Импорт данных",
+      "desc": "Выберите ранее экспортированный JSON-файл. Существующие данные будут сохранены, добавятся только новые записи.",
+      "fileSelect": "Выбрать файл",
+      "fileNote": "Поддерживаются только JSON-файлы резервных копий CaloriX"
     },
-    "meals": {
-        "breakfast": "Завтрак",
-        "lunch": "Обед",
-        "dinner": "Ужин",
-        "snack": "Перекус"
-    },
-    "nav": {
-        "home": "Главная",
-        "add": "Добавить",
-        "analytics": "Аналитика",
-        "settings": "Настройки"
-    },
-    "settings": {
-        "title": "Настройки",
-        "darkTheme": "Тёмная тема",
-        "active": "Включено",
-        "inactive": "Выключено",
-        "sections": {
-            "profile": "Профиль",
-            "app": "Приложение",
-            "data": "Данные",
-            "account": "Аккаунт",
-            "about": "О приложении"
-        },
-        "items": {
-            "personalInfo": "Личные данные",
-            "goals": "Цели",
-            "notifications": "Уведомления",
-            "exportData": "Экспорт данных",
-            "exporting": "Экспорт...",
-            "exportDesc": "Резервная копия в JSON",
-            "importData": "Импорт данных",
-            "importing": "Импорт...",
-            "importDesc": "Восстановить из резервной копии",
-            "changePassword": "Изменить пароль",
-            "changePasswordDesc": "Обновите пароль вашего аккаунта",
-            "signOut": "Выйти",
-            "signOutDesc": "Выйти из аккаунта",
-            "aboutApp": "О приложении"
-        },
-        "personalInfo": {
-            "title": "Личные данные",
-            "desc": "Обновите информацию профиля",
-            "gender": "Пол",
-            "male": "Мужской",
-            "female": "Женский",
-            "other": "Другой",
-            "birthDate": "Дата рождения",
-            "height": "Рост (см)",
-            "weight": "Вес (кг)",
-            "targetWeight": "Цель (кг)",
-            "bmi": "ИМТ"
-        },
-        "goals": {
-            "title": "Цели",
-            "desc": "Редактируйте цели по калориям и макронутриентам",
-            "activityLevel": "Уровень активности",
-            "goalType": "Цель",
-            "aiCalculate": "Рассчитать цели с помощью ИИ",
-            "calculating": "ИИ рассчитывает...",
-            "calories": "Калории (ккал)",
-            "water": "Вода (мл)",
-            "protein": "Белок (г)",
-            "carbs": "Углеводы (г)",
-            "fat": "Жиры (г)",
-            "activity": {
-                "sedentary": "Сидячий",
-                "light": "Низкая активность",
-                "moderate": "Умеренная активность",
-                "active": "Активный",
-                "very_active": "Очень активный"
-            },
-            "goal": {
-                "lose_fast": "Быстро похудеть",
-                "lose": "Похудеть",
-                "maintain": "Поддерживать",
-                "gain": "Набрать мышцы"
-            }
-        },
-        "notifications": {
-            "title": "Настройки уведомлений",
-            "desc": "Настройте каналы и время уведомлений"
-        },
-        "import": {
-            "title": "Импорт данных",
-            "desc": "Выберите ранее экспортированный JSON-файл. Существующие данные будут сохранены, добавятся только новые записи.",
-            "fileSelect": "Выбрать файл",
-            "fileNote": "Поддерживаются только JSON-файлы резервных копий CaloriX"
-        },
-        "messages": {
-            "personalInfoSaved": "Личные данные обновлены",
-            "goalsSaved": "Цели обновлены",
-            "settingsSaved": "Настройки обновлены",
-            "passwordChanged": "Пароль обновлён",
-            "aiSuccess": "Расчёт ИИ завершён",
-            "aiUpdate": "Обновление макронутриентов ИИ",
-            "error": "Произошла ошибка"
-        }
-    },
-    "dashboard": {
-        "title": "Главная",
-        "welcome": "С возвращением",
-        "caloriesLeft": "Осталось калорий",
-        "eaten": "Съедено",
-        "burned": "Сожжено",
-        "macros": "Макронутриенты",
-        "water": "Вода",
-        "noRecords": "Нет записей",
-        "addFood": "Добавить продукт",
-        "waterTracker": "Трекер воды",
-        "mlRemaining": "Осталось {{amount}} мл",
-        "goalReached": "Цель достигнута! 🎉",
-        "custom": "Своё значение",
-        "logWeight": "Записать вес",
-        "weightOverdue": "Не взвешивались {{days}} дней",
-        "lastWeight": "Последнее взвешивание: {{days}} дней назад",
-        "recordWeight": "Запишите свой вес",
-        "quickAdd": "Быстрое добавление",
-        "quick": {
-            "barcode": "Штрих-код",
-            "scan": "Сканировать товар",
-            "search": "Поиск",
-            "findFood": "Найти продукт",
-            "ai": "Добавить с ИИ",
-            "photoText": "Фото/Текст",
-            "recent": "Недавние",
-            "history": "Из истории",
-            "favorites": "Избранное",
-            "saved": "Сохранённые",
-            "offline": "Офлайн-режим: для ИИ-функций нужен интернет"
-        },
-        "dailySummary": "Дневная сводка",
-        "remaining": "ккал осталось",
-        "consumed": "Потреблено",
-        "target": "Цель",
-        "waterAdded": "+{{amount}} мл воды добавлено",
-        "dailyTotal": "Всего за день: {{total}} мл",
-        "errorWeight": "Ошибка сохранения веса",
-        "weightSaved": "Вес сохранён",
-        "savedAs": "Сохранено как {{weight}} кг",
-        "errorFood": "Ошибка добавления продукта",
-        "foodAdded": "Продукт добавлен",
-        "addedToMeal": "{{food}} добавлен в {{meal}}",
-        "errorUpdate": "Ошибка обновления продукта",
-        "foodUpdated": "Продукт обновлён",
-        "updatedSuccessfully": "{{food}} успешно обновлён",
-        "errorDelete": "Ошибка удаления продукта",
-        "foodDeleted": "Продукт удалён",
-        "deletedSuccessfully": "Запись успешно удалена"
-    },
-    "about": {
-        "title": "О приложении",
-        "subtitle": "Приложение для отслеживания калорий и макронутриентов",
-        "version": "Версия {{version}}",
-        "features": {
-            "title": "Функции",
-            "ai": "ИИ-распознавание продуктов (фото и текст)",
-            "barcode": "Сканирование штрих-кодов",
-            "tracker": "Трекер воды и веса",
-            "analytics": "Детальная аналитика и графики",
-            "notifications": "Умные напоминания",
-            "offline": "Работа офлайн"
-        },
-        "developer": {
-            "title": "Разработчик",
-            "role": "Разработчик ПО"
-        },
-        "email": "Email",
-        "poweredBy": "Работает на",
-        "footer": {
-            "madeWith": "Сделано с",
-            "inTurkey": "в Турции",
-            "copyright": "© 2025 CaloriX. Все права защищены."
-        }
-    },
-    "addFood": {
-        "title": "Добавить продукт",
-        "meal": "Приём пищи",
-        "ai": {
-            "title": "ИИ-распознавание",
-            "buttonTitle": "Добавить с ИИ",
-            "buttonDesc": "Определить продукт по фото или тексту"
-        },
-        "offline": {
-            "title": "Офлайн",
-            "desc": "Для ИИ-распознавания нужен интернет"
-        },
-        "recent": {
-            "title": "Недавние",
-            "empty": "Продукты ещё не добавлены"
-        },
-        "favorites": {
-            "title": "Часто употребляемые",
-            "empty": "Продукты ещё не добавлены"
-        },
-        "tabs": {
-            "search": "Поиск",
-            "barcode": "Штрих-код"
-        },
-        "search": {
-            "title": "Поиск продукта",
-            "placeholder": "Название продукта или бренд...",
-            "noResults": "Ничего не найдено",
-            "promptTitle": "Поиск в базе данных",
-            "promptDesc": "Введите минимум 2 символа"
-        },
-        "barcode": {
-            "title": "Сканировать штрих-код",
-            "scanTitle": "Сканировать камерой",
-            "scanDesc": "Наведите камеру на штрих-код",
-            "openCamera": "Открыть камеру"
-        },
-        "manual": {
-            "title": "Ручной ввод",
-            "desc": "Введите пищевую ценность вручную"
-        },
-        "toasts": {
-            "success": "Продукт добавлен",
-            "error": "Ошибка добавления продукта"
-        }
-    },
-    "analytics": {
-        "title": "Аналитика",
-        "period": {
-            "week": "Неделя",
-            "month": "Месяц",
-            "3months": "3 месяца"
-        },
-        "stats": {
-            "avgCalories": "Сред. калории",
-            "avgWater": "Сред. вода",
-            "avgProtein": "Сред. белок",
-            "weightChange": "Изменение веса",
-            "target": "/ цель"
-        },
-        "charts": {
-            "calories": {
-                "title": "Отслеживание калорий"
-            },
-            "target": "Цель",
-            "macros": {
-                "title": "Отслеживание макронутриентов (% от цели)",
-                "subtitle": "Линия = 100% цели"
-            }
-        },
-        "averages": {
-            "title": "Средние значения макронутриентов"
-        },
-        "summary": {
-            "daysWithData": "Дней с данными",
-            "day": "дней"
-        },
-        "weightTrend": {
-            "first": "Первая запись",
-            "change": "Изменение",
-            "last": "Последняя запись"
-        }
+    "messages": {
+      "personalInfoSaved": "Личные данные обновлены",
+      "goalsSaved": "Цели обновлены",
+      "settingsSaved": "Настройки обновлены",
+      "passwordChanged": "Пароль обновлён",
+      "aiSuccess": "Расчёт ИИ завершён",
+      "aiUpdate": "Обновление макронутриентов ИИ",
+      "error": "Произошла ошибка"
     }
+  },
+  "dashboard": {
+    "title": "Главная",
+    "welcome": "С возвращением",
+    "caloriesLeft": "Осталось калорий",
+    "eaten": "Съедено",
+    "burned": "Сожжено",
+    "macros": "Макронутриенты",
+    "water": "Вода",
+    "noRecords": "Нет записей",
+    "addFood": "Добавить продукт",
+    "waterTracker": "Трекер воды",
+    "mlRemaining": "Осталось {{amount}} мл",
+    "goalReached": "Цель достигнута! 🎉",
+    "custom": "Своё значение",
+    "logWeight": "Записать вес",
+    "weightOverdue": "Не взвешивались {{days}} дней",
+    "lastWeight": "Последнее взвешивание: {{days}} дней назад",
+    "recordWeight": "Запишите свой вес",
+    "quickAdd": "Быстрое добавление",
+    "quick": {
+      "barcode": "Штрих-код",
+      "scan": "Сканировать товар",
+      "search": "Поиск",
+      "findFood": "Найти продукт",
+      "ai": "Добавить с ИИ",
+      "photoText": "Фото/Текст",
+      "recent": "Недавние",
+      "history": "Из истории",
+      "favorites": "Избранное",
+      "saved": "Сохранённые"
+    },
+    "dailySummary": "Дневная сводка",
+    "remaining": "ккал осталось",
+    "consumed": "Потреблено",
+    "target": "Цель",
+    "waterAdded": "+{{amount}} мл воды добавлено",
+    "dailyTotal": "Всего за день: {{total}} мл",
+    "errorWeight": "Ошибка сохранения веса",
+    "weightSaved": "Вес сохранён",
+    "savedAs": "Сохранено как {{weight}} кг",
+    "errorFood": "Ошибка добавления продукта",
+    "foodAdded": "Продукт добавлен",
+    "addedToMeal": "{{food}} добавлен в {{meal}}",
+    "errorUpdate": "Ошибка обновления продукта",
+    "foodUpdated": "Продукт обновлён",
+    "updatedSuccessfully": "{{food}} успешно обновлён",
+    "errorDelete": "Ошибка удаления продукта",
+    "foodDeleted": "Продукт удалён",
+    "deletedSuccessfully": "Запись успешно удалена"
+  },
+  "about": {
+    "title": "О приложении",
+    "subtitle": "Приложение для отслеживания калорий и макронутриентов",
+    "version": "Версия {{version}}",
+    "features": {
+      "title": "Функции",
+      "ai": "ИИ-распознавание продуктов (фото и текст)",
+      "barcode": "Сканирование штрих-кодов",
+      "tracker": "Трекер воды и веса",
+      "analytics": "Детальная аналитика и графики",
+      "notifications": "Умные напоминания"
+    },
+    "developer": {
+      "title": "Разработчик",
+      "role": "Разработчик ПО"
+    },
+    "email": "Email",
+    "poweredBy": "Работает на",
+    "footer": {
+      "madeWith": "Сделано с",
+      "inTurkey": "в Турции",
+      "copyright": "© 2025 CaloriX. Все права защищены."
+    }
+  },
+  "addFood": {
+    "title": "Добавить продукт",
+    "meal": "Приём пищи",
+    "ai": {
+      "title": "ИИ-распознавание",
+      "buttonTitle": "Добавить с ИИ",
+      "buttonDesc": "Определить продукт по фото или тексту"
+    },
+    "recent": {
+      "title": "Недавние",
+      "empty": "Продукты ещё не добавлены"
+    },
+    "favorites": {
+      "title": "Часто употребляемые",
+      "empty": "Продукты ещё не добавлены"
+    },
+    "tabs": {
+      "search": "Поиск",
+      "barcode": "Штрих-код"
+    },
+    "search": {
+      "title": "Поиск продукта",
+      "placeholder": "Название продукта или бренд...",
+      "noResults": "Ничего не найдено",
+      "promptTitle": "Поиск в базе данных",
+      "promptDesc": "Введите минимум 2 символа"
+    },
+    "barcode": {
+      "title": "Сканировать штрих-код",
+      "scanTitle": "Сканировать камерой",
+      "scanDesc": "Наведите камеру на штрих-код",
+      "openCamera": "Открыть камеру"
+    },
+    "manual": {
+      "title": "Ручной ввод",
+      "desc": "Введите пищевую ценность вручную"
+    },
+    "toasts": {
+      "success": "Продукт добавлен",
+      "error": "Ошибка добавления продукта"
+    }
+  },
+  "analytics": {
+    "title": "Аналитика",
+    "period": {
+      "week": "Неделя",
+      "month": "Месяц",
+      "3months": "3 месяца"
+    },
+    "stats": {
+      "avgCalories": "Сред. калории",
+      "avgWater": "Сред. вода",
+      "avgProtein": "Сред. белок",
+      "weightChange": "Изменение веса",
+      "target": "/ цель"
+    },
+    "charts": {
+      "calories": {
+        "title": "Отслеживание калорий"
+      },
+      "target": "Цель",
+      "macros": {
+        "title": "Отслеживание макронутриентов (% от цели)",
+        "subtitle": "Линия = 100% цели"
+      }
+    },
+    "averages": {
+      "title": "Средние значения макронутриентов"
+    },
+    "summary": {
+      "daysWithData": "Дней с данными",
+      "day": "дней"
+    },
+    "weightTrend": {
+      "first": "Первая запись",
+      "change": "Изменение",
+      "last": "Последняя запись"
+    }
+  }
 }
