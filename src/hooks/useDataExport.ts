@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { APP_VERSION } from '@/lib/constants';
 
 export interface ExportData {
   version: string;
@@ -53,7 +54,7 @@ export function useDataExport() {
       ]);
 
       const exportData: ExportData = {
-        version: '1.0.0',
+        version: APP_VERSION,
         exportedAt: new Date().toISOString(),
         profile: profileRes.data,
         mealEntries: mealEntriesRes.data || [],

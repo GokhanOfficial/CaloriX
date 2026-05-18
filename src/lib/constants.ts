@@ -1,5 +1,7 @@
 // CaloriX Constants
 
+export const APP_VERSION = '1.1.0';
+
 export const MEAL_TYPES = {
   breakfast: { id: 'breakfast', label: 'Kahvaltı', icon: '🌅', order: 1 },
   lunch: { id: 'lunch', label: 'Öğle', icon: '☀️', order: 2 },

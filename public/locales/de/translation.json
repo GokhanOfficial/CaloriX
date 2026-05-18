@@ -213,7 +213,8 @@
     "home": "Startseite",
     "add": "Hinzufügen",
     "analytics": "Analyse",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "chat": "Chat"
   },
   "settings": {
     "title": "Einstellungen",
@@ -454,5 +455,43 @@
       "change": "Änderung",
       "last": "Letzter Eintrag"
     }
+  },
+  "chat": {
+    "title": "AI-Chat",
+    "subtitle": "Frag nach deinen Mahlzeiten, deinem Wasser, Gewicht und deinen Zielen.",
+    "newThread": "Neuer Chat",
+    "clear": "Sichtbaren Chat löschen",
+    "emptyTitle": "Wie kann ich helfen?",
+    "emptyDesc": "Ich kann deine CaloriX-Daten verfolgen, Einträge hinzufügen oder deine Ziele aktualisieren.",
+    "placeholder": "CaloriX AI fragen...",
+    "thinking": "AI denkt nach...",
+    "toolUse": "Tool-Nutzung",
+    "tool": "Tool",
+    "toolResult": "Tool-Ergebnis",
+    "confirmAction": "Bestätigung erforderlich",
+    "approve": "Bestätigen",
+    "reject": "Ablehnen",
+    "actionExecuted": "Aktion abgeschlossen",
+    "actions": {
+      "add_meal": "Mahlzeit hinzufügen",
+      "add_water": "Wasser hinzufügen",
+      "add_weight": "Gewicht hinzufügen",
+      "update_goals": "Ziele aktualisieren"
+    },
+    "status": {
+      "pending": "Wartet auf Bestätigung",
+      "approved": "Bestätigt",
+      "rejected": "Abgelehnt",
+      "executed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen"
+    },
+    "errors": {
+      "load": "Chat konnte nicht geladen werden",
+      "loadMore": "Ältere Nachrichten konnten nicht geladen werden",
+      "send": "Nachricht konnte nicht gesendet werden",
+      "action": "Aktion konnte nicht verarbeitet werden",
+      "clear": "Chat konnte nicht gelöscht werden"
+    },
+    "welcomeMessage": "Hallo! Ich bin CaloriX AI. Ich kann dir helfen, deine Mahlzeiten, deinen Wasserkonsum, dein Gewicht und deine Ziele zu verfolgen."
   }
 }

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Info, Mail, Code, Heart } from "lucide-react";
 import { PollinationsCredit } from "@/components/common/PollinationsCredit";
+import { APP_VERSION } from "@/lib/constants";
 
 import { useTranslation } from "react-i18next";
 
@@ -22,7 +23,7 @@ const AboutPage = () => {
           </CardHeader>
           <CardContent className="text-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-              {t('about.version', { version: '1.0.0' })}
+              {t('about.version', { version: APP_VERSION })}
             </div>
           </CardContent>
         </Card>

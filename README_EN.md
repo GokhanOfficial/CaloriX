@@ -4,15 +4,16 @@
 
 <img src="public/logo.png" alt="CaloriX Logo" width="120" />
 
-**Smart Calorie and Macro Tracking Application**
+**Smart Calorie, Macro Tracking, and AI Nutrition Assistant**
 
 [![Live Demo](https://img.shields.io/badge/Demo-yediginibil.vercel.app-00C7B7?style=flat-square&logo=vercel)](https://yediginibil.vercel.app)
 [![GitHub](https://img.shields.io/badge/GitHub-CaloriX-181717?style=flat-square&logo=github)](https://github.com/GokhanOfficial/CaloriX)
+[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen?style=flat-square)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 [🇹🇷 Türkçe](README.md)
 
-[🚀 Demo](https://yediginibil.vercel.app) • [📖 Features](#-features) • [🛠️ Installation](#️-installation) • [📱 Screenshots](#-screenshots)
+[🚀 Demo](https://yediginibil.vercel.app) • [📖 Features](#-features) • [📝 Changelog](CHANGELOG.md) • [🛠️ Installation](#️-installation) • [📱 Screenshots](#-screenshots)
 
 </div>
 
@@ -20,12 +21,15 @@
 
 ## 📖 About
 
-CaloriX is a modern PWA (Progressive Web App) that allows you to track daily calories, macro nutrients, water consumption, and weight. With its AI-powered food recognition feature, you can easily log what you eat by taking a photo or typing text.
+CaloriX is a modern PWA (Progressive Web App) that allows you to track daily calories, macro nutrients, water consumption, and weight. With AI-powered food recognition and the AI Chat nutrition assistant, you can easily track what you eat by taking a photo, typing text, or chatting about your nutrition.
+
+> **Version 1.1.0:** Added the AI Chat nutrition assistant. Removed the offline sync infrastructure because it was causing bugs and data consistency issues.
 
 ## ✨ Features
 
 ### 🍽️ Food Tracking
 - **AI Powered Recognition**: Recognize food via photo or text
+- **AI Chat Nutrition Assistant**: Chat about your daily logs, goals, and nutrition decisions for personalized support
 - **Barcode Scanning**: Quickly add packaged products via barcode
 - **Detailed Nutritional Values**: Calories, protein, carbohydrates, fat, and more
 - **NOVA & Nutri-Score**: Food processing and nutrition scores
@@ -54,6 +58,7 @@ CaloriX is a modern PWA (Progressive Web App) that allows you to track daily cal
 - Dark/Light theme support
 - Turkish interface (English support in documentation)
 - PWA installation support
+- Simpler and more reliable data flow: offline sync has been removed
 
 ## 🛠️ Installation
 
@@ -90,9 +95,9 @@ Configure the `.env` file with the following variables:
 | `VITE_SUPABASE_URL` | Supabase Project URL |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase Anon Key |
 | `VITE_SUPABASE_PROJECT_ID` | Supabase Project ID |
-| `OPENAI_API_KEY` | (Optional) OpenAI API key for AI features |
+| `OPENAI_API_KEY` | (Optional) OpenAI-compatible API key for AI food recognition and AI Chat |
 | `OPENAI_BASE_URL` | (Optional) OpenAI Proxy URL (default: https://gen.pollinations.ai/v1) |
-| `OPENAI_MODEL` | (Optional) AI model to use (default: gpt-5-mini) |
+| `OPENAI_MODEL` | (Optional) AI model to use (default: openai) |
 | `RESEND_API_KEY` | (Optional) Resend API key for email notifications |
 | `VAPID_PUBLIC_KEY` | (Optional) Public Key for Web Push notifications |
 | `VAPID_PRIVATE_KEY` | (Optional) Private Key for Web Push notifications |
@@ -144,6 +149,10 @@ CaloriX uses [Supabase](https://supabase.com) as its backend.
 ```bash
 supabase functions deploy
 ```
+
+## 📝 Release Notes
+
+See [CHANGELOG.md](CHANGELOG.md) for the latest release notes.
 
 ## 🔧 Technologies
 

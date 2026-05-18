@@ -213,7 +213,8 @@
     "home": "Ana Sayfa",
     "add": "Ekle",
     "analytics": "Analiz",
-    "settings": "Ayarlar"
+    "settings": "Ayarlar",
+    "chat": "Sohbet"
   },
   "settings": {
     "title": "Ayarlar",
@@ -454,5 +455,43 @@
       "change": "Değişim",
       "last": "Son Kayıt"
     }
+  },
+  "chat": {
+    "title": "AI Sohbet",
+    "subtitle": "Öğünlerin, su tüketimin, kilon ve hedeflerin hakkında soru sor.",
+    "newThread": "Yeni sohbet",
+    "clear": "Görünen sohbeti temizle",
+    "emptyTitle": "Nasıl yardımcı olabilirim?",
+    "emptyDesc": "CaloriX verilerini takip edebilir, kayıt ekleyebilir veya hedeflerini güncelleyebilirim.",
+    "placeholder": "CaloriX AI’a sor...",
+    "thinking": "AI düşünüyor...",
+    "toolUse": "Araç kullanımı",
+    "tool": "Araç",
+    "toolResult": "Araç sonucu",
+    "confirmAction": "Onay gerekli",
+    "approve": "Onayla",
+    "reject": "Reddet",
+    "actionExecuted": "İşlem tamamlandı",
+    "actions": {
+      "add_meal": "Öğün ekle",
+      "add_water": "Su ekle",
+      "add_weight": "Kilo ekle",
+      "update_goals": "Hedefleri güncelle"
+    },
+    "status": {
+      "pending": "Onay bekliyor",
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "executed": "Tamamlandı",
+      "failed": "Başarısız"
+    },
+    "errors": {
+      "load": "Sohbet yüklenemedi",
+      "loadMore": "Eski mesajlar yüklenemedi",
+      "send": "Mesaj gönderilemedi",
+      "action": "İşlem gerçekleştirilemedi",
+      "clear": "Sohbet temizlenemedi"
+    },
+    "welcomeMessage": "Merhaba! Ben CaloriX AI. Öğünlerini, su tüketimini, kilonu ve hedeflerini takip etmene yardımcı olabilirim."
   }
 }

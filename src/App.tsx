@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import AddPage from "./pages/AddPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ChatPage from "./pages/ChatPage";
 import AuthPage from "./pages/AuthPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import AboutPage from "./pages/AboutPage";
@@ -77,6 +78,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat"
+                  element={
+                    <ProtectedRoute>
+                      <ChatPage />
                     </ProtectedRoute>
                   }
                 />

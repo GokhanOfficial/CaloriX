@@ -213,7 +213,8 @@
     "home": "ホーム",
     "add": "追加",
     "analytics": "分析",
-    "settings": "設定"
+    "settings": "設定",
+    "chat": "チャット"
   },
   "settings": {
     "title": "設定",
@@ -454,5 +455,43 @@
       "change": "変化",
       "last": "最新の記録"
     }
+  },
+  "chat": {
+    "title": "AIチャット",
+    "subtitle": "食事、水分、体重、目標について質問できます。",
+    "newThread": "新しいチャット",
+    "clear": "表示中のチャットを消去",
+    "emptyTitle": "どのようにお手伝いできますか？",
+    "emptyDesc": "CaloriXのデータを追跡し、記録の追加や目標の更新をお手伝いできます。",
+    "placeholder": "CaloriX AIに質問...",
+    "thinking": "AIが考えています...",
+    "toolUse": "ツール使用",
+    "tool": "ツール",
+    "toolResult": "ツール結果",
+    "confirmAction": "承認が必要です",
+    "approve": "承認",
+    "reject": "拒否",
+    "actionExecuted": "操作が完了しました",
+    "actions": {
+      "add_meal": "食事を追加",
+      "add_water": "水分を追加",
+      "add_weight": "体重を追加",
+      "update_goals": "目標を更新"
+    },
+    "status": {
+      "pending": "承認待ち",
+      "approved": "承認済み",
+      "rejected": "拒否済み",
+      "executed": "完了",
+      "failed": "失敗"
+    },
+    "errors": {
+      "load": "チャットを読み込めませんでした",
+      "loadMore": "以前のメッセージを読み込めませんでした",
+      "send": "メッセージを送信できませんでした",
+      "action": "操作を処理できませんでした",
+      "clear": "チャットを消去できませんでした"
+    },
+    "welcomeMessage": "こんにちは！私はCaloriX AIです。食事、水分摂取、体重、目標の管理をお手伝いできます。"
   }
 }

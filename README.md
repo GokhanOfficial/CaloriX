@@ -4,15 +4,16 @@
 
 <img src="public/logo.png" alt="CaloriX Logo" width="120" />
 
-**Akıllı Kalori ve Makro Takip Uygulaması**
+**Akıllı Kalori, Makro Takip ve AI Beslenme Asistanı**
 
 [![Live Demo](https://img.shields.io/badge/Demo-yediginibil.vercel.app-00C7B7?style=flat-square&logo=vercel)](https://yediginibil.vercel.app)
 [![GitHub](https://img.shields.io/badge/GitHub-CaloriX-181717?style=flat-square&logo=github)](https://github.com/GokhanOfficial/CaloriX)
+[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen?style=flat-square)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 [🇺🇸 English](README_EN.md)
 
-[🚀 Demo](https://yediginibil.vercel.app) • [📖 Özellikler](#-özellikler) • [🛠️ Kurulum](#️-kurulum) • [📱 Ekran Görüntüleri](#-ekran-görüntüleri)
+[🚀 Demo](https://yediginibil.vercel.app) • [📖 Özellikler](#-özellikler) • [📝 Değişiklikler](CHANGELOG.md) • [🛠️ Kurulum](#️-kurulum) • [📱 Ekran Görüntüleri](#-ekran-görüntüleri)
 
 </div>
 
@@ -20,12 +21,15 @@
 
 ## 📖 Hakkında
 
-CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi yapmanızı sağlayan modern bir PWA (Progressive Web App) uygulamasıdır. AI destekli yemek tanıma özelliği ile fotoğraf çekerek veya metin yazarak yediklerinizi kolayca kaydedebilirsiniz.
+CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi yapmanızı sağlayan modern bir PWA (Progressive Web App) uygulamasıdır. AI destekli yemek tanıma ve AI Chat beslenme asistanı ile fotoğraf çekerek, metin yazarak veya sohbet ederek yediklerinizi kolayca takip edebilirsiniz.
+
+> **Sürüm 1.1.0:** AI Chat beslenme asistanı eklendi. Hatalara ve veri tutarsızlıklarına neden olan offline sync altyapısı kaldırıldı.
 
 ## ✨ Özellikler
 
 ### 🍽️ Yemek Takibi
 - **AI Destekli Tanıma**: Fotoğraf veya metin ile yemek tanıma
+- **AI Chat Beslenme Asistanı**: Günlük kayıtlarınız, hedefleriniz ve beslenme kararlarınız hakkında sohbet ederek destek alın
 - **Barkod Tarama**: Paketli ürünleri barkod ile hızlıca ekleyin
 - **Detaylı Besin Değerleri**: Kalori, protein, karbonhidrat, yağ ve daha fazlası
 - **NOVA & Nutri-Score**: Gıda işlenme ve beslenme skorları
@@ -54,6 +58,7 @@ CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi ya
 - Koyu/Açık tema desteği
 - Türkçe arayüz
 - PWA kurulum desteği
+- Daha sade ve güvenilir veri akışı: Offline sync kaldırıldı
 
 ## 🛠️ Kurulum
 
@@ -90,9 +95,9 @@ cp .env.example .env
 | `VITE_SUPABASE_URL` | Supabase Proje URL'i |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase Anon Key |
 | `VITE_SUPABASE_PROJECT_ID` | Supabase Proje ID'si |
-| `OPENAI_API_KEY` | (Opsiyonel) AI özellikleri için OpenAI API anahtarı |
+| `OPENAI_API_KEY` | (Opsiyonel) AI yemek tanıma ve AI Chat için OpenAI uyumlu API anahtarı |
 | `OPENAI_BASE_URL` | (Opsiyonel) OpenAI Proxy URL'i (varsayılan: https://gen.pollinations.ai/v1) |
-| `OPENAI_MODEL` | (Opsiyonel) Kullanılacak AI modeli (varsayılan: gpt-5-mini) |
+| `OPENAI_MODEL` | (Opsiyonel) Kullanılacak AI modeli (varsayılan: openai) |
 | `RESEND_API_KEY` | (Opsiyonel) E-posta bildirimleri için Resend API anahtarı |
 | `VAPID_PUBLIC_KEY` | (Opsiyonel) Web Push bildirimleri için Public Key |
 | `VAPID_PRIVATE_KEY` | (Opsiyonel) Web Push bildirimleri için Private Key |
@@ -144,6 +149,10 @@ CaloriX, backend olarak [Supabase](https://supabase.com) kullanmaktadır.
 ```bash
 supabase functions deploy
 ```
+
+## 📝 Sürüm Notları
+
+En güncel sürüm notları için [CHANGELOG.md](CHANGELOG.md) dosyasına bakın.
 
 ## 🔧 Teknolojiler
 

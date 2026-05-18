@@ -213,7 +213,8 @@
     "home": "Accueil",
     "add": "Ajouter",
     "analytics": "Analyse",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "chat": "Chat"
   },
   "settings": {
     "title": "Paramètres",
@@ -454,5 +455,43 @@
       "change": "Variation",
       "last": "Dernier enregistrement"
     }
+  },
+  "chat": {
+    "title": "Chat AI",
+    "subtitle": "Posez vos questions sur vos repas, votre eau, votre poids et vos objectifs.",
+    "newThread": "Nouveau chat",
+    "clear": "Effacer le chat visible",
+    "emptyTitle": "Comment puis-je aider ?",
+    "emptyDesc": "Je peux suivre vos données CaloriX, ajouter des journaux ou mettre à jour vos objectifs.",
+    "placeholder": "Demandez à CaloriX AI...",
+    "thinking": "AI réfléchit...",
+    "toolUse": "Utilisation d’outil",
+    "tool": "Outil",
+    "toolResult": "Résultat de l’outil",
+    "confirmAction": "Approbation requise",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "actionExecuted": "Action terminée",
+    "actions": {
+      "add_meal": "Ajouter un repas",
+      "add_water": "Ajouter de l’eau",
+      "add_weight": "Ajouter un poids",
+      "update_goals": "Mettre à jour les objectifs"
+    },
+    "status": {
+      "pending": "En attente d’approbation",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "executed": "Terminé",
+      "failed": "Échec"
+    },
+    "errors": {
+      "load": "Impossible de charger le chat",
+      "loadMore": "Impossible de charger les anciens messages",
+      "send": "Impossible d’envoyer le message",
+      "action": "Impossible de traiter l’action",
+      "clear": "Impossible d’effacer le chat"
+    },
+    "welcomeMessage": "Bonjour ! Je suis CaloriX AI. Je peux vous aider à suivre vos repas, votre consommation d’eau, votre poids et vos objectifs."
   }
 }

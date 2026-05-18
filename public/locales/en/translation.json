@@ -213,7 +213,8 @@
     "home": "Home",
     "add": "Add",
     "analytics": "Analytics",
-    "settings": "Settings"
+    "settings": "Settings",
+    "chat": "Chat"
   },
   "settings": {
     "title": "Settings",
@@ -454,5 +455,43 @@
       "change": "Change",
       "last": "Last Record"
     }
+  },
+  "chat": {
+    "title": "AI Chat",
+    "subtitle": "Ask about your meals, water, weight and goals.",
+    "newThread": "New chat",
+    "clear": "Clear visible chat",
+    "emptyTitle": "How can I help?",
+    "emptyDesc": "I can track your CaloriX data, add logs, or update your goals.",
+    "placeholder": "Ask CaloriX AI...",
+    "thinking": "AI is thinking...",
+    "toolUse": "Tool use",
+    "tool": "Tool",
+    "toolResult": "Tool result",
+    "confirmAction": "Approval required",
+    "approve": "Approve",
+    "reject": "Reject",
+    "actionExecuted": "Action completed",
+    "actions": {
+      "add_meal": "Add meal",
+      "add_water": "Add water",
+      "add_weight": "Add weight",
+      "update_goals": "Update goals"
+    },
+    "status": {
+      "pending": "Pending approval",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "executed": "Completed",
+      "failed": "Failed"
+    },
+    "errors": {
+      "load": "Chat could not be loaded",
+      "loadMore": "Older messages could not be loaded",
+      "send": "Message could not be sent",
+      "action": "Action could not be processed",
+      "clear": "Chat could not be cleared"
+    },
+    "welcomeMessage": "Hello! I’m CaloriX AI. I can help you track your meals, water intake, weight and goals."
   }
 }

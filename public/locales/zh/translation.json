@@ -213,7 +213,8 @@
     "home": "首页",
     "add": "添加",
     "analytics": "分析",
-    "settings": "设置"
+    "settings": "设置",
+    "chat": "聊天"
   },
   "settings": {
     "title": "设置",
@@ -454,5 +455,43 @@
       "change": "变化",
       "last": "最近记录"
     }
+  },
+  "chat": {
+    "title": "AI 聊天",
+    "subtitle": "询问你的餐食、饮水、体重和目标。",
+    "newThread": "新聊天",
+    "clear": "清除可见聊天",
+    "emptyTitle": "我能帮你什么？",
+    "emptyDesc": "我可以跟踪你的 CaloriX 数据、添加记录或更新目标。",
+    "placeholder": "询问 CaloriX AI...",
+    "thinking": "AI 正在思考...",
+    "toolUse": "工具使用",
+    "tool": "工具",
+    "toolResult": "工具结果",
+    "confirmAction": "需要批准",
+    "approve": "批准",
+    "reject": "拒绝",
+    "actionExecuted": "操作已完成",
+    "actions": {
+      "add_meal": "添加餐食",
+      "add_water": "添加饮水",
+      "add_weight": "添加体重",
+      "update_goals": "更新目标"
+    },
+    "status": {
+      "pending": "等待批准",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "executed": "已完成",
+      "failed": "失败"
+    },
+    "errors": {
+      "load": "无法加载聊天",
+      "loadMore": "无法加载更早的消息",
+      "send": "无法发送消息",
+      "action": "无法处理操作",
+      "clear": "无法清除聊天"
+    },
+    "welcomeMessage": "你好！我是 CaloriX AI。我可以帮助你跟踪餐食、饮水量、体重和目标。"
   }
 }

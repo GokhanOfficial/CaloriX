@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useProfile } from "@/contexts/ProfileContext";
-import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, type ActivityLevel, type Goal } from "@/lib/constants";
+import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, APP_VERSION, type ActivityLevel, type Goal } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -407,7 +407,7 @@ const SettingsPage = () => {
         {
           icon: Info,
           label: t('settings.items.aboutApp'),
-          description: "Versiyon 1.0.0",
+          description: `${t('common.version')} ${APP_VERSION}`,
           action: () => navigate("/about"),
         },
       ],

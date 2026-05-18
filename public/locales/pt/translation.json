@@ -213,7 +213,8 @@
     "home": "Início",
     "add": "Adicionar",
     "analytics": "Análise",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "chat": "Chat"
   },
   "settings": {
     "title": "Configurações",
@@ -454,5 +455,43 @@
       "change": "Variação",
       "last": "Último registro"
     }
+  },
+  "chat": {
+    "title": "Chat de AI",
+    "subtitle": "Pergunte sobre refeições, água, peso e objetivos.",
+    "newThread": "Novo chat",
+    "clear": "Limpar chat visível",
+    "emptyTitle": "Como posso ajudar?",
+    "emptyDesc": "Posso acompanhar seus dados do CaloriX, adicionar registros ou atualizar seus objetivos.",
+    "placeholder": "Pergunte ao CaloriX AI...",
+    "thinking": "AI está pensando...",
+    "toolUse": "Uso de ferramenta",
+    "tool": "Ferramenta",
+    "toolResult": "Resultado da ferramenta",
+    "confirmAction": "Aprovação necessária",
+    "approve": "Aprovar",
+    "reject": "Rejeitar",
+    "actionExecuted": "Ação concluída",
+    "actions": {
+      "add_meal": "Adicionar refeição",
+      "add_water": "Adicionar água",
+      "add_weight": "Adicionar peso",
+      "update_goals": "Atualizar objetivos"
+    },
+    "status": {
+      "pending": "Aguardando aprovação",
+      "approved": "Aprovado",
+      "rejected": "Rejeitado",
+      "executed": "Concluído",
+      "failed": "Falhou"
+    },
+    "errors": {
+      "load": "Não foi possível carregar o chat",
+      "loadMore": "Não foi possível carregar mensagens antigas",
+      "send": "Não foi possível enviar a mensagem",
+      "action": "Não foi possível processar a ação",
+      "clear": "Não foi possível limpar o chat"
+    },
+    "welcomeMessage": "Olá! Eu sou o CaloriX AI. Posso ajudar você a acompanhar suas refeições, consumo de água, peso e objetivos."
   }
 }

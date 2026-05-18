@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, PlusCircle, BarChart3, Settings } from "lucide-react";
+import { Home, PlusCircle, BarChart3, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { useTranslation } from "react-i18next";
@@ -8,7 +8,7 @@ const navItems = [
   { to: "/", icon: Home, label: "nav.home" },
   { to: "/add", icon: PlusCircle, label: "nav.add" },
   { to: "/analytics", icon: BarChart3, label: "nav.analytics" },
-  { to: "/settings", icon: Settings, label: "nav.settings" },
+  { to: "/chat", icon: MessageCircle, label: "nav.chat" },
 ];
 
 export function BottomNav() {
