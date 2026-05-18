@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: calorix-v2:dev
+    container_name: calorix-v2-dev
+    env_file:
+      - .env
+    environment:
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:54321}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY}}
+      VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID:-local}
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
+    depends_on:
+      supabase:
+        condition: service_started
+    restart: unless-stopped
+
+  supabase:
+    image: supabase/cli:latest
+    container_name: calorix-v2-supabase-cli
+    working_dir: /workspace
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      "supabase start --workdir /workspace --ignore-health-check &&
+      echo 'Supabase local stack is running.' &&
+      tail -f /dev/null"
+    environment:
+      SUPABASE_ACCESS_TOKEN: ${SUPABASE_ACCESS_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-dummy-key}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://gen.pollinations.ai/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-openai}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+    volumes:
+      - ${PROJECT_ROOT:-.}:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "54321:54321"
+      - "54322:54322"
+      - "54323:54323"
+      - "54324:54324"
+    restart: unless-stopped
+
+volumes:
+  app_node_modules:

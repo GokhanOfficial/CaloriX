@@ -22,6 +22,7 @@ build
 .env
 .env.*
 !.env.example
+!supabase/.env.example
 *.local
 
 # Editor directories and files
@@ -40,6 +41,12 @@ build
 supabase/functions/*/deno.lock
 supabase/.temp
 supabase/.branches
+supabase/.env
+supabase/.env.local
+
+# Docker
+.docker-data
+*.docker.env
 
 # Testing
 coverage
