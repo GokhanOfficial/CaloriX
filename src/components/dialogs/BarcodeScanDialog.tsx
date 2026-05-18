@@ -96,8 +96,10 @@ export function BarcodeScanDialog({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const autoStartAttemptedRef = useRef(false);
 
   // Start barcode scanning
   const startScanning = useCallback(async () => {
@@ -211,6 +213,12 @@ export function BarcodeScanDialog({
     if (manualBarcode.trim()) {
       lookupBarcode(manualBarcode.trim());
     }
+  };
+
+  const openFilePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+    input.value = "";
+    input.click();
   };
 
   // Handle file select for product image
@@ -390,6 +398,7 @@ export function BarcodeScanDialog({
   // Reset dialog
   const resetDialog = () => {
     stopScanning();
+    autoStartAttemptedRef.current = false;
     setStep("scan");
     setBarcodeValue("");
     setManualBarcode("");
@@ -415,9 +424,11 @@ export function BarcodeScanDialog({
     };
   }, [stopScanning]);
 
-  // Auto-start scanning when dialog opens
+  // Auto-start scanning once when dialog opens. If permission is denied, don't
+  // retry endlessly; user can retry manually with the camera button.
   useEffect(() => {
-    if (open && step === "scan" && !scanning) {
+    if (open && step === "scan" && !scanning && !autoStartAttemptedRef.current) {
+      autoStartAttemptedRef.current = true;
       const timer = setTimeout(() => {
         startScanning();
       }, 300);
@@ -559,14 +570,7 @@ export function BarcodeScanDialog({
                     <Button
                       variant="outline"
                       className="flex-1"
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = "image/*";
-                        input.capture = "environment";
-                        input.onchange = (e: Event) => handleFileSelect(e as unknown as React.ChangeEvent<HTMLInputElement>);
-                        input.click();
-                      }}
+                      onClick={() => openFilePicker(cameraInputRef.current)}
                     >
                       <Camera className="mr-2 h-4 w-4" />
                       Fotoğraf Çek
@@ -574,16 +578,24 @@ export function BarcodeScanDialog({
                     <Button
                       variant="outline"
                       className="flex-1"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => openFilePicker(fileInputRef.current)}
                     >
                       <ImagePlus className="mr-2 h-4 w-4" />
                       Galeriden Seç
                     </Button>
                     <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      onChange={handleFileSelect}
+                    />
+                    <input
                       ref={fileInputRef}
                       type="file"
                       accept="image/*"
-                      className="hidden"
+                      className="sr-only"
                       onChange={handleFileSelect}
                     />
                   </div>

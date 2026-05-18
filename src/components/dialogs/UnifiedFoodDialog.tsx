@@ -133,10 +133,15 @@ export function UnifiedFoodDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Update mealType when defaultMealType changes
+  // Reset externally-controlled defaults each time the dialog opens.
   useEffect(() => {
-    setMealType(defaultMealType);
-  }, [defaultMealType]);
+    if (open) {
+      setMode(defaultTab);
+      setStep("input");
+      setMealType(defaultMealType);
+      setError(null);
+    }
+  }, [open, defaultTab, defaultMealType]);
 
   // Focus input when dialog opens
   useEffect(() => {
@@ -144,6 +149,12 @@ export function UnifiedFoodDialog({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open, step]);
+
+  const openFilePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+    input.value = "";
+    input.click();
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -365,7 +376,7 @@ export function UnifiedFoodDialog({
         {/* Input Step */}
         {step === "input" && (
           <>
-            <DialogScrollArea>
+            <DialogScrollArea className={mode === "search" ? "pb-6" : undefined}>
               <div className="space-y-4">
                 {/* Mode Toggle */}
                 <div className="flex gap-2 p-1 rounded-lg bg-muted">
@@ -522,7 +533,7 @@ export function UnifiedFoodDialog({
                           <Button
                             variant="outline"
                             className="flex-1 h-16 flex-col gap-1"
-                            onClick={() => cameraInputRef.current?.click()}
+                            onClick={() => openFilePicker(cameraInputRef.current)}
                           >
                             <Camera className="h-5 w-5" />
                             <span className="text-xs">{t('dialogs.takePhoto')}</span>
@@ -530,7 +541,7 @@ export function UnifiedFoodDialog({
                           <Button
                             variant="outline"
                             className="flex-1 h-16 flex-col gap-1"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => openFilePicker(fileInputRef.current)}
                           >
                             <ImagePlus className="h-5 w-5" />
                             <span className="text-xs">{t('dialogs.selectFromGallery')}</span>
@@ -542,14 +553,14 @@ export function UnifiedFoodDialog({
                         type="file"
                         accept="image/*"
                         capture="environment"
-                        className="hidden"
+                        className="sr-only"
                         onChange={handleFileSelect}
                       />
                       <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
-                        className="hidden"
+                        className="sr-only"
                         onChange={handleFileSelect}
                       />
                     </div>
