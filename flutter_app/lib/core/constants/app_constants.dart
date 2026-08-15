@@ -70,11 +70,14 @@ enum Gender {
 
 /// Öğün tipleri (Faz 2'de kullanılacak; sıralama web ile aynı).
 enum MealType {
-  breakfast(1),
-  lunch(2),
-  dinner(3),
-  snack(4);
+  breakfast(1, '🌅'),
+  lunch(2, '☀️'),
+  dinner(3, '🌙'),
+  snack(4, '🍎');
 
-  const MealType(this.order);
+  const MealType(this.order, this.emoji);
   final int order;
+
+  /// Web `MEAL_TYPES[type].icon` karşılığı.
+  final String emoji;
 }

@@ -69,11 +69,41 @@
 
 ---
 
-## ⏳ Faz 2 — Günlük + Yemek Ekleme (sıradaki)
+## ✅ Faz 2 — Günlük + Yemek Ekleme (tamamlandı: 2026-08-15)
 
 **Plan:** `flutter-plan-phase2-diary.md`
 
+### Yapıldı
+- [x] **Modeller** (json_serializable): `Food` + `FoodNutrition` (1:1 join — PostgREST'in Map/List döndürme belirsizliği `_firstNutrition` ile çözüldü), `MealEntry` (tüm meal_entries kolonları), `WaterEntry`, `WeightEntry`; `FoodItem` (arama/favori/son-yenilenler için 100g-normalize birleşik tip, `forAmount()` hesabı web parity)
+- [x] **FoodRepository** — `search()` (foods ilike + food_nutrition join, popularity desc, limit 10 + custom meal_entries ilike limit 50 → dedup lowercase name → DB önce stable sort → take 15; web `useFoodSearch` birebir), `favorites()` (son 200 meal_entry, frekansa göre top 10; web `useFavoriteFoods`), `recents()` (son 50, unique, 10; web `useRecentFoods`)
+- [x] **DiaryRepository** — `fetchDaily` (3 paralel sorgu: meals created_at asc / water entry_time asc / son kilo **tarih filtresiz** entry_date desc limit 1; web `useDailyData` parity), `addMealEntry`/`updateMealEntry` (updated_at damgalı)/`deleteMealEntry` (soft), `addWaterEntry`/`deleteWaterEntry` (soft), `addWeightEntry`; `DailyData` value class (`mealsByType`, `totals`, `totalWater`)
+- [x] **Provider'lar** — `selectedDateProvider` (bugün, gece yarısı), `dailyDataProvider` (user+date watch; invalidate ile tazelenir), `foodSearchProvider` (autoDispose.family, min 2 karakter), `favoriteFoodsProvider`, `recentFoodsProvider`
+- [x] **Dashboard** (`Index.tsx` karşılığı) — `DateSelector` (chevron + takvim + "bugün" dönüşü, dün/yarın etiketleri), `CalorieRing` (kalan merkezli, aşımda hata rengi), `MacroCards` (P/K/Y — etiketler `settings.goals.*`), `WaterTracker` (ilerleme + hızlı +250/+500 + özel dialog), `WeightCard` (hızlı giriş + `auto_recalculate_macros` açıksa `calculate-macros` çağrısı — web `handleWeightSubmit` parity: yaş `floor(gün/365.25)` varsayılan 30, previous_macros/previous_weight_kg gönderimi, başarısızlıkta sessiz geçiş), `MealSections` (4 öğün kartı, Dismissible ile soft-delete), pull-to-refresh, FAB → /add
+- [x] **Yemek Ekleme** (`AddPage.tsx` karşılığı) — öğün seçici (varsayılan `lunch`), AI placeholder kartı (Faz 4), **arama** (300ms `Timer` debounce, min 2 karakter, sonuç satırları `100g • X kcal` + P/K/Y), **Son Eklenenler** + **En Çok Yenenler** bölümleri (arama aktifken gizlenir — web davranışı), barkod kartı (placeholder), manuel giriş kartı
+- [x] **Dialoglar** — `AddFromFoodDialog` (bottom-sheet: miktar [varsayılan serving ?? 100g] + öğün + canlı makro önizleme; custom ise `food_id: null` + `custom_name`), `AddManualEntryDialog` (isim/öğün/miktar/kcal/P/K/Y — web `AddMealDialog` parity, `parseFloat || 0`)
+- [x] **Navigasyon** — `AppShell` (Material 3 `NavigationBar`, 5 sekme) `ShellRoute` ile router'a bağlandı; dashboard FAB ve meal-card "ekle" butonları `/add`'e gider
+- [x] `MacroCalculator.calculate` — `previousMacros`/`previousWeightKg` opsiyonel parametreleri eklendi (kilo güncelleme akışı); Edge function null'ları güvenle yok sayıyor
+- [x] `MealType` enum'a `emoji` alanı (web `MEAL_TYPES.icon`) — dashboard ve add sayfası tek kaynaktan kullanıyor
+
+### Doğrulama sonuçları
+- [x] `flutter analyze` — **0 sorun**
+- [x] `flutter test` — **46/46 geçti** (34 eski + 12 yeni: `diary_repository_test.dart` — formatEntryDate / mealsByType / totals / totalWater / forAmount web-parity hesapları)
+- [x] `flutter build web --release` — **✓ Built build/web**
+- [x] `flutter build apk --debug` — **✓ Built app-debug.apk**
+
+### Kalan / notlar
+- Canlı Supabase testi yapılmadı (DB deaktif) — planın "web ile senkron / aynı hesap" kriterleri kullanıcının tüm fazlar sonrası testine kaldı
+- Favori **ekleme/çıkarma** (yıldız toggle) web'de ayrı bir özellik olarak yok — web `useFavoriteFoods` sadece kullanım frekansından türetiyor; Flutter da aynısını yapıyor (ayrı favoriler tablosu kullanılmıyor)
+- AI/barkod butonları bilinçli placeholder (Faz 4)
+- Su kaydı silme UI'ı yok (web'de de yok — sadece repository metodu var)
+
 ---
 
-## Faz 2-5 — Beklemede
-Planlar hazır: `flutter-plan-phase2-diary.md`, `flutter-plan-phase3-analytics-settings.md`, `flutter-plan-phase4-ai.md`, `flutter-plan-phase5-release.md`
+## ⏳ Faz 3 — Analitik + Ayarlar (sıradaki)
+
+**Plan:** `flutter-plan-phase3-analytics-settings.md`
+
+---
+
+## Faz 3-5 — Beklemede
+Planlar hazır: `flutter-plan-phase3-analytics-settings.md`, `flutter-plan-phase4-ai.md`, `flutter-plan-phase5-release.md`

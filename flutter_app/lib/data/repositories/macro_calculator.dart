@@ -49,6 +49,8 @@ class MacroCalculator {
     required double targetWeightKg,
     required ActivityLevel activityLevel,
     required Goal goal,
+    Map<String, dynamic>? previousMacros,
+    double? previousWeightKg,
   }) async {
     final bmi = Calculations.bmi(currentWeightKg, heightCm);
 
@@ -64,6 +66,11 @@ class MacroCalculator {
           'target_weight_kg': targetWeightKg,
           'activity_level': activityLevel.name,
           'goal': goal.name,
+          // Kilo güncellemesi akışı (web `Index.tsx` handleWeightSubmit parity).
+          // Null değerler JSON'da `null` olarak gider; Edge function bunları
+          // güvenle yok sayar (`if (previous_macros && previous_weight_kg)`).
+          'previous_macros': previousMacros,
+          'previous_weight_kg': previousWeightKg,
         },
       );
 

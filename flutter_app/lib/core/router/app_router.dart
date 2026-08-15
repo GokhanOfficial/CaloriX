@@ -13,6 +13,7 @@ import '../../features/dashboard/dashboard_page.dart';
 import '../../features/not_found/not_found_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
 import '../../features/settings/settings_page.dart';
+import '../../shared/widgets/app_shell.dart';
 
 /// Route yolları — web (React Router) ile birebir aynı path'ler.
 abstract final class AppRoutes {
@@ -119,25 +120,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.onboarding,
         builder: (context, state) => const OnboardingPage(),
       ),
-      GoRoute(
-        path: AppRoutes.dashboard,
-        builder: (context, state) => const DashboardPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.add,
-        builder: (context, state) => const AddPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.analytics,
-        builder: (context, state) => const AnalyticsPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => const SettingsPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.chat,
-        builder: (context, state) => const ChatPage(),
+      // 5 ana sekme — web `Layout.tsx` karşılığı alt navigasyon kabuğu.
+      ShellRoute(
+        builder: (context, state, child) => AppShell(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.dashboard,
+            builder: (context, state) => const DashboardPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.add,
+            builder: (context, state) => const AddPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.analytics,
+            builder: (context, state) => const AnalyticsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.chat,
+            builder: (context, state) => const ChatPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (context, state) => const SettingsPage(),
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.about,

@@ -1,0 +1,234 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/constants/app_constants.dart';
+import '../../../data/models/food_item.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/diary_repository.dart';
+import '../../../data/repositories/food_repository.dart';
+
+/// Seçili yemeği miktar + öğün seçerek günlüğe ekleme dialogu.
+/// Web `AddFromFoodDialog.tsx` karşılığı — hesaplama formülleri aynı:
+/// kcal = round(cal/100 * amount), makrolar 1 ondalık.
+class AddFromFoodDialog extends ConsumerStatefulWidget {
+  const AddFromFoodDialog({
+    super.key,
+    required this.food,
+    required this.defaultMealType,
+  });
+
+  final FoodItem food;
+  final MealType defaultMealType;
+
+  /// Dialog'u gösterir; kaydedildiyse true döner.
+  static Future<bool> show(
+    BuildContext context, {
+    required FoodItem food,
+    required MealType defaultMealType,
+  }) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: AddFromFoodDialog(food: food, defaultMealType: defaultMealType),
+      ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  ConsumerState<AddFromFoodDialog> createState() => _AddFromFoodDialogState();
+}
+
+class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
+  late final TextEditingController _amountController;
+  late MealType _mealType;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController(
+      text: (widget.food.servingSizeG ?? 100).round().toString(),
+    );
+    _mealType = widget.defaultMealType;
+    _amountController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  double get _amount => double.tryParse(_amountController.text) ?? 0;
+
+  Future<void> _save() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || _saving) return;
+    setState(() => _saving = true);
+
+    final messenger = ScaffoldMessenger.of(context);
+    final date = ref.read(selectedDateProvider);
+    final calc = widget.food.forAmount(_amount);
+
+    try {
+      await ref.read(diaryRepositoryProvider).addMealEntry(
+            user.id,
+            foodId: widget.food.foodId,
+            customName: widget.food.isCustom ? widget.food.name : null,
+            mealType: _mealType.name,
+            amountGMl: _amount,
+            calculatedKcal: calc.kcal.toDouble(),
+            calculatedProtein: calc.protein,
+            calculatedCarbs: calc.carbs,
+            calculatedFat: calc.fat,
+            entryDate: formatEntryDate(date),
+          );
+      ref.invalidate(dailyDataProvider);
+      ref.invalidate(recentFoodsProvider);
+      ref.invalidate(favoriteFoodsProvider);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'dashboard.addedToMeal'.tr(
+              args: [widget.food.name, 'meals.${_mealType.name}'.tr()],
+            ),
+          ),
+        ),
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('addFood.toasts.error'.tr())),
+      );
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final calc = widget.food.forAmount(_amount);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.food.name,
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+            if (widget.food.brand != null)
+              Text(
+                widget.food.brand!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                labelText: 'dialogs.amount'.tr(),
+                suffixText: 'g/ml',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<MealType>(
+              initialValue: _mealType,
+              decoration: InputDecoration(
+                labelText: 'addFood.meal'.tr(),
+                border: const OutlineInputBorder(),
+              ),
+              items: [
+                for (final type in MealType.values)
+                  DropdownMenuItem(
+                    value: type,
+                    child: Text('meals.${type.name}'.tr()),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _mealType = value);
+              },
+            ),
+            const SizedBox(height: 16),
+            Card(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _Macro(label: 'kcal', value: '${calc.kcal}'),
+                    _Macro(
+                      label: 'P',
+                      value: '${calc.protein.toStringAsFixed(1)}g',
+                    ),
+                    _Macro(
+                      label: 'K',
+                      value: '${calc.carbs.toStringAsFixed(1)}g',
+                    ),
+                    _Macro(
+                      label: 'Y',
+                      value: '${calc.fat.toStringAsFixed(1)}g',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _amount > 0 && !_saving ? _save : null,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add),
+              label: Text('addFood.title'.tr()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Macro extends StatelessWidget {
+  const _Macro({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Text(
+          value,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(label, style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+}
