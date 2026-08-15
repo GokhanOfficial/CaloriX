@@ -99,6 +99,8 @@
     "photo": "Foto",
     "takePhoto": "Tomar foto",
     "selectFromGallery": "Seleccionar de galería",
+    "retake": "Volver a tomar",
+    "use": "Usar",
     "selectedFood": "Alimento seleccionado",
     "whatDidYouEat": "¿Qué comió?",
     "additionalInfo": "Información adicional",
@@ -123,7 +125,28 @@
       "productFound": "Producto encontrado",
       "productNotFound": "Producto no encontrado",
       "tryAgain": "Intentar de nuevo",
-      "manualEntry": "Entrada manual"
+      "manualEntry": "Entrada manual",
+      "scanDesc": "Apunta la cámara a un código de barras para escanearlo automáticamente",
+      "manualPlaceholder": "Introduce el código de barras manualmente",
+      "search": "Buscar",
+      "cameraError": "No se pudo acceder a la cámara. Verifica los permisos.",
+      "searching": "Buscando en la base de datos...",
+      "productNotFoundDesc": "Este producto no se encontró en la base de datos. Analízalo con IA o añádelo manualmente.",
+      "aiPrompt": "Detalles adicionales (opcional) — p. ej. marca o tamaño",
+      "aiPromptRequired": "Introduce detalles adicionales o toma una foto para el análisis con IA.",
+      "aiTextPrompt": "Número de código de barras: {0}. Estima los valores nutricionales del producto con este código.",
+      "barcodeLabel": "Código de barras: {0}",
+      "foundInDb": "Encontrado en la base de datos",
+      "reScan": "Escanear de nuevo",
+      "brand": "Marca",
+      "servingSize": "Tamaño de porción (g)",
+      "extendedNutrition": "Nutrición extendida",
+      "saturatedFat": "Grasas saturadas (g)",
+      "transFat": "Grasas trans (g)",
+      "sugars": "Azúcares (g)",
+      "salt": "Sal (g)",
+      "novaScore": "Puntuación NOVA",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "Registrar peso",
@@ -135,7 +158,8 @@
       "title": "Editar registro",
       "updated": "Registro actualizado",
       "deleted": "Registro eliminado"
-    }
+    },
+    "fiberG": "Fibra (g)"
   },
   "export": {
     "success": "exportado",

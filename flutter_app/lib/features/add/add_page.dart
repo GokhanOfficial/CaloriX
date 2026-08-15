@@ -9,6 +9,8 @@ import '../../data/models/food_item.dart';
 import '../../data/repositories/food_repository.dart';
 import 'widgets/add_from_food_dialog.dart';
 import 'widgets/add_manual_entry_dialog.dart';
+import 'widgets/add_with_ai_dialog.dart';
+import 'widgets/barcode_scan_dialog.dart';
 
 /// Arama girdisinin debounce edilmiş hâli (web `useFoodSearch` 300ms parity).
 final _debouncedQueryProvider = StateProvider<String>((ref) => '');
@@ -53,10 +55,12 @@ class _AddPageState extends ConsumerState<AddPage> {
     );
   }
 
-  void _phase4Placeholder() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Faz 4 — AI/kamera ile eklenecek')),
-    );
+  Future<void> _addWithAi() async {
+    await AddWithAiDialog.show(context, defaultMealType: _selectedMeal);
+  }
+
+  Future<void> _scanBarcode() async {
+    await BarcodeScanDialog.show(context, defaultMealType: _selectedMeal);
   }
 
   @override
@@ -74,7 +78,7 @@ class _AddPageState extends ConsumerState<AddPage> {
             onChanged: (type) => setState(() => _selectedMeal = type),
           ),
           const SizedBox(height: 12),
-          _AiCard(onTap: _phase4Placeholder),
+          _AiCard(onTap: _addWithAi),
           const SizedBox(height: 12),
           if (!searching) ...[
             _FoodListSection(
@@ -101,7 +105,7 @@ class _AddPageState extends ConsumerState<AddPage> {
             onSelect: _openFood,
           ),
           const SizedBox(height: 12),
-          _BarcodeCard(onTap: _phase4Placeholder),
+          _BarcodeCard(onTap: _scanBarcode),
           const SizedBox(height: 12),
           _ManualCard(
             onTap: () => AddManualEntryDialog.show(

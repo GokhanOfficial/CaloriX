@@ -99,6 +99,8 @@
     "photo": "Photo",
     "takePhoto": "Take Photo",
     "selectFromGallery": "Select from Gallery",
+    "retake": "Retake",
+    "use": "Use",
     "selectedFood": "Selected food",
     "whatDidYouEat": "What did you eat?",
     "additionalInfo": "Additional info",
@@ -123,7 +125,28 @@
       "productFound": "Product found",
       "productNotFound": "Product not found",
       "tryAgain": "Try again",
-      "manualEntry": "Manual entry"
+      "manualEntry": "Manual entry",
+      "scanDesc": "Point the camera at a barcode to scan it automatically",
+      "manualPlaceholder": "Enter barcode number manually",
+      "search": "Search",
+      "cameraError": "Could not access the camera. Please check permissions.",
+      "searching": "Searching the database...",
+      "productNotFoundDesc": "This product was not found in the database. Analyze it with AI or add it manually.",
+      "aiPrompt": "Additional details (optional) — e.g. brand or size",
+      "aiPromptRequired": "Enter additional details or take a photo for AI analysis.",
+      "aiTextPrompt": "Barcode number: {0}. Estimate the nutritional values of the product with this barcode.",
+      "barcodeLabel": "Barcode: {0}",
+      "foundInDb": "Found in database",
+      "reScan": "Scan again",
+      "brand": "Brand",
+      "servingSize": "Serving size (g)",
+      "extendedNutrition": "Extended nutrition",
+      "saturatedFat": "Saturated fat (g)",
+      "transFat": "Trans fat (g)",
+      "sugars": "Sugars (g)",
+      "salt": "Salt (g)",
+      "novaScore": "NOVA score",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "Log Weight",
@@ -135,7 +158,8 @@
       "title": "Edit Entry",
       "updated": "Entry updated",
       "deleted": "Entry deleted"
-    }
+    },
+    "fiberG": "Fiber (g)"
   },
   "export": {
     "success": "exported",

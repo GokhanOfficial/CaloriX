@@ -133,9 +133,52 @@
 
 ---
 
-## ⏳ Faz 4 — AI + Kamera + Barkod (sıradaki)
+## ✅ Faz 4 — AI + Kamera + Barkod (tamamlandı: 2026-08-16)
 
 **Plan:** `flutter-plan-phase4-ai.md`
+
+### Yapıldı
+
+#### 4a — AI Chat (`ChatPage.tsx` karşılığı)
+- [x] `ChatMessage` + `ChatAttachment` modelleri (json_serializable) — `chat_messages.attachments` JSONB içindeki tek ek; `isUser`/`isAssistant` ayrımı `sender` alanından
+- [x] `ChatRepository` — `ensureThread` (aktif/arşivlenmemiş thread bul/oluştur), `fetchMessages` (son PAGE_SIZE, eskiden-yeniye DB → UI'ye ters çevir), `sendMessage` (kullanıcı mesajını ÖNCE `chat_messages`'a insert, sonra `ai-chat` invoke; gövde `{mode, threadId, locale, language, timeZone, currentDate}` — edge fonksiyonu son 50 mesajı DB'den okur, kullanıcı metni gönderilmez), `archiveThread`, `uploadAttachment` (storage `chat-attachments` bucket → imzalı URL `attachments`'a); **tek invoke, stream/poll yok** (web parity); `localDateOnly` (web `toLocaleDateString("en-CA")`)
+- [x] `ChatPage` — thread listesi + mesaj ekranı; markdown render (`flutter_markdown`); "Temizle" → thread arşivle + yeni thread; image_picker ile ek (attachment) seçimi → storage yükleme; gönder + asistan cevabı bekleme durumu
+- [x] Unit test: `chat_repository_test.dart` — 10 test (`localDateOnly` formatı, gövde alanları, attachment parse)
+
+#### 4b — Kamera + Foto/Metin Tanıma
+- [x] **Kamera mimarisi** (Faz 4 planı §1) — üç giriş yolu: uygulama içi kamera (`camera`, barkod-tarayıcı benzeri tam ekran) / telefon kamerası (`image_picker` camera) / galeri (`image_picker` gallery). `camera_preference` ayarı tüketildi (Faz 3'ten): `in_app` → InAppCameraScreen önce, izin reddinde native'e düşer; `native` → doğrudan ImagePicker.camera. maxWidth 1600, imageQuality 85
+- [x] `InAppCameraScreen` — `CameraController` (arka kamera, `ResolutionPreset.high`, flash toggle), çekim butonu + galeriye geçiş + kapat, çekim sonrası önizleme ("Yeniden Çek" / "Kullan"), sonuç `XFile`; `static Future<XFile?> show(BuildContext)`; izin reddedilirse null döner (çağıran native'e düşer)
+- [x] `RecognizedFood` modeli — `recognize-food`/`recognize-food-text` yanıtındaki `foods[]` öğesi; 100g/ml başına normalize; `amount_g_ml` AI porsiyon tahmini; yeni (`calories_per_100g` …) ve eski (`calories`, `protein_g` …) alan adlarını ikisi de tolere eder (web parity); `forAmount()` (kcal yuvarla, makrolar 1 ondalık), `toItem()` (FoodItem'a dönüştür). `RecognitionResult.fromJson({foods, description})`
+- [x] `RecognitionRepository` — `recognizeFood(XFile, {additionalText})` (byte'ları oku → base64 **data URL** → `recognize-food` gövde `{image_base64, additional_text?}`, depolama yükleme YOK), `recognizeFoodText(text)` (`recognize-food-text` gövde `{text}`); `recognitionRepositoryProvider`
+- [x] `AddWithAiDialog` — giriş adımı (web `UnifiedFoodDialog`): foto çek (kamera tercihine göre), galeriden seç, metin gir → "AI ile analiz et"; yükleniyor durumu → `recognize-food`/`recognize-food-text` → sonuçlar `RecognitionConfirmDialog`'a
+- [x] `RecognitionConfirmDialog` — onay ekranı (web "results" adımı): tüm tanınan yemekler tek kaydırılabilir listede, ortak öğün seçici; her yemek düzenlenebilir (ad, miktar g/ml, 100g başına kcal/P/K/Y), canlı toplam; checkbox ile seçim kaldırılır. Kayıt (web `handleSave` parity): SEÇİLİ her yemek için AYRI `meal_entries` INSERT, `custom_name`, `source` photo/text, `food_id: null`; invalidate dailyDataProvider/recentFoodsProvider/favoriteFoodsProvider + SnackBar
+- [x] Unit test: `recognized_food_test.dart` — 16 test (fromJson yeni/eski alan önceliği, defaultlar, genişletilmiş besin + nova/nutri, forAmount yuvarlama, toItem)
+
+#### 4c — Barkod Tarama (web `BarcodeScanDialog.tsx` parity)
+- [x] `BarcodeFood` modeli — web `FoodData` karşılığı; hem DB'den (`fromDb: true`) hem AI'den (`fromDb: false`) tek ürün; 100g başına değerler; **düzenlenebilir alanlar** (result adımında değişebilir — web `foodData` gibi), `final` kalan: barcode/confidence/fromDb/foodId; `fromAiFood` (Map, yeni/eski alan önceliği), `fromDbRow` (PostgREST 1:1 join Map/List → `_firstNutrition`; **`sugar_g` tekil — DB sütunuyla doğru**), `fromRecognizedFood` (AI tanıma → BarcodeFood), `forAmount`, `displayName` (`name + (brand? " ($brand)" : "")`)
+- [x] `BarcodeRepository` — `lookupByBarcode(code)` (`foods` + `food_nutrition` join, `.eq('barcode', code).maybeSingle()`; row null veya tüm makrolar 0 → null, web `food && food.nutrition` parity), `createFoodWithNutrition({userId, food, source})` (önce `foods` {name, brand, barcode, serving_size_g, source, created_by} → select id; sonra `food_nutrition` {food_id, kcal, protein_g, carbs_g, fat_g, fiber_g, **sugar_g tekil**, salt_g, saturated_fat_g, trans_fat_g, nova_score, nutri_score}; food_id döndürür)
+- [x] `BarcodeScanDialog` — 4 adımlı bottom-sheet (web ile aynı: scan → analyzing → notFound / result):
+  - **scan**: `MobileScanner` (mobile_scanner 5.2.3) canlı barkod tarama (native, `DetectionSpeed.noDuplicates`, `CameraFacing.back`) + `errorBuilder` (`errorDetails.message`); web'de `kIsWeb` guard → placeholder + manuel giriş; manuel barkod numarası alanı (yalnızca rakam) + "Ara" butonu
+  - **analyzing**: DB arama ("Veritabanında aranıyor...") veya AI analizi ("AI Analiz ediliyor...")
+  - **notFound**: ürün bulunamadı; foto çek (kamera tercihi) / galeri / ek detay → "AI ile analiz et" (`recognize-food` foto ile, `recognize-food-text` metinle; prompt `additionalText || "Barkod: {barcode}"`); boş ek+foto yoksa `aiPromptRequired` uyarısı
+  - **result**: DB'den bulundu rozeti ("Veritabanında bulundu") veya AI güven skoru; barkod etiketi; öğün seçici; düzenlenebilir ad/marka; miktar + porsiyon boyutu; "100g başına" ipucu; 4 ana makro + açılır-kapanır genişletilmiş besin (doymuş/trans yağ, şeker, lif, tuz, NOVA, Nutri-Score); canlı hesaplanan önizleme; "Tekrar tara" + "Kaydet"
+  - **kayıt** (web `handleSave` parity): source = foto? "photo" : "barcode"; `fromDb` değilse + barkod varsa `createFoodWithNutrition` → finalFoodId; `food.forAmount(amount)` → `addMealEntry` (mealType, amountGMl, calculated*, source, foodId: finalFoodId, customName: displayName); invalidate + SnackBar
+- [x] **Wiring** — `AddPage._BarcodeCard` artık `BarcodeScanDialog.show(context, defaultMealType: _selectedMeal)` açıyor (placeholder `_phase4Placeholder` kaldırıldı)
+- [x] **Çeviriler** — 21 yeni `dialogs.barcode.*` anahtarı (scanDesc, manualPlaceholder, search, cameraError, searching, productNotFoundDesc, aiPrompt, aiPromptRequired, aiTextPrompt {0}, barcodeLabel {0}, foundInDb, reScan, brand, servingSize, extendedNutrition, saturatedFat, transFat, sugars, salt, novaScore, nutriScore) + `dialogs.fiberG` tüm **12 dilde** (ar/de/en/es/fr/it/ja/ko/pt/ru/tr/zh) eklendi
+- [x] Unit test: `barcode_food_test.dart` — 14 test (fromAiFood 6, fromDbRow 3, forAmount 2, displayName 3)
+
+### Doğrulama sonuçları
+- [x] `flutter analyze` — **0 sorun** (test'teki kullanılmayan `food_item` import'u temizlendi)
+- [x] `flutter test` — **101/101 geçti** (61 eski + 40 yeni: chat 10 + recognized_food 16 + barcode_food 14)
+- [x] `flutter build web --release` — **✓ Built build/web** (67.9s)
+- [x] `flutter build apk --release` — **✓ Built app-release.apk (79.2MB, 341.3s)**
+
+### Kalan / notlar
+- Canlı Supabase / edge fonksiyonu testi yapılmadı (DB deaktif) — kullanıcı tüm fazlar bitince test edecek
+- mobile_scanner web plugin'i var ama plan web'de manuel giriş (kIsWeb guard) kullanıyor — canlı kamera web'de test edilmedi
+- **Bilinen web latent bug'u (mirasmadı):** web `BarcodeScanDialog.tsx` kaydı sırasında `food_nutrition`'a `sugars_g` (çoğul) insert ediyor, ancak DB sütunu `sugar_g` (tekil) — web'de bu sütun sessizce düşer. Flutter `BarcodeFood.fromDbRow` ve `BarcodeRepository.createFoodWithNutrition` **doğru `sugar_g` (tekil)** kullanıyor; web tarafındaki bu tutarsızlık ayrıca giderilmeli
+- InAppCameraScreen widget testi (mock CameraController) eklenmedi — `camera` plugin'i mock'lanması zor; canlı cihaz/emülatör testi kullanıcıya kaldı
+- Gradle KGP uyarısı (camera_android_camerax/mobile_scanner/share_plus Built-in Kotlin geçişi) — bilgi amaçlı, build'i engellemiyor; Faz 5'te plugin güncellemeleri ile ele alınabilir
 
 ---
 

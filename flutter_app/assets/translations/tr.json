@@ -99,6 +99,8 @@
     "photo": "Fotoğraf",
     "takePhoto": "Fotoğraf Çek",
     "selectFromGallery": "Galeriden Seç",
+    "retake": "Yeniden Çek",
+    "use": "Kullan",
     "selectedFood": "Seçilen yemek",
     "whatDidYouEat": "Ne yediniz?",
     "additionalInfo": "Ek bilgi",
@@ -123,7 +125,28 @@
       "productFound": "Ürün bulundu",
       "productNotFound": "Ürün bulunamadı",
       "tryAgain": "Tekrar dene",
-      "manualEntry": "Manuel giriş"
+      "manualEntry": "Manuel giriş",
+      "scanDesc": "Barkodu otomatik taramak için kamerayı üzerine tutun",
+      "manualPlaceholder": "Barkod numarasını manuel girin",
+      "search": "Ara",
+      "cameraError": "Kameraya erişilemedi. Lütfen izinleri kontrol edin.",
+      "searching": "Veritabanında aranıyor...",
+      "productNotFoundDesc": "Bu ürün veritabanında bulunamadı. AI ile analiz et veya manuel ekle.",
+      "aiPrompt": "Ek detaylar (opsiyonel) — örn. marka veya boyut",
+      "aiPromptRequired": "AI analizi için ek detay gir veya fotoğraf çek.",
+      "aiTextPrompt": "Barkod numarası: {0}. Bu barkoda sahip ürünün besin değerlerini tahmin et.",
+      "barcodeLabel": "Barkod: {0}",
+      "foundInDb": "Veritabanında bulundu",
+      "reScan": "Tekrar tara",
+      "brand": "Marka",
+      "servingSize": "Porsiyon boyutu (g)",
+      "extendedNutrition": "Genişletilmiş besin değerleri",
+      "saturatedFat": "Doymuş yağ (g)",
+      "transFat": "Trans yağ (g)",
+      "sugars": "Şeker (g)",
+      "salt": "Tuz (g)",
+      "novaScore": "NOVA skoru",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "Kilo Kaydet",
@@ -135,7 +158,8 @@
       "title": "Kaydı Düzenle",
       "updated": "Kayıt güncellendi",
       "deleted": "Kayıt silindi"
-    }
+    },
+    "fiberG": "Lif (g)"
   },
   "export": {
     "success": "dışa aktarıldı",

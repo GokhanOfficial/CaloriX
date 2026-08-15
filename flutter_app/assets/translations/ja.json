@@ -99,6 +99,8 @@
     "photo": "写真",
     "takePhoto": "写真を撮る",
     "selectFromGallery": "ギャラリーから選択",
+    "retake": "撮り直す",
+    "use": "使用",
     "selectedFood": "選択した食品",
     "whatDidYouEat": "何を食べましたか？",
     "additionalInfo": "追加情報",
@@ -123,7 +125,28 @@
       "productFound": "商品が見つかりました",
       "productNotFound": "商品が見つかりません",
       "tryAgain": "再試行",
-      "manualEntry": "手動入力"
+      "manualEntry": "手動入力",
+      "scanDesc": "バーコードにカメラを向けると自動的にスキャンします",
+      "manualPlaceholder": "バーコード番号を手動で入力",
+      "search": "検索",
+      "cameraError": "カメラにアクセスできません。権限を確認してください。",
+      "searching": "データベースを検索中...",
+      "productNotFoundDesc": "この製品はデータベースに見つかりませんでした。AIで分析するか手動で追加してください。",
+      "aiPrompt": "追加詳細（任意）— 例: ブランドや容量",
+      "aiPromptRequired": "AI分析のために追加詳細を入力するか、写真を撮ってください。",
+      "aiTextPrompt": "バーコード番号: {0}。このバーコードの製品の栄養価を推定してください。",
+      "barcodeLabel": "バーコード: {0}",
+      "foundInDb": "データベースで見つかりました",
+      "reScan": "再スキャン",
+      "brand": "ブランド",
+      "servingSize": "表示量 (g)",
+      "extendedNutrition": "詳細な栄養情報",
+      "saturatedFat": "飽和脂肪 (g)",
+      "transFat": "トランス脂肪 (g)",
+      "sugars": "糖類 (g)",
+      "salt": "塩分 (g)",
+      "novaScore": "NOVAスコア",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "体重を記録",
@@ -135,7 +158,8 @@
       "title": "エントリーを編集",
       "updated": "エントリーを更新しました",
       "deleted": "エントリーを削除しました"
-    }
+    },
+    "fiberG": "食物繊維 (g)"
   },
   "export": {
     "success": "エクスポート完了",

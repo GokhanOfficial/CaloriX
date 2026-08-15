@@ -99,6 +99,8 @@
     "photo": "Photo",
     "takePhoto": "Prendre une photo",
     "selectFromGallery": "Choisir dans la galerie",
+    "retake": "Reprendre",
+    "use": "Utiliser",
     "selectedFood": "Aliment sélectionné",
     "whatDidYouEat": "Qu'avez-vous mangé ?",
     "additionalInfo": "Info supplémentaire",
@@ -123,7 +125,28 @@
       "productFound": "Produit trouvé",
       "productNotFound": "Produit non trouvé",
       "tryAgain": "Réessayer",
-      "manualEntry": "Saisie manuelle"
+      "manualEntry": "Saisie manuelle",
+      "scanDesc": "Pointez la caméra vers un code-barres pour le scanner automatiquement",
+      "manualPlaceholder": "Saisir le code-barres manuellement",
+      "search": "Rechercher",
+      "cameraError": "Impossible d'accéder à la caméra. Vérifiez les autorisations.",
+      "searching": "Recherche dans la base de données...",
+      "productNotFoundDesc": "Ce produit est introuvable dans la base de données. Analysez-le avec l'IA ou ajoutez-le manuellement.",
+      "aiPrompt": "Détails supplémentaires (facultatif) — ex. marque ou taille",
+      "aiPromptRequired": "Saisis des détails supplémentaires ou prends une photo pour l'analyse par IA.",
+      "aiTextPrompt": "Numéro de code-barres : {0}. Estime les valeurs nutritionnelles du produit avec ce code-barres.",
+      "barcodeLabel": "Code-barres : {0}",
+      "foundInDb": "Trouvé dans la base de données",
+      "reScan": "Scanner à nouveau",
+      "brand": "Marque",
+      "servingSize": "Taille de portion (g)",
+      "extendedNutrition": "Nutrition détaillée",
+      "saturatedFat": "Graisses saturées (g)",
+      "transFat": "Graisses trans (g)",
+      "sugars": "Sucres (g)",
+      "salt": "Sel (g)",
+      "novaScore": "Score NOVA",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "Enregistrer le poids",
@@ -135,7 +158,8 @@
       "title": "Modifier l'entrée",
       "updated": "Entrée mise à jour",
       "deleted": "Entrée supprimée"
-    }
+    },
+    "fiberG": "Fibres (g)"
   },
   "export": {
     "success": "exporté",

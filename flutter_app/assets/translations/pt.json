@@ -99,6 +99,8 @@
     "photo": "Foto",
     "takePhoto": "Tirar foto",
     "selectFromGallery": "Selecionar da galeria",
+    "retake": "Refazer",
+    "use": "Usar",
     "selectedFood": "Alimento selecionado",
     "whatDidYouEat": "O que você comeu?",
     "additionalInfo": "Info adicional",
@@ -123,7 +125,28 @@
       "productFound": "Produto encontrado",
       "productNotFound": "Produto não encontrado",
       "tryAgain": "Tentar novamente",
-      "manualEntry": "Entrada manual"
+      "manualEntry": "Entrada manual",
+      "scanDesc": "Aponte a câmera para um código de barras para escaneá-lo automaticamente",
+      "manualPlaceholder": "Digite o código de barras manualmente",
+      "search": "Buscar",
+      "cameraError": "Não foi possível acessar a câmera. Verifique as permissões.",
+      "searching": "Buscando no banco de dados...",
+      "productNotFoundDesc": "Este produto não foi encontrado no banco de dados. Analise com IA ou adicione manualmente.",
+      "aiPrompt": "Detalhes adicionais (opcional) — ex. marca ou tamanho",
+      "aiPromptRequired": "Digite detalhes adicionais ou tire uma foto para a análise com IA.",
+      "aiTextPrompt": "Número do código de barras: {0}. Estime os valores nutricionais do produto com este código.",
+      "barcodeLabel": "Código de barras: {0}",
+      "foundInDb": "Encontrado no banco de dados",
+      "reScan": "Escanear novamente",
+      "brand": "Marca",
+      "servingSize": "Tamanho da porção (g)",
+      "extendedNutrition": "Nutrição detalhada",
+      "saturatedFat": "Gordura saturada (g)",
+      "transFat": "Gordura trans (g)",
+      "sugars": "Açúcares (g)",
+      "salt": "Sal (g)",
+      "novaScore": "Pontuação NOVA",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "Registrar peso",
@@ -135,7 +158,8 @@
       "title": "Editar registro",
       "updated": "Registro atualizado",
       "deleted": "Registro excluído"
-    }
+    },
+    "fiberG": "Fibra (g)"
   },
   "export": {
     "success": "exportado",

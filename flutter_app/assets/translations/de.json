@@ -99,6 +99,8 @@
     "photo": "Foto",
     "takePhoto": "Foto aufnehmen",
     "selectFromGallery": "Aus Galerie wählen",
+    "retake": "Neu aufnehmen",
+    "use": "Verwenden",
     "selectedFood": "Ausgewähltes Lebensmittel",
     "whatDidYouEat": "Was haben Sie gegessen?",
     "additionalInfo": "Zusätzliche Info",
@@ -123,7 +125,28 @@
       "productFound": "Produkt gefunden",
       "productNotFound": "Produkt nicht gefunden",
       "tryAgain": "Erneut versuchen",
-      "manualEntry": "Manuelle Eingabe"
+      "manualEntry": "Manuelle Eingabe",
+      "scanDesc": "Richte die Kamera auf den Barcode, um ihn automatisch zu scannen",
+      "manualPlaceholder": "Barcode manuell eingeben",
+      "search": "Suchen",
+      "cameraError": "Kamerazugriff fehlgeschlagen. Bitte Berechtigungen prüfen.",
+      "searching": "Datenbank wird durchsucht …",
+      "productNotFoundDesc": "Dieses Produkt wurde in der Datenbank nicht gefunden. Per KI analysieren oder manuell hinzufügen.",
+      "aiPrompt": "Zusätzliche Details (optional) – z. B. Marke oder Größe",
+      "aiPromptRequired": "Gib zusätzliche Details ein oder mach ein Foto für die KI-Analyse.",
+      "aiTextPrompt": "Barcode-Nummer: {0}. Schätze die Nährwerte des Produkts mit diesem Barcode.",
+      "barcodeLabel": "Barcode: {0}",
+      "foundInDb": "In der Datenbank gefunden",
+      "reScan": "Erneut scannen",
+      "brand": "Marke",
+      "servingSize": "Portionsgröße (g)",
+      "extendedNutrition": "Erweiterte Nährwerte",
+      "saturatedFat": "Gesättigte Fette (g)",
+      "transFat": "Transfette (g)",
+      "sugars": "Zucker (g)",
+      "salt": "Salz (g)",
+      "novaScore": "NOVA-Score",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "Gewicht erfassen",
@@ -135,7 +158,8 @@
       "title": "Eintrag bearbeiten",
       "updated": "Eintrag aktualisiert",
       "deleted": "Eintrag gelöscht"
-    }
+    },
+    "fiberG": "Ballaststoffe (g)"
   },
   "export": {
     "success": "exportiert",

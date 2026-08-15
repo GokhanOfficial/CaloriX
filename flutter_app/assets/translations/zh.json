@@ -99,6 +99,8 @@
     "photo": "照片",
     "takePhoto": "拍照",
     "selectFromGallery": "从相册选择",
+    "retake": "重拍",
+    "use": "使用",
     "selectedFood": "选中的食物",
     "whatDidYouEat": "您吃了什么？",
     "additionalInfo": "附加信息",
@@ -123,7 +125,28 @@
       "productFound": "找到产品",
       "productNotFound": "未找到产品",
       "tryAgain": "重试",
-      "manualEntry": "手动输入"
+      "manualEntry": "手动输入",
+      "scanDesc": "将摄像头对准条形码即可自动扫描",
+      "manualPlaceholder": "手动输入条形码编号",
+      "search": "搜索",
+      "cameraError": "无法访问摄像头，请检查权限。",
+      "searching": "正在数据库中搜索...",
+      "productNotFoundDesc": "数据库中未找到此产品。可用 AI 分析或手动添加。",
+      "aiPrompt": "附加详情（可选）— 例如品牌或规格",
+      "aiPromptRequired": "请输入附加详情或拍照以供 AI 分析。",
+      "aiTextPrompt": "条形码编号: {0}。请估算该条形码产品的营养值。",
+      "barcodeLabel": "条形码: {0}",
+      "foundInDb": "在数据库中找到",
+      "reScan": "重新扫描",
+      "brand": "品牌",
+      "servingSize": "份量 (克)",
+      "extendedNutrition": "详细营养信息",
+      "saturatedFat": "饱和脂肪 (克)",
+      "transFat": "反式脂肪 (克)",
+      "sugars": "糖 (克)",
+      "salt": "盐 (克)",
+      "novaScore": "NOVA 评分",
+      "nutriScore": "Nutri-Score"
     },
     "weight": {
       "title": "记录体重",
@@ -135,7 +158,8 @@
       "title": "编辑条目",
       "updated": "条目已更新",
       "deleted": "条目已删除"
-    }
+    },
+    "fiberG": "纤维 (克)"
   },
   "export": {
     "success": "已导出",
