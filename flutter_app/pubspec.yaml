@@ -1,0 +1,72 @@
+name: calorix
+description: "CaloriX — Akıllı kalori, makro takip ve AI beslenme asistanı (Flutter)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Backend
+  supabase_flutter: ^2.10.3
+
+  # State management / DI
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # i18n
+  easy_localization: ^3.0.7+1
+
+  # Local storage
+  shared_preferences: ^2.5.3
+
+  # Models codegen
+  json_annotation: ^4.9.0
+
+  # Charts
+  fl_chart: ^0.69.2
+
+  # Camera / barcode / images
+  mobile_scanner: ^5.2.3
+  camera: ^0.11.1
+  image_picker: ^1.1.2
+
+  # Env config
+  flutter_dotenv: ^5.2.1
+
+  # Markdown (AI chat)
+  flutter_markdown: ^0.7.4
+
+  # Share / export
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
+
+  # Local notifications
+  flutter_local_notifications: ^18.0.1
+
+  # Utils
+  intl: ^0.20.2
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  json_serializable: ^6.9.4
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/translations/
+    - assets/images/
