@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInput;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -17,7 +18,8 @@ class AuthPage extends ConsumerStatefulWidget {
   ConsumerState<AuthPage> createState() => _AuthPageState();
 }
 
-class _AuthPageState extends ConsumerState<AuthPage> {
+class _AuthPageState extends ConsumerState<AuthPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
   final _emailCtrl = TextEditingController();
@@ -26,13 +28,30 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _confirmPasswordCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
 
+  late final TabController _tabController;
+
   bool _isLoading = false;
   _AuthView _view = _AuthView.auth;
   String _pendingEmail = '';
   bool _obscure = true;
 
+  /// Giriş sekmesi index 0, kayıt sekmesi index 1.
+  bool get _isSignUp => _tabController.index == 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    // Sekme değişince autofill hint'leri (password ↔ newPassword)
+    // güncellenmesi için rebuild tetikle.
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) setState(() {});
+    });
+  }
+
   @override
   void dispose() {
+    _tabController.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _newPasswordCtrl.dispose();
@@ -93,6 +112,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       }
       return;
     }
+    // Giriş: parola yöneticisine kaydetme önerme; autofill oturumunu kapat.
+    TextInput.finishAutofillContext(shouldSave: false);
     // Başarılı girişte router redirect dashboard'a taşır.
   }
 
@@ -119,6 +140,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       }
       return;
     }
+    // Kayıt başarılı: parola yöneticisine yeni kimlik bilgilerini
+    // kaydetme önerisi göster (Bitwarden / Google Password Manager vb.).
+    TextInput.finishAutofillContext(shouldSave: true);
     _toast('auth.messages.verificationSent'.tr());
     setState(() {
       _pendingEmail = _emailCtrl.text.trim();
@@ -159,6 +183,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     if (err != null) {
       _toast(err.message, isError: true);
     } else {
+      // Şifre sıfırlama başarılı: güncellenen kimlik bilgilerini
+      // parola yöneticisine kaydetme önerisi göster.
+      TextInput.finishAutofillContext(shouldSave: true);
       _toast('auth.messages.passwordUpdated'.tr());
       context.go(AppRoutes.dashboard);
     }
@@ -244,8 +271,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         ),
         const SizedBox(height: 24),
         Card(
-          child: DefaultTabController(
-            length: 2,
+          child: AutofillGroup(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Form(
@@ -253,6 +279,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 child: Column(
                   children: [
                     TabBar(
+                      controller: _tabController,
                       tabs: [
                         Tab(text: 'auth.signInTab'.tr()),
                         Tab(text: 'auth.signUpTab'.tr()),
@@ -264,6 +291,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       label: 'auth.email'.tr(),
                       icon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
                       validator: _validateEmail,
                     ),
                     const SizedBox(height: 16),
@@ -272,6 +300,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       label: 'auth.password'.tr(),
                       icon: Icons.lock_outline,
                       obscure: _obscure,
+                      // Giriş: mevcut şifre; Kayıt: yeni şifre.
+                      autofillHints: _isSignUp
+                          ? const [AutofillHints.newPassword]
+                          : const [AutofillHints.password],
                       validator: _validatePassword,
                       suffix: IconButton(
                         icon: Icon(
@@ -292,6 +324,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       controller: _displayNameCtrl,
                       label: 'auth.nameOptional'.tr(),
                       icon: Icons.person_outline,
+                      autofillHints: const [AutofillHints.name],
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -337,42 +370,45 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         _logo(),
         const SizedBox(height: 24),
         Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => setState(() => _view = _AuthView.auth),
-                    icon: const Icon(Icons.arrow_back),
-                    label: Text('common.back'.tr()),
-                    style: TextButton.styleFrom(
-                        alignment: Alignment.centerLeft),
-                  ),
-                  Text('auth.forgotPasswordTitle'.tr(),
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 4),
-                  Text('auth.forgotPasswordDesc'.tr(),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline)),
-                  const SizedBox(height: 20),
-                  _textField(
-                    controller: _emailCtrl,
-                    label: 'auth.email'.tr(),
-                    icon: Icons.mail_outline,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: _validateEmail,
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: _isLoading ? null : _handleForgotPassword,
-                    child: _isLoading
-                        ? const _Spinner()
-                        : Text('auth.sendResetLink'.tr()),
-                  ),
-                ],
+          child: AutofillGroup(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => setState(() => _view = _AuthView.auth),
+                      icon: const Icon(Icons.arrow_back),
+                      label: Text('common.back'.tr()),
+                      style: TextButton.styleFrom(
+                          alignment: Alignment.centerLeft),
+                    ),
+                    Text('auth.forgotPasswordTitle'.tr(),
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 4),
+                    Text('auth.forgotPasswordDesc'.tr(),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.outline)),
+                    const SizedBox(height: 20),
+                    _textField(
+                      controller: _emailCtrl,
+                      label: 'auth.email'.tr(),
+                      icon: Icons.mail_outline,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      validator: _validateEmail,
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: _isLoading ? null : _handleForgotPassword,
+                      child: _isLoading
+                          ? const _Spinner()
+                          : Text('auth.sendResetLink'.tr()),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -448,39 +484,43 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         _logo(),
         const SizedBox(height: 24),
         Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('auth.resetPasswordTitle'.tr(),
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 4),
-                Text('auth.resetPasswordDesc'.tr(),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.outline)),
-                const SizedBox(height: 20),
-                _textField(
-                  controller: _newPasswordCtrl,
-                  label: 'auth.newPassword'.tr(),
-                  icon: Icons.lock_outline,
-                  obscure: _obscure,
-                ),
-                const SizedBox(height: 16),
-                _textField(
-                  controller: _confirmPasswordCtrl,
-                  label: 'auth.confirmPassword'.tr(),
-                  icon: Icons.lock_outline,
-                  obscure: _obscure,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: _isLoading ? null : _handleResetPassword,
-                  child: _isLoading
-                      ? const _Spinner()
-                      : Text('auth.updatePassword'.tr()),
-                ),
-              ],
+          child: AutofillGroup(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('auth.resetPasswordTitle'.tr(),
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 4),
+                  Text('auth.resetPasswordDesc'.tr(),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.outline)),
+                  const SizedBox(height: 20),
+                  _textField(
+                    controller: _newPasswordCtrl,
+                    label: 'auth.newPassword'.tr(),
+                    icon: Icons.lock_outline,
+                    obscure: _obscure,
+                    autofillHints: const [AutofillHints.newPassword],
+                  ),
+                  const SizedBox(height: 16),
+                  _textField(
+                    controller: _confirmPasswordCtrl,
+                    label: 'auth.confirmPassword'.tr(),
+                    icon: Icons.lock_outline,
+                    obscure: _obscure,
+                    autofillHints: const [AutofillHints.newPassword],
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: _isLoading ? null : _handleResetPassword,
+                    child: _isLoading
+                        ? const _Spinner()
+                        : Text('auth.updatePassword'.tr()),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -492,6 +532,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    Iterable<String>? autofillHints,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
     bool obscure = false,
@@ -499,6 +540,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }) {
     return TextFormField(
       controller: controller,
+      autofillHints: autofillHints,
       keyboardType: keyboardType,
       obscureText: obscure,
       validator: validator,
