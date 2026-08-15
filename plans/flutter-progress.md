@@ -37,19 +37,41 @@
 
 ---
 
-## ⏳ Faz 1 — Auth + Onboarding + Profil (sıradaki)
+## ✅ Faz 1 — Auth + Onboarding + Profil (tamamlandı: 2026-08-15)
 
 **Plan:** `flutter-plan-phase1-auth.md`
 
-### Yapılacaklar
-- [ ] `AuthRepository` (signUp/signIn/signOut/resetPassword/resendVerification)
-- [ ] Router auth redirect mantığı (oturum + onboarding durumu)
-- [ ] AuthPage UI (giriş/kayıt/şifre sıfırlama sekmeleri)
-- [ ] Deep link: `io.supabase.calorix://reset-callback` intent-filter
-- [ ] OnboardingPage (çok adımlı form) + `calculate-macros` entegrasyonu
-- [ ] `Profile` modeli + `ProfileRepository` + `profileProvider`
-- [ ] `UserSettings` modeli + repository
-- [ ] Unit testler (mocktail)
+### Yapıldı
+- [x] `AuthRepository` (signUp/signIn/signOut/resetPassword/resendVerificationEmail/updatePassword) — hata biçimi web ile aynı: nullable `AuthException?`; e-posta redirect'leri platforma göre (web: `Uri.base.origin`, mobil: `io.supabase.calorix://reset-callback`)
+- [x] Router auth redirect — `_routeDecisionProvider` (sealed: loading/ready): oturum yok→`/auth`, PASSWORD_RECOVERY→`/auth`, profil hatası veya `onboarding_completed=false`→`/onboarding`; `refreshListenable` ile otomatik yeniden yönlendirme
+- [x] AuthPage UI — 4 görünüm: auth (Giriş/Kayıt TabBar), forgotPassword, pendingVerification (yeniden gönder + farklı hesap), resetPassword; PASSWORD_RECOVERY eventi otomatik reset görünümüne geçirir; hata mesajları web ile aynı string eşleşmeleri
+- [x] Deep link: `io.supabase.calorix://reset-callback` intent-filter AndroidManifest'e eklendi
+- [x] OnboardingPage — 5 adımlı sihirbaz (kişisel → boy/kilo [canlı BMI rozeti] → aktivite → hedef → özet); son adımda `MacroCalculator` (önce `calculate-macros` Edge Function, hata/eksikte yerel Mifflin-St Jeor fallback); kayıt `ProfileRepository.update` + `profileProvider` invalidate
+- [x] `Profile` modeli (json_serializable, `isOnboardingComplete` getter) + `ProfileRepository` (fetch `.maybeSingle()`, update `updated_at` damgalı) + `profileProvider`
+- [x] `UserSetting` modeli + `UserSettingsRepository` (fetchAll→Map, upsert `onConflict: 'user_id,key'`) + `userSettingsProvider`
+- [x] `AppConstants` + enum'lar: ActivityLevel (çarpanlar), Goal (kalori modifikatörleri), Gender, MealType (Faz 2 için)
+- [x] `Calculations` — BMR/TDEE/hedef kalori/makro (30/40/30)/BMI/su (kg×33)/yaş/ilerleme; web `calculations.ts` parity
+- [x] Unit testler (mocktail): **34 test, tamamı geçiyor**
+  - `test/data/repositories/auth_repository_test.dart` — 12 test (tüm metotlar + redirect URL + display_name fallback)
+  - `test/data/repositories/macro_calculator_test.dart` — 6 test (AI başarı / fallback 3 senaryo / istek gövdesi parity)
+  - `test/core/utils/calculations_test.dart` — web parity hesap testleri
+
+### Doğrulama sonuçları
+- [x] `flutter analyze` — **0 sorun**
+- [x] `flutter test` — **34/34 geçti**
+- [x] `flutter build web --release` — **✓ Built build/web**
+- [x] `flutter build apk --debug` — **✓ Built app-debug.apk**
+
+### Kalan / notlar
+- `json_annotation` ^4.12.0'a yükseltildi (build_runner uyarısı)
+- Canlı Supabase testi yapılmadı (DB deaktif) — kullanıcı tüm fazlar bitince test edecek
+- iOS deep link yapılandırması yapılmadı (proje android+web+linux hedefli; gerekirse Faz 5'te)
+
+---
+
+## ⏳ Faz 2 — Günlük + Yemek Ekleme (sıradaki)
+
+**Plan:** `flutter-plan-phase2-diary.md`
 
 ---
 
