@@ -67,6 +67,10 @@ dev_dependencies:
   json_serializable: ^6.9.4
   mocktail: ^1.0.4
 
+  # Release görselleri (Faz 5) — kod üretimi için, runtime bağımlılık değil.
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
+
 # file_picker 8.x ve image_picker_android, transitif olarak flutter_plugin_android_lifecycle
 # çeker. 2.0.35'in yayınlanmış AAR'i minCompileSdk=36 gerektiriyor; AGP 9.1 + Flutter 3.47'de
 # flutter.compileSdkVersion=34 olduğundan ve AGP 9 compileSdk değerini değerlendirme sırasında
@@ -83,3 +87,32 @@ flutter:
     - .env
     - assets/translations/
     - assets/images/
+
+# --- Faz 5: Uygulama ikonu (flutter_launcher_icons) ---
+# Üretim: `dart run flutter_launcher_icons`
+# Kaynak görsel: assets/images/logo.png (1024x1024).
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/logo.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#00C7B7"
+  adaptive_icon_foreground: assets/images/logo.png
+  web:
+    generate: true
+    image_path: assets/images/logo.png
+    background_color: "#00C7B7"
+    theme_color: "#00C7B7"
+
+# --- Faz 5: Açılış ekranı (flutter_native_splash) ---
+# Üretim: `dart run flutter_native_splash:create`
+# Arka plan: CaloriX teal (AppColors.seed 0xFF00C7B7).
+flutter_native_splash:
+  color: "#00C7B7"
+  image: assets/images/logo.png
+  android_12:
+    color: "#00C7B7"
+    image: assets/images/logo.png
+  android: true
+  ios: true
+  web: true

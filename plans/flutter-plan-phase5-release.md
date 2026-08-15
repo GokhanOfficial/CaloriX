@@ -3,7 +3,7 @@
 > Master plan: `flutter-plan-master.md`
 
 ## 1. Web build
-- `flutter build web --release --web-renderer canvaskit` (grafik/kamera performansı için canvaskit önerilir)
+- `flutter build web --release` (Flutter 3.x'te canvaskit varsayılan renderer; `--web-renderer` bayrağı kaldırıldı)
 - Env değerleri CI'da `--dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...` ile (web'de dotenv dosyası asset olarak gömüldüğünden CI'da dart-define tercih edilir)
 - Barındırma seçenekleri: mevcut Vercel deploy'unun yanına ayrı path/subdomain (`app.yediginibil...`) veya ayrı Vercel projesi — karar yayınlama aşamasında
 - Auth redirect URL'leri Supabase Dashboard'a eklenmeli (Site URL + Redirect URLs: Flutter web URL'i)

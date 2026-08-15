@@ -1,7 +1,20 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release imzalama — `android/key.properties` mevcutsa okunur (Play
+// Console upload keystore'u). Yoksa (yerel debug / CI) debug anahtarına
+// düşer; build pipeline'ı kırılmaz. key.properties gitignore'da.
+val keystoreProperties = Properties().apply {
+    val keystoreFile = rootProject.file("key.properties")
+    if (keystoreFile.exists()) {
+        load(FileInputStream(keystoreFile))
+    }
 }
 
 android {
@@ -18,7 +31,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.calorix.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -32,11 +44,36 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystoreProperties.containsKey("keyAlias")) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // key.properties varsa release keystore ile, yoksa debug anahtarıyla
+            // imzala (CI build pipeline'ı yeşil kalsın diye). Play Console'a
+            // yüklenen AAB gerçek upload keystore'u ile imzalanmalı.
+            signingConfig = if (keystoreProperties.containsKey("keyAlias")) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+
+            // R8: minify + resource shrinking. keep kuralları
+            // proguard-rules.pro'da (model/supabase/riverpod koruması).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

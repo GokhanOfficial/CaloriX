@@ -1,0 +1,140 @@
+name: Flutter CI
+
+# Sadece `flutter_app/**` altındaki değişikliklerde (ve bu workflow'un kendisinde)
+# tetiklenir — React web CI'ından bağımsız çalışır.
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter.yml"
+  pull_request:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter.yml"
+
+# Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.0"
+  # build.gradle.kts (compileOptions VERSION_17) ile uyumlu.
+  JAVA_VERSION: "17"
+
+jobs:
+  check:
+    name: analyze + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # `.env` gitignore'da ama pubspec.yaml'de asset olarak gömülü.
+      # Build/test asset paketleme adımında dosyanın var olması gerekir;
+      # yoksa "unable to find directory entry" ile build kırılır. CI'da
+      # placeholder .env yaratıyoruz — gerçek değerler release işinde
+      # `--dart-define` ile verilir (Env dart-define'a öncelik verir).
+      - name: Synthesize placeholder .env (asset bundling)
+        run: cp .env.example .env
+
+      # Codegen: .g.dart dosyaları repoda committed olsa da, CI'da
+      # güncel/çakışmasız üretildiklerini doğrular.
+      - name: build_runner (codegen)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  build:
+    name: build web + appbundle
+    # Yalnızca main'e gittiğinde (push/PR merge) release build üret.
+    if: github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # Release build'de gerçek Supabase değerleri `--dart-define` ile
+      # verilir (Env dart-define'a öncelik verir). .env yine de asset
+      # paketlemesi için var olmalı.
+      - name: Synthesize placeholder .env (asset bundling)
+        run: cp .env.example .env
+
+      - name: build_runner (codegen)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # canvaskit, Flutter 3.x'de web release build'in varsayılan
+      # renderer'ıdır; `--web-renderer` bayrağı artık yoktur.
+      - name: Build web (release)
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="${{ secrets.FLUTTER_SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.FLUTTER_SUPABASE_ANON_KEY }}"
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web
+          path: flutter_app/build/web
+          if-no-files-found: error
+
+      # CI'da imzalama yok (key.properties yok) → build.gradle.kts debug
+      # signing'e düşer; build pipeline'ı yeşil kontrolü yeterli. Play
+      # Console için gerçek imzalama ayrı, elle yapılır (Faz 5 dokümanı).
+      - name: Build Android app bundle (release)
+        run: |
+          flutter build appbundle --release \
+            --dart-define=SUPABASE_URL="${{ secrets.FLUTTER_SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.FLUTTER_SUPABASE_ANON_KEY }}"
+
+      - name: Upload app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-appbundle
+          path: flutter_app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error

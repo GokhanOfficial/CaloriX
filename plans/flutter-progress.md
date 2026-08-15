@@ -182,5 +182,70 @@
 
 ---
 
-## Faz 5 — Beklemede
-Plan hazır: `flutter-plan-phase5-release.md`
+## ✅ Faz 5 — Web Build, CI/CD ve Yayınlama (tamamlandı: 2026-08-16)
+Plan: `flutter-plan-phase5-release.md`
+
+### 5a — CI (GitHub Actions)
+- `.github/workflows/flutter.yml`: `flutter_app/**` (ve workflow'un kendisi)
+  path filter'lı; push (main + feature/**) ve PR tetikleyici.
+- `concurrency` ile aynı branch için eski çalışma iptal.
+- `check` job: JDK 17 + Flutter 3.47.0 setup → `flutter pub get` →
+  `build_runner build --delete-conflicting-outputs` → `flutter analyze` →
+  `flutter test`. `.env` gitignore'da ama pubspec asset'i olduğundan CI
+  placeholder `.env` sentezler (`cp .env.example .env`).
+- `build` job (yalnızca main): web release + appbundle, gerçek Supabase
+  değerleri `--dart-define` ile (Env dart-define'a öncelik verir). Build
+  artifact'leri upload-artifact ile kaydedilir.
+
+### 5b — Android release imzalama + R8
+- `android/key.properties.example` (Play Console upload keystore için
+  şablon; gerçek dosya gitignore'da).
+- `android/app/build.gradle.kts`: `key.properties` mevcutsa release
+  signingConfig (keyAlias/keyPassword/storeFile/storePassword), yoksa
+  debug anahtarına düşer — CI pipeline yeşil kalır, Play Console'a
+  gerçek keystore ile imzalanmış AAB yüklenir.
+- R8: `isMinifyEnabled` + `isShrinkResources` açık; keep kuralları
+  `proguard-rules.pro`'da (Flutter/Supabase/CaloriX model sınıfları/
+  riverpod/easy_localization/mobile_scoring + Play Core `-dontwarn` +
+  enum/Serializable + stack-trace attribute'ları).
+- AAB build ✓ (70.9MB, R8 sonrası APK'tan küçük; debug imza fallback).
+
+### 5c — Uygulama ikonu + açılış ekranı
+- `flutter_launcher_icons ^0.14.3` + `flutter_native_splash ^2.4.6`
+  dev_dependencies'e eklendi; pubspec'te config blokları (kaynak
+  `assets/images/logo.png` 1024×1024, arka plan CaloriX teal #00C7B7,
+  Android adaptive + iOS + web).
+- Üretim komutları (config repo'da, çalıştırma kullanıcıya):
+  `dart run flutter_launcher_icons`
+  `dart run flutter_native_splash:create`
+  (Bu session'da classifier engelledi; config hazır, runtime bağımlılık
+  değil.)
+
+### 5d — CHANGELOG + sürüm
+- `CHANGELOG.md`'ye "Flutter App" bölümü eklendi (EN + TR), pubspec
+  sürümü `1.0.0+1` (web `1.1.0`'dan bağımsız).
+- `flutter-plan-phase5-release.md`: `--web-renderer` bayrağı artık yok
+  (canvaskit Flutter 3.x'te varsayılan) — plan düzeltildi.
+
+### Doğrulama
+- `flutter analyze` → 0 sorun
+- `flutter test` → 101/101 geçti
+- `flutter build web --release` → ✓ (66.0s derleme; canvaskit varsayılan)
+- `flutter build appbundle --release` → ✓ 70.9MB (R8 açık)
+
+### Kalan / kullanıcı tarafından yapılacak (operasyonel)
+- Keystore üretimi + `key.properties` doldurma (Play Console upload)
+- Supabase Dashboard → Authentication URL Configuration: Redirect URLs'e
+  `io.supabase.calorix://reset-callback` (Android) + Flutter web URL'i
+- GitHub Secrets: `FLUTTER_SUPABASE_URL`, `FLUTTER_SUPABASE_ANON_KEY`
+- Hosting kararı (ayrı Vercel projesi / subdomain / React yanında paralel)
+- Play Store listeleme metinleri/görselleri (TR + EN)
+- İkon/splash üretim komutlarını çalıştırma
+- iOS (opsiyonel): Apple Developer hesabı + macOS build ortamı gerekir
+- Tüm fazlar bitince canlı DB uçtan uca test (kullanıcı)
+
+### Notlar
+- Canlı Supabase / edge fonksiyonu testi yapılmadı (DB deaktif)
+- CI imzalama yok (debug fallback) — Play Console yüklemesi elle imzalanır
+- Gradle KGP uyarısı (camera_android_camerax/mobile_scanner/share_plus)
+  bilgi amaçlı; plugin Built-in Kotlin geçişi sonraki güncellemelerde
