@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "通知设置",
-      "desc": "配置通知渠道和时间"
+      "desc": "配置通知渠道和时间",
+      "push": "推送通知",
+      "email": "电子邮件通知",
+      "weighInFrequency": "称重频率（天）",
+      "autoRecalculate": "自动重新计算宏量营养素",
+      "days": "天"
     },
     "import": {
       "title": "导入数据",
@@ -301,6 +306,12 @@
       "aiSuccess": "AI计算完成",
       "aiUpdate": "AI宏量营养素更新",
       "error": "发生错误"
+    },
+    "language": "语言",
+    "camera": {
+      "title": "默认相机",
+      "inApp": "应用内",
+      "native": "手机相机"
     }
   },
   "dashboard": {

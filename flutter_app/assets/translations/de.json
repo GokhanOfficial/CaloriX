@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "Benachrichtigungseinstellungen",
-      "desc": "Konfigurieren Sie Benachrichtigungskanäle und -zeiten"
+      "desc": "Konfigurieren Sie Benachrichtigungskanäle und -zeiten",
+      "push": "Push-Benachrichtigungen",
+      "email": "E-Mail-Benachrichtigungen",
+      "weighInFrequency": "Wiege-Häufigkeit (Tage)",
+      "autoRecalculate": "Makros automatisch neu berechnen",
+      "days": "Tage"
     },
     "import": {
       "title": "Daten importieren",
@@ -301,6 +306,12 @@
       "aiSuccess": "KI-Berechnung abgeschlossen",
       "aiUpdate": "KI-Makro-Update",
       "error": "Ein Fehler ist aufgetreten"
+    },
+    "language": "Sprache",
+    "camera": {
+      "title": "Standardkamera",
+      "inApp": "In-App",
+      "native": "Handykamera"
     }
   },
   "dashboard": {

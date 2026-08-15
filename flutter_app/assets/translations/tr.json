@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "Bildirim Ayarları",
-      "desc": "Bildirim kanallarını ve zamanlamayı yapılandırın"
+      "desc": "Bildirim kanallarını ve zamanlamayı yapılandırın",
+      "push": "Push Bildirimleri",
+      "email": "E-posta Bildirimleri",
+      "weighInFrequency": "Tartılma Sıklığı (gün)",
+      "autoRecalculate": "Makroları Otomatik Yeniden Hesapla",
+      "days": "gün"
     },
     "import": {
       "title": "Verileri İçe Aktar",
@@ -301,6 +306,12 @@
       "aiSuccess": "Yapay Zeka Hesaplaması Tamamlandı",
       "aiUpdate": "Yapay Zeka Makro Güncellemesi",
       "error": "Bir hata oluştu"
+    },
+    "language": "Dil",
+    "camera": {
+      "title": "Varsayılan Kamera",
+      "inApp": "Uygulama içi",
+      "native": "Telefon kamerası"
     }
   },
   "dashboard": {

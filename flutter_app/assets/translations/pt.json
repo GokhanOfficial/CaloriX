@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "Configurações de notificação",
-      "desc": "Configure os canais e horários de notificação"
+      "desc": "Configure os canais e horários de notificação",
+      "push": "Notificações Push",
+      "email": "Notificações por E-mail",
+      "weighInFrequency": "Frequência de pesagem (dias)",
+      "autoRecalculate": "Recalcular macros automaticamente",
+      "days": "dias"
     },
     "import": {
       "title": "Importar dados",
@@ -301,6 +306,12 @@
       "aiSuccess": "Cálculo de IA concluído",
       "aiUpdate": "Atualização de macros por IA",
       "error": "Ocorreu um erro"
+    },
+    "language": "Idioma",
+    "camera": {
+      "title": "Câmera padrão",
+      "inApp": "No app",
+      "native": "Câmera do telefone"
     }
   },
   "dashboard": {

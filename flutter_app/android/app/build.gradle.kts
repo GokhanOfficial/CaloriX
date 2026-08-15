@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.calorix.calorix"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker 8.x en az compileSdk 36 bekliyor (flutter.compileSdkVersion=34).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

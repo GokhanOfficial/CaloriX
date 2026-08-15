@@ -47,6 +47,10 @@ dependencies:
   # Share / export
   share_plus: ^10.1.4
   path_provider: ^2.1.5
+  file_picker: ^8.1.4
+
+  # External links (mailto, web)
+  url_launcher: ^6.3.1
 
   # Local notifications
   flutter_local_notifications: ^18.0.1
@@ -62,6 +66,15 @@ dev_dependencies:
   build_runner: ^2.4.13
   json_serializable: ^6.9.4
   mocktail: ^1.0.4
+
+# file_picker 8.x ve image_picker_android, transitif olarak flutter_plugin_android_lifecycle
+# çeker. 2.0.35'in yayınlanmış AAR'i minCompileSdk=36 gerektiriyor; AGP 9.1 + Flutter 3.47'de
+# flutter.compileSdkVersion=34 olduğundan ve AGP 9 compileSdk değerini değerlendirme sırasında
+# erken sonlandırdığından, plugin modüllerinin compileSdk değerini 36'ya yükseltmek zamanlama
+# hatası veriyor. 2.0.24 (compileSdk 34 ile yayınlanan son sürüm) ile sabitleyerek AAR
+# metadata kontrolünü geçiyoruz. Not: Faz 5'te Flutter/AGP yükseltildiğinde kaldırılabilir.
+dependency_overrides:
+  flutter_plugin_android_lifecycle: 2.0.24
 
 flutter:
   uses-material-design: true

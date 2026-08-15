@@ -6,6 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 abstract final class AppColors {
   // Web'in ana renklerine yakın Material 3 seed
   static const Color seed = Color(0xFF00C7B7); // CaloriX teal (demo rozeti rengi)
+
+  // Semantik renkler — web `index.css` dark-mode HSL değerlerinin RGB karşılığı.
+  static const Color success = Color(0xFF24C28C); // hsl(152 72% 46%)
+  static const Color warning = Color(0xFFF5A623); // hsl(38 92% 50%)
+  static const Color destructive = Color(0xFFE03131); // hsl(0 72% 51%)
+  static const Color info = Color(0xFF3D9DF2); // hsl(210 100% 56%)
+
+  // Makro grafik renkleri — web `--macro-*` (dark) değerleri.
+  static const Color macroProtein = Color(0xFF4DADFF); // hsl(210 100% 60%)
+  static const Color macroCarbs = Color(0xFFF7B84D); // hsl(38 95% 55%)
+  static const Color macroFat = Color(0xFFF25D8A); // hsl(340 85% 58%)
 }
 
 class AppTheme {

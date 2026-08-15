@@ -99,11 +99,45 @@
 
 ---
 
-## ⏳ Faz 3 — Analitik + Ayarlar (sıradaki)
+## ✅ Faz 3 — Analitik + Ayarlar (tamamlandı: 2026-08-15)
 
 **Plan:** `flutter-plan-phase3-analytics-settings.md`
 
+### Yapıldı
+- [x] **AnalyticsRepository** — `AnalyticsPeriod` enum (week/month/threeMonths), `DailyStats`/`WeightPoint`/`AverageStats`/`AnalyticsData` value sınıfları; test edilebilir static metotlar (`dateRange`, `buildDays`, `aggregateDaily`, `computeAverages`, `buildWeightTrend`) + `fetch()` (3 paralel Supabase sorgusu); `analyticsRepositoryProvider`, `analyticsPeriodProvider` (StateProvider), `analyticsDataProvider` (FutureProvider.family<AnalyticsData,String>) — web `useAnalyticsData` parity
+- [x] **AnalyticsPage** (`analytics_page.dart`) — dönem SegmentedButton (hafta/ay/3ay); `_Targets.fromProfile` (eksikte AppConstants varsayılanları); `_StatGrid` (4 kart: ortalama kalori/su/protein + kilo değişimi — web renk kuralları); `_CaloriesChartCard` (fl_chart LineChart, hedefin %'si, %100 kesik çizgi); `_MacrosChartCard` (BarChart P/K/Y gruplu + %100 kesik çizgi + lejant); `_MacroAveragesCard` (LinearProgressIndicator satırları); `_WeightTrendCard` (LineChart + ilk/değişim/son); `_SummaryCard` (verili gün/toplam gün)
+- [x] **SettingsPage** (`settings_page.dart`) — AppBar `settings.title`; tema SwitchListTile (dark toggle → themeModeProvider); 5 bölüm (Profil/Uygulama/Veri/Hesap/Hakkında) `_SectionHeader` + Card `_Tile` satırları; `_LanguageTile` (12 dil DropdownButton → context.setLocale); `_CameraTile` (SegmentedButton in_app/native → cameraPreferenceProvider); sağlık sorumluluk reddi kartı
+- [x] **Ayarlar dialogları** (`lib/features/settings/widgets/`):
+  - `personal_info_dialog.dart` — ad/boy/kilo/hedef kilo kontrolleri, Gender RadioGroup, doğum tarihi (showDatePicker), canlı BMI rozeti (Calculations.bmi + bmi_category rengi); kayıt: autoRecalculateMacros && kilo değişti && doğum tarihi var → macroCalculatorProvider.calculate (previousMacros/previousWeightKg) ile bmr/tdee/hedefler eklenir
+  - `goals_dialog.dart` — kalori/su/protein/karb/faz kontrolleri, ActivityLevel + Goal RadioGroup; `_aiCalculate` macroCalculatorProvider.calculate ile 5 kontrolü doldurur; kayıt: activity_level/goal.name + 5 hedef
+  - `notifications_dialog.dart` — push/email bool (varsayılan true), tartılma sıklığı (varsayılan 7), autoRecalc bool; kayıt: push_notifications_enabled/email_notifications_enabled/weigh_in_frequency_days/auto_recalculate_macros (per-type notification_preferences tablo CRUD → Faz 5)
+  - `password_dialog.dart` — hardcoded TR string'ler (web parity); uzunluk <6 → auth.validation.passwordLength, uyuşmaz → auth.validation.passwordMismatch, else authRepositoryProvider.updatePassword
+- [x] **Veri aktarımı** — `DataTransferRepository` (exportData: 8 paralel sorgu → JsonEncoder.withIndent; importData: doğrulama + food dedup name+created_by, food_nutrition remap, meal/water/weight dedup, Map<String,int> sayım döndürür; _stripIds) + `dataTransferRepositoryProvider`
+- [x] **TransferDialogs** (`transfer_dialogs.dart`) — export: exportData → getTemporaryDirectory → `calorix-backup-{yyyy-MM-dd}.json` → Share.shareXFiles; import: FilePicker.platform.pickFiles (json, withData) → importData → SnackBar; FormatException → settings.import.fileNote
+- [x] **AboutPage** (`about_page.dart`) — uygulama bilgi kartı (logo + CaloriX + about.subtitle + versiyon rozeti `about.version.tr(namedArgs:{'version':appVersion})`), özellikler kartı (AI/barkod/takip/analitik/bildirim madde satırları), geliştirici kartı (Gökhan Tekyıldırım + rol + mailto InkWell → url_launcher), powered-by kartı (Pollinations AI), footer kartı (madeWith + Heart(destructive) + inTurkey + copyright)
+- [x] **CameraPreference** (`lib/core/config/camera_preference.dart`) — `enum CameraPreference { inApp('in_app'), native('native'); fromValue }` + `CameraPreferenceNotifier` (shared_preferences `camera_preference` anahtarı, varsayılan inApp) + `cameraPreferenceProvider` — Faz 4'te tüketilecek
+- [x] **url_launcher** ^6.3.1 pubspec'e eklendi (mailto için); 6.3.2 çözümlendi
+- [x] **Android build — compileSdk 36 çakışması çözümü:** file_picker 8.x ve image_picker_android transitif olarak `flutter_plugin_android_lifecycle` çeker; 2.0.35'in yayınlanmış AAR'i `minCompileSdk=36` gerektiriyor, ancak AGP 9.1 + Flutter 3.47'de `flutter.compileSdkVersion=34` ve AGP 9 compileSdk değerini değerlendirme sırasında erken sonlandırdığı için plugin modüllerinin compileSdk değerini 36'ya yükseltmek zamanlama hatası veriyor ("too late to set compileSdk"). Çözüm: `dependency_overrides` ile `flutter_plugin_android_lifecycle: 2.0.24` (compileSdk 34 ile yayınlanan son sürüm) sabitlendi — AAR metadata kontrolü artık geçiyor. Not: Faz 5'te Flutter/AGP yükseltildiğinde override kaldırılabilir.
+
+### Doğrulama sonuçları
+- [x] `flutter analyze` — **0 sorun**
+- [x] `flutter test` — **61/61 geçti** (46 eski + 15 yeni: `analytics_repository_test.dart` — dateRange [hafta/ay/3ay/şubat28/saat-sıfır] / buildDays [hafta kırpma, ay etiketleri, başlangıç>bugün boş] / aggregateDaily [yuvarlama kuralları, boş] / computeAverages [tipe göre bölen, boş, 1 ondalık] / buildWeightTrend [sıralı, boş])
+- [x] `flutter build web --release` — **✓ Built build/web**
+- [x] `flutter build apk --debug` — **✓ Built app-debug.apk** (117.7s)
+
+### Kalan / notlar
+- Canlı Supabase testi yapılmadı (DB deaktif) — kullanıcı tüm fazlar bitince test edecek
+- Bildirim tercihleri per-type (`notification_preferences` tablo CRUD) Faz 5'e ertelendi
+- `camera_preference` ayarı oluşturuldu ama henüz tüketilmiyor — Faz 4 (in-app kamera) ile bağlanacak
+- `flutter_plugin_android_lifecycle` 2.0.24 pin'i geçici — Faz 5'te Flutter/AGP yükseltince kaldırılacak
+
 ---
 
-## Faz 3-5 — Beklemede
-Planlar hazır: `flutter-plan-phase3-analytics-settings.md`, `flutter-plan-phase4-ai.md`, `flutter-plan-phase5-release.md`
+## ⏳ Faz 4 — AI + Kamera + Barkod (sıradaki)
+
+**Plan:** `flutter-plan-phase4-ai.md`
+
+---
+
+## Faz 5 — Beklemede
+Plan hazır: `flutter-plan-phase5-release.md`

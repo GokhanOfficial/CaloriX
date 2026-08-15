@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "알림 설정",
-      "desc": "알림 채널 및 시간 구성"
+      "desc": "알림 채널 및 시간 구성",
+      "push": "푸시 알림",
+      "email": "이메일 알림",
+      "weighInFrequency": "계량 빈도(일)",
+      "autoRecalculate": "매크로 자동 재계산",
+      "days": "일"
     },
     "import": {
       "title": "데이터 가져오기",
@@ -301,6 +306,12 @@
       "aiSuccess": "AI 계산 완료",
       "aiUpdate": "AI 매크로 업데이트",
       "error": "오류가 발생했습니다"
+    },
+    "language": "언어",
+    "camera": {
+      "title": "기본 카메라",
+      "inApp": "앱 내",
+      "native": "휴대폰 카메라"
     }
   },
   "dashboard": {

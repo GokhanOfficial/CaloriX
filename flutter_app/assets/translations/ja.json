@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "通知設定",
-      "desc": "通知チャンネルとタイミングを設定"
+      "desc": "通知チャンネルとタイミングを設定",
+      "push": "プッシュ通知",
+      "email": "メール通知",
+      "weighInFrequency": "計測頻度（日）",
+      "autoRecalculate": "マクロを自動再計算",
+      "days": "日"
     },
     "import": {
       "title": "データをインポート",
@@ -301,6 +306,12 @@
       "aiSuccess": "AI計算完了",
       "aiUpdate": "AIマクロ更新",
       "error": "エラーが発生しました"
+    },
+    "language": "言語",
+    "camera": {
+      "title": "デフォルトカメラ",
+      "inApp": "アプリ内",
+      "native": "スマホのカメラ"
     }
   },
   "dashboard": {

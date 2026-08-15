@@ -16,8 +16,6 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    project.evaluationDependsOn(":app")
-
     // camera_android_camerax (CameraX 1.5.3) jspecify derleme hatası için
     // eksik transitif bağımlılığı plugin sonrası ekle.
     // Bkz: https://github.com/flutter/flutter/issues/ — camera_android_camerax known issue

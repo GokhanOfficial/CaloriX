@@ -285,7 +285,12 @@
     },
     "notifications": {
       "title": "Notification Settings",
-      "desc": "Configure notification channels and timing"
+      "desc": "Configure notification channels and timing",
+      "push": "Push Notifications",
+      "email": "Email Notifications",
+      "weighInFrequency": "Weigh-in Frequency (days)",
+      "autoRecalculate": "Auto-recalculate Macros",
+      "days": "days"
     },
     "import": {
       "title": "Import Data",
@@ -301,6 +306,12 @@
       "aiSuccess": "AI Calculation Completed",
       "aiUpdate": "AI Macro Update",
       "error": "An error occurred"
+    },
+    "language": "Language",
+    "camera": {
+      "title": "Default Camera",
+      "inApp": "In-app",
+      "native": "Phone camera"
     }
   },
   "dashboard": {

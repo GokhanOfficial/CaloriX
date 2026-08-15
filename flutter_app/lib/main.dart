@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'core/config/env.dart';
@@ -11,6 +12,9 @@ Future<void> main() async {
   await EasyLocalization.ensureInitialized();
   await Env.load();
   await initSupabase();
+  // Analitik / tarih etiketleri için DateFormat locale verileri
+  // (intl date_symbol_data_local — tüm desteklenen diller).
+  await initializeDateFormatting();
 
   runApp(
     ProviderScope(
