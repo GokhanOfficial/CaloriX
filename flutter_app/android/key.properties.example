@@ -1,0 +1,19 @@
+# Play Console upload keystore yapılandırması.
+#
+# Bu dosyayı "key.properties" olarak kopyalayıp kendi keystore
+# bilgilerinizle doldurun. key.properties gitignore'da (asla commit
+# etmeyin). build.gradle.kts bu dosya mevcutsa release imzalamasını
+# yapar; yoksa debug anahtarına düşer.
+#
+# Keystore üretimi:
+#   keytool -genkey -v -keystore upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Aynı keystore ile imzalanmış AAB'ler Play Console'da aynı uygulama
+# altında güncelleme sayılır — keystore'u güvenli bir yerde yedekleyin
+# (kaybolursa uygulama güncellenemez).
+
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=/absolute/or/relative/path/to/upload-keystore.jks

@@ -16,7 +16,7 @@ export interface MealEntry {
   calculated_fat: number;
   entry_date: string;
   note: string | null;
-  source: "barcode" | "photo" | "text" | "manual";
+  source: "photo" | "text" | "manual";
   created_at: string;
 }
 

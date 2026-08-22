@@ -1,0 +1,126 @@
+name: calorix
+description: "CaloriX — Akıllı kalori, makro takip ve AI beslenme asistanı (Flutter)"
+publish_to: 'none'
+version: 1.2.0+2
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Backend
+  supabase_flutter: ^2.10.3
+
+  # State management / DI
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # i18n
+  easy_localization: ^3.0.7+1
+
+  # Local storage
+  shared_preferences: ^2.5.3
+
+  # Models codegen
+  json_annotation: ^4.12.0
+
+  # Charts
+  fl_chart: ^0.69.2
+
+  # Camera / images
+  camera: ^0.11.1
+  image_picker: ^1.1.2
+
+  # Env config
+  flutter_dotenv: ^5.2.1
+
+  # Markdown (AI chat)
+  flutter_markdown: ^0.7.4
+
+  # Share / export
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
+  file_picker: ^8.1.4
+
+  # External links (mailto, web)
+  url_launcher: ^6.3.1
+
+  # Local notifications
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
+
+  # Sürüm / zorunlu güncelleme kontrolü (GitHub Releases manifesti)
+  package_info_plus: ^8.3.0
+  http: ^1.4.0
+
+  # Utils
+  intl: ^0.20.2
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  json_serializable: ^6.9.4
+  mocktail: ^1.0.4
+
+  # Release görselleri (Faz 5) — kod üretimi için, runtime bağımlılık değil.
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
+
+# file_picker 8.x ve image_picker_android, transitif olarak flutter_plugin_android_lifecycle
+# çeker. 2.0.35'in yayınlanmış AAR'i minCompileSdk=36 gerektiriyor; AGP 9.1 + Flutter 3.47'de
+# flutter.compileSdkVersion=34 olduğundan ve AGP 9 compileSdk değerini değerlendirme sırasında
+# erken sonlandırdığından, plugin modüllerinin compileSdk değerini 36'ya yükseltmek zamanlama
+# hatası veriyor. 2.0.24 (compileSdk 34 ile yayınlanan son sürüm) ile sabitleyerek AAR
+# metadata kontrolünü geçiyoruz. Not: Faz 5'te Flutter/AGP yükseltildiğinde kaldırılabilir.
+dependency_overrides:
+  flutter_plugin_android_lifecycle: 2.0.24
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/translations/
+    - assets/images/
+
+# --- Faz 5: Uygulama ikonu (flutter_launcher_icons) ---
+# Üretim: `dart run flutter_launcher_icons`
+# Kaynak görsel: assets/images/logo.png (1024x1024).
+flutter_launcher_icons:
+  android: true
+  # iOS Runner klasörü bu projede mevcut değil (Android/web odaklı);
+  # bu yüzden iOS ikon üretimi devre dışı. iOS hedeflenirse ios: true yapıp
+  # flutter create --platforms ios ile Runner şablonunu ekleyin.
+  ios: false
+  image_path: assets/images/logo.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#00C7B7"
+  adaptive_icon_foreground: assets/images/logo.png
+  web:
+    generate: true
+    image_path: assets/images/logo.png
+    background_color: "#00C7B7"
+    theme_color: "#00C7B7"
+
+# --- Faz 5: Açılış ekranı (flutter_native_splash) ---
+# Üretim: `dart run flutter_native_splash:create`
+# Arka plan: CaloriX teal (AppColors.seed 0xFF00C7B7).
+flutter_native_splash:
+  color: "#00C7B7"
+  image: assets/images/logo.png
+  android_12:
+    color: "#00C7B7"
+    image: assets/images/logo.png
+  android: true
+  ios: true
+  web: true

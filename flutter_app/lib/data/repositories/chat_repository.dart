@@ -1,0 +1,272 @@
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/chat_message.dart';
+import '../supabase/supabase_client_provider.dart';
+
+/// AI sohbet edge fonksiyonu ve `chat_threads` / `chat_messages` CRUD.
+///
+/// Web referansı: `src/pages/ChatPage.tsx`. Çağrı imzaları, sorgu şekilleri
+/// ve `ai-chat` edge fonksiyon gövdesi birebir eşleşir:
+///
+///  - Kullanıcı mesajı ÖNCE `chat_messages`'a insert edilir, sonra
+///    `supabase.functions.invoke('ai-chat', body: {mode, threadId, locale,
+///    language, timeZone, currentDate})` çağrılır. Edge fonksiyonu son 50
+///    mesajı DB'den okur — kullanıcı metni gövdeye gönderilmez.
+///  - Tek invoke, stream/poll yok. Fonksiyon asistan cevabını (araç döngüsü
+///    dahil) tamamen üretip `{message: <row>}` döndürür.
+///  - Ekler `chat-attachments` private bucket'ına yüklenir, 1 saatlik imzalı
+///    URL `attachments` JSONB'inde saklanır.
+class ChatRepository {
+  ChatRepository(this._client);
+
+  final SupabaseClient _client;
+
+  static const _bucket = 'chat-attachments';
+  static const _pageSize = 10;
+
+  String _nowIso() => DateTime.now().toUtc().toIso8601String();
+
+  /// `new Date().toLocaleDateString("en-CA")` → `yyyy-MM-dd` (web parity).
+  static String localDateOnly(DateTime now) {
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  /// En yeni arşivlenmemiş thread'i bulur, yoksa oluşturur (web `ensureThread`).
+  Future<String> ensureThread(String userId, {String? title}) async {
+    final existing = await _client
+        .from('chat_threads')
+        .select('id')
+        .eq('user_id', userId)
+        .filter('archived_at', 'is', null)
+        .order('updated_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    final existingId = existing?['id'] as String?;
+    if (existingId != null) return existingId;
+
+    final created = await _client
+        .from('chat_threads')
+        .insert({
+          'user_id': userId,
+          'title': title ?? 'chat.newThread',
+        })
+        .select('id')
+        .single();
+
+    return created['id'] as String;
+  }
+
+  /// En yeni `pageSize` mesajı yükler (web `loadInitial`). Eskiden yeniye
+  /// sıralayıp alır, UI için ters çevirir (eskiden yeniye döndürür).
+  /// Ayrıca eklerin imzalı URL'lerini tazeler.
+  Future<({List<ChatMessage> messages, bool hasMore})> loadInitial(
+    String userId,
+    String threadId,
+  ) async {
+    final rows = await _client
+        .from('chat_messages')
+        .select()
+        .eq('thread_id', threadId)
+        .eq('user_id', userId)
+        .filter('deleted_at', 'is', null)
+        .order('created_at', ascending: false)
+        .limit(_pageSize);
+
+    final messages =
+        (rows as List).map((r) => ChatMessage.fromJson(r as Map<String, dynamic>)).toList();
+    final signed = await _signAttachments(messages);
+    final reversed = signed.reversed.toList();
+    return (messages: reversed, hasMore: rows.length == _pageSize);
+  }
+
+  /// Daha eski mesajları yükler (web `loadMore`). `oldestCreatedAt`'tan
+  /// daha eskileri çeker. UI scroll konumunu korumalıdır.
+  Future<({List<ChatMessage> messages, bool hasMore})> loadMore(
+    String userId,
+    String threadId,
+    String oldestCreatedAt,
+  ) async {
+    final rows = await _client
+        .from('chat_messages')
+        .select()
+        .eq('thread_id', threadId)
+        .eq('user_id', userId)
+        .filter('deleted_at', 'is', null)
+        .lt('created_at', oldestCreatedAt)
+        .order('created_at', ascending: false)
+        .limit(_pageSize);
+
+    final messages =
+        (rows as List).map((r) => ChatMessage.fromJson(r as Map<String, dynamic>)).toList();
+    final signed = await _signAttachments(messages);
+    final reversed = signed.reversed.toList();
+    return (messages: reversed, hasMore: rows.length == _pageSize);
+  }
+
+  /// Kullanıcı mesajını insert eder (web `sendMessage` içi). Ekleri önce
+  /// storage'a yükler. Dönüş: DB'den dönen tam satır.
+  Future<ChatMessage> insertUserMessage(
+    String userId,
+    String threadId, {
+    required String content,
+    List<({String name, String type, List<int> bytes})>? files,
+  }) async {
+    final attachments = await _uploadAttachments(userId, threadId, files ?? []);
+
+    final saved = await _client
+        .from('chat_messages')
+        .insert({
+          'thread_id': threadId,
+          'user_id': userId,
+          'role': 'user',
+          'content': content.trim().isEmpty ? null : content.trim(),
+          'attachments': attachments,
+        })
+        .select()
+        .single();
+
+    return ChatMessage.fromJson(saved);
+  }
+
+  /// Asistanı çağırır (web `invokeAssistant`). Gövde alan adları birebir:
+  /// `{mode, threadId, locale, language, timeZone, currentDate}`.
+  /// Dönüş: ekleri imzalanmış asistan mesajı (boşsa null).
+  Future<ChatMessage?> invokeAssistant({
+    required String threadId,
+    required String locale,
+    required String language,
+    required String timeZone,
+    required String currentDate,
+  }) async {
+    final response = await _client.functions.invoke(
+      'ai-chat',
+      body: {
+        'mode': 'chat',
+        'threadId': threadId,
+        'locale': locale,
+        'language': language,
+        'timeZone': timeZone,
+        'currentDate': currentDate,
+      },
+    );
+
+    final data = response.data as Map<String, dynamic>?;
+    final message = data?['message'] as Map<String, dynamic>?;
+    if (message == null) return null;
+
+    final signed = await _signAttachments([ChatMessage.fromJson(message)]);
+    return signed.first;
+  }
+
+  /// Görünür sohbeti temizler (web `clearVisibleChat`) — thread'i arşivler.
+  Future<void> archiveThread(String threadId) async {
+    await _client
+        .from('chat_threads')
+        .update({'archived_at': _nowIso()})
+        .eq('id', threadId);
+  }
+
+  // --- ekler (storage) -------------------------------------------------
+
+  /// Dosyaları `chat-attachments` bucket'ına yükler, imzalı URL ile birlikte
+  /// `attachments` JSONB dizisi döndürür (web `uploadAttachments`).
+  Future<List<Map<String, dynamic>>> _uploadAttachments(
+    String userId,
+    String threadId,
+    List<({String name, String type, List<int> bytes})> files,
+  ) async {
+    final result = <Map<String, dynamic>>[];
+    for (final file in files) {
+      final ext = (file.name.split('.').lastOrNull ?? 'jpg').toLowerCase();
+      final path = '$userId/$threadId/${_randomUuid()}.$ext';
+      final bytes = Uint8List.fromList(file.bytes);
+      await _client.storage.from(_bucket).uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: file.type, upsert: false),
+          );
+      final signedUrl = await _client.storage
+          .from(_bucket)
+          .createSignedUrl(path, 60 * 60);
+      result.add({
+        'path': path,
+        'name': file.name,
+        'type': file.type,
+        'size': bytes.length,
+        'signedUrl': signedUrl,
+      });
+    }
+    return result;
+  }
+
+  /// Mesajlardaki eklerin imzalı URL'lerini tazeler (web `signAttachments`).
+  Future<List<ChatMessage>> _signAttachments(List<ChatMessage> messages) async {
+    final out = <ChatMessage>[];
+    for (final m in messages) {
+      if (m.attachments.isEmpty) {
+        out.add(m);
+        continue;
+      }
+      final newAttachments = <ChatAttachment>[];
+      for (final a in m.attachments) {
+        // DB'de saklanan signedUrl yükleme anından kalma ve 1 saat içinde
+        // süresi dolar → her yüklemede taze imzalı URL üret (web `signAttachments`
+        // da koşulsuz yeniden imzalar). Aksi halde eski URL → Storage 400.
+        final signedUrl = await _client.storage
+            .from(_bucket)
+            .createSignedUrl(a.path, 60 * 60);
+        newAttachments.add(ChatAttachment(
+          path: a.path,
+          name: a.name,
+          type: a.type,
+          size: a.size,
+          signedUrl: signedUrl,
+        ));
+      }
+      out.add(ChatMessage(
+        id: m.id,
+        threadId: m.threadId,
+        userId: m.userId,
+        role: m.role,
+        content: m.content,
+        attachments: newAttachments,
+        toolCalls: m.toolCalls,
+        toolResults: m.toolResults,
+        createdAt: m.createdAt,
+        deletedAt: m.deletedAt,
+      ));
+    }
+    return out;
+  }
+
+  /// Crypto.randomUUID benzeri UUID v4 — JS interop kullanmadan saf Dart.
+  String _randomUuid() {
+    final r = Random();
+    final hex = List.generate(
+      32,
+      (_) => r.nextInt(16).toRadixString(16),
+    ).join();
+    // version + variant baytları
+    final withVersion =
+        '${hex.substring(0, 12)}4${hex.substring(13, 16)}${(8 + r.nextInt(4)).toRadixString(16)}${hex.substring(17)}';
+    return '${withVersion.substring(0, 8)}-${withVersion.substring(8, 12)}-'
+        '${withVersion.substring(12, 16)}-${withVersion.substring(16, 20)}-'
+        '${withVersion.substring(20, 32)}';
+  }
+}
+
+final chatRepositoryProvider = Provider<ChatRepository>((ref) {
+  return ChatRepository(ref.watch(supabaseClientProvider));
+});
+
+/// Aktif thread id'si (ChatPage yerel durumu — provider'a taşındı çünkü
+/// `invokeAssistant` ve `insertUserMessage` farklı metotlarda thread'i paylaşır).
+final activeChatThreadIdProvider = StateProvider<String?>((ref) => null);

@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ENUM TYPES
 CREATE TYPE public.meal_type AS ENUM ('breakfast', 'lunch', 'dinner', 'snack');
-CREATE TYPE public.food_source AS ENUM ('barcode', 'photo', 'text', 'manual');
+CREATE TYPE public.food_source AS ENUM ('photo', 'text', 'manual');
 CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
 
 -- PROFILES TABLE
@@ -50,7 +50,6 @@ ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 -- FOODS TABLE
 CREATE TABLE public.foods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  barcode TEXT UNIQUE,
   name TEXT NOT NULL,
   brand TEXT,
   serving_size_g NUMERIC(8,2) DEFAULT 100,
@@ -64,7 +63,6 @@ CREATE TABLE public.foods (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.foods ENABLE ROW LEVEL SECURITY;
-CREATE INDEX idx_foods_barcode ON public.foods(barcode);
 CREATE INDEX idx_foods_name ON public.foods USING gin(to_tsvector('turkish', name));
 CREATE INDEX idx_foods_popularity ON public.foods(popularity_count DESC);
 

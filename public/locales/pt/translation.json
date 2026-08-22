@@ -75,7 +75,6 @@
     "required": "obrigatório",
     "customAmount": "Quantidade personalizada",
     "addWithAI": "Adicionar com IA",
-    "addWithBarcode": "Adicionar por código",
     "addFood": "Adicionar alimento",
     "editFood": "Editar alimento",
     "searchFood": "Buscar alimento",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Carb/100g",
     "fatPer100g": "Gord/100g",
-    "barcode": {
-      "title": "Adicionar por código",
-      "scanning": "Escaneando...",
-      "productFound": "Produto encontrado",
-      "productNotFound": "Produto não encontrado",
-      "tryAgain": "Tentar novamente",
-      "manualEntry": "Entrada manual"
-    },
     "weight": {
       "title": "Registrar peso",
       "currentWeight": "Peso atual",
@@ -323,8 +314,6 @@
     "recordWeight": "Registre seu peso",
     "quickAdd": "Adicionar rápido",
     "quick": {
-      "barcode": "Código de barras",
-      "scan": "Escanear produto",
       "search": "Buscar",
       "findFood": "Encontrar alimento",
       "ai": "Adicionar com IA",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Recursos",
       "ai": "Reconhecimento de alimentos por IA (foto e texto)",
-      "barcode": "Leitura de código de barras",
       "tracker": "Controle de água e peso",
       "analytics": "Análises detalhadas e gráficos",
       "notifications": "Lembretes inteligentes"
@@ -394,8 +382,7 @@
       "empty": "Nenhum alimento adicionado"
     },
     "tabs": {
-      "search": "Buscar",
-      "barcode": "Código de barras"
+      "search": "Buscar"
     },
     "search": {
       "title": "Buscar alimento",
@@ -403,12 +390,6 @@
       "noResults": "Sem resultados",
       "promptTitle": "Buscar alimento no banco de dados",
       "promptDesc": "Digite pelo menos 2 caracteres"
-    },
-    "barcode": {
-      "title": "Escanear código",
-      "scanTitle": "Escanear com câmera",
-      "scanDesc": "Mostre o código de barras para a câmera",
-      "openCamera": "Abrir câmera"
     },
     "manual": {
       "title": "Entrada manual",
