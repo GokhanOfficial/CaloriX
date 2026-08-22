@@ -70,12 +70,11 @@
     "noResults": "Nessun risultato",
     "analyzeWithAI": "Analizza con IA",
     "reanalyze": "Ri-analizza",
-    "example": "es.",
+    "example": "es. {example}",
     "optional": "opzionale",
     "required": "obbligatorio",
     "customAmount": "Quantità personalizzata",
     "addWithAI": "Aggiungi con IA",
-    "addWithBarcode": "Aggiungi con codice",
     "addFood": "Aggiungi alimento",
     "editFood": "Modifica alimento",
     "searchFood": "Cerca alimento",
@@ -109,45 +108,16 @@
     "aiRequiresInternet": "L'analisi IA richiede internet",
     "analysisFailed": "Analisi fallita",
     "selectAtLeastOne": "Seleziona almeno un alimento",
-    "foodAdded": "Alimento aggiunto",
-    "foodsAdded": "alimenti aggiunti",
+    "foodAdded": "Alimento aggiunto ({count})",
+    "foodsAdded": "{count} alimenti aggiunti",
     "saveFailed": "Salvataggio fallito",
     "inputText": "Testo inserito",
-    "confidence": "affidabilità",
+    "confidence": "{percent}% affidabilità",
     "calories": "Cal",
     "calPer100g": "Cal/100g",
     "proPer100g": "Pro/100g",
     "carbPer100g": "Carb/100g",
     "fatPer100g": "Grass/100g",
-    "barcode": {
-      "title": "Aggiungi con codice",
-      "scanning": "Scansione...",
-      "productFound": "Prodotto trovato",
-      "productNotFound": "Prodotto non trovato",
-      "tryAgain": "Riprova",
-      "manualEntry": "Inserimento manuale",
-      "scanDesc": "Inquadra un codice a barre con la fotocamera per scansionarlo automaticamente",
-      "manualPlaceholder": "Inserisci il codice a barre manualmente",
-      "search": "Cerca",
-      "cameraError": "Impossibile accedere alla fotocamera. Controlla i permessi.",
-      "searching": "Ricerca nel database...",
-      "productNotFoundDesc": "Questo prodotto non è stato trovato nel database. Analizzalo con l'IA o aggiungilo manualmente.",
-      "aiPrompt": "Dettagli aggiuntivi (facoltativo) — es. marca o dimensione",
-      "aiPromptRequired": "Inserisci dettagli aggiuntivi o scatta una foto per l'analisi con IA.",
-      "aiTextPrompt": "Numero codice a barre: {0}. Stima i valori nutrizionali del prodotto con questo codice.",
-      "barcodeLabel": "Codice a barre: {0}",
-      "foundInDb": "Trovato nel database",
-      "reScan": "Scansiona di nuovo",
-      "brand": "Marca",
-      "servingSize": "Porzione (g)",
-      "extendedNutrition": "Nutrizione estesa",
-      "saturatedFat": "Grassi saturi (g)",
-      "transFat": "Grassi trans (g)",
-      "sugars": "Zuccheri (g)",
-      "salt": "Sale (g)",
-      "novaScore": "Punteggio NOVA",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "Registra peso",
       "currentWeight": "Peso attuale",
@@ -173,7 +143,11 @@
     "title": "Notifiche",
     "new": "nuovo",
     "markAllRead": "Segna tutto letto",
-    "empty": "Nessuna notifica"
+    "empty": "Nessuna notifica",
+    "breakfastTitle": "È ora di colazione ☀️",
+    "breakfastBody": "Inizia bene la giornata: registra la colazione",
+    "snoozeHour": "Rinvia di 1 ora",
+    "skipBreakfast": "Salterò la colazione"
   },
   "auth": {
     "signIn": "Accedi",
@@ -314,7 +288,11 @@
       "email": "Notifiche Email",
       "weighInFrequency": "Frequenza di pesatura (giorni)",
       "autoRecalculate": "Ricalcola automaticamente le macro",
-      "days": "giorni"
+      "days": "giorni",
+      "reminderTitle": "Promemoria calorie mattutino",
+      "reminderDesc": "Ricevi un promemoria colazione ogni giorno all'ora scelta",
+      "reminderTime": "Ora del promemoria",
+      "webOnlyInApp": "Sul web i promemoria vengono mostrati solo con l'app aperta"
     },
     "import": {
       "title": "Importa dati",
@@ -358,8 +336,6 @@
     "recordWeight": "Registra il tuo peso",
     "quickAdd": "Aggiungi veloce",
     "quick": {
-      "barcode": "Codice a barre",
-      "scan": "Scansiona prodotto",
       "search": "Cerca",
       "findFood": "Trova alimento",
       "ai": "Aggiungi con IA",
@@ -395,7 +371,6 @@
     "features": {
       "title": "Funzionalità",
       "ai": "Riconoscimento alimenti con IA (foto e testo)",
-      "barcode": "Scansione codice a barre",
       "tracker": "Monitoraggio acqua e peso",
       "analytics": "Analisi dettagliate e grafici",
       "notifications": "Promemoria intelligenti"
@@ -429,8 +404,7 @@
       "empty": "Nessun alimento aggiunto"
     },
     "tabs": {
-      "search": "Cerca",
-      "barcode": "Codice a barre"
+      "search": "Cerca"
     },
     "search": {
       "title": "Cerca alimento",
@@ -438,12 +412,6 @@
       "noResults": "Nessun risultato",
       "promptTitle": "Cerca alimento nel database",
       "promptDesc": "Inserisci almeno 2 caratteri"
-    },
-    "barcode": {
-      "title": "Scansiona codice",
-      "scanTitle": "Scansiona con fotocamera",
-      "scanDesc": "Mostra il codice a barre alla fotocamera",
-      "openCamera": "Apri fotocamera"
     },
     "manual": {
       "title": "Inserimento manuale",
@@ -528,5 +496,17 @@
       "clear": "Impossibile cancellare la chat"
     },
     "welcomeMessage": "Ciao! Sono CaloriX AI. Posso aiutarti a seguire i tuoi pasti, il consumo di acqua, il peso e gli obiettivi."
+  },
+  "updates": {
+    "requiredTitle": "Aggiornamento obbligatorio",
+    "requiredBody": "CaloriX richiede la versione {version}. I tuoi dati sono al sicuro: installa l'aggiornamento per continuare.",
+    "optionalTitle": "Nuova versione disponibile",
+    "optionalBody": "CaloriX {version} è pronta. Aggiornare ora?",
+    "updateNow": "Aggiorna",
+    "later": "Più tardi",
+    "recheck": "Ricontrolla",
+    "checkFailed": "Verifica aggiornamenti non riuscita",
+    "notesTitle": "Novità",
+    "openFailed": "Impossibile aprire la pagina di download"
   }
 }

@@ -75,7 +75,6 @@
     "required": "erforderlich",
     "customAmount": "Benutzerdefinierte Menge",
     "addWithAI": "Mit KI hinzufügen",
-    "addWithBarcode": "Mit Barcode hinzufügen",
     "addFood": "Lebensmittel hinzufügen",
     "editFood": "Lebensmittel bearbeiten",
     "searchFood": "Lebensmittel suchen",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Khyd/100g",
     "fatPer100g": "Fett/100g",
-    "barcode": {
-      "title": "Mit Barcode hinzufügen",
-      "scanning": "Scannen...",
-      "productFound": "Produkt gefunden",
-      "productNotFound": "Produkt nicht gefunden",
-      "tryAgain": "Erneut versuchen",
-      "manualEntry": "Manuelle Eingabe"
-    },
     "weight": {
       "title": "Gewicht erfassen",
       "currentWeight": "Aktuelles Gewicht",
@@ -323,8 +314,6 @@
     "recordWeight": "Erfassen Sie Ihr Gewicht",
     "quickAdd": "Schnell hinzufügen",
     "quick": {
-      "barcode": "Barcode",
-      "scan": "Produkt scannen",
       "search": "Suchen",
       "findFood": "Lebensmittel finden",
       "ai": "Mit KI hinzufügen",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Funktionen",
       "ai": "KI-gestützte Lebensmittelerkennung (Foto und Text)",
-      "barcode": "Barcode-Scannen",
       "tracker": "Wasser- und Gewichtstracking",
       "analytics": "Detaillierte Analysen und Diagramme",
       "notifications": "Intelligente Erinnerungen"
@@ -394,8 +382,7 @@
       "empty": "Noch keine Lebensmittel hinzugefügt"
     },
     "tabs": {
-      "search": "Suchen",
-      "barcode": "Barcode"
+      "search": "Suchen"
     },
     "search": {
       "title": "Lebensmittel suchen",
@@ -403,12 +390,6 @@
       "noResults": "Keine Ergebnisse",
       "promptTitle": "Lebensmittel in Datenbank suchen",
       "promptDesc": "Mindestens 2 Zeichen eingeben"
-    },
-    "barcode": {
-      "title": "Barcode scannen",
-      "scanTitle": "Mit Kamera scannen",
-      "scanDesc": "Zeigen Sie den Barcode zur Kamera",
-      "openCamera": "Kamera öffnen"
     },
     "manual": {
       "title": "Manuelle Eingabe",

@@ -44,6 +44,11 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
+    } catch (e) {
+      // Ağ hatası / timeout gibi AuthException dışı fırlamalar — yakalanmazsa
+      // auth_page.dart `await`'i patlatır, `_setLoading(false)` çalışmaz,
+      // spinner sonsuz döner. Tek tip AuthException'e sar.
+      return AuthException(e.toString());
     }
   }
 
@@ -54,6 +59,9 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
+    } catch (e) {
+      // Ağ hatası / timeout — signUp ile aynı dayanıklılık.
+      return AuthException(e.toString());
     }
   }
 

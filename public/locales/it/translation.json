@@ -75,7 +75,6 @@
     "required": "obbligatorio",
     "customAmount": "Quantità personalizzata",
     "addWithAI": "Aggiungi con IA",
-    "addWithBarcode": "Aggiungi con codice",
     "addFood": "Aggiungi alimento",
     "editFood": "Modifica alimento",
     "searchFood": "Cerca alimento",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Carb/100g",
     "fatPer100g": "Grass/100g",
-    "barcode": {
-      "title": "Aggiungi con codice",
-      "scanning": "Scansione...",
-      "productFound": "Prodotto trovato",
-      "productNotFound": "Prodotto non trovato",
-      "tryAgain": "Riprova",
-      "manualEntry": "Inserimento manuale"
-    },
     "weight": {
       "title": "Registra peso",
       "currentWeight": "Peso attuale",
@@ -323,8 +314,6 @@
     "recordWeight": "Registra il tuo peso",
     "quickAdd": "Aggiungi veloce",
     "quick": {
-      "barcode": "Codice a barre",
-      "scan": "Scansiona prodotto",
       "search": "Cerca",
       "findFood": "Trova alimento",
       "ai": "Aggiungi con IA",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Funzionalità",
       "ai": "Riconoscimento alimenti con IA (foto e testo)",
-      "barcode": "Scansione codice a barre",
       "tracker": "Monitoraggio acqua e peso",
       "analytics": "Analisi dettagliate e grafici",
       "notifications": "Promemoria intelligenti"
@@ -394,8 +382,7 @@
       "empty": "Nessun alimento aggiunto"
     },
     "tabs": {
-      "search": "Cerca",
-      "barcode": "Codice a barre"
+      "search": "Cerca"
     },
     "search": {
       "title": "Cerca alimento",
@@ -403,12 +390,6 @@
       "noResults": "Nessun risultato",
       "promptTitle": "Cerca alimento nel database",
       "promptDesc": "Inserisci almeno 2 caratteri"
-    },
-    "barcode": {
-      "title": "Scansiona codice",
-      "scanTitle": "Scansiona con fotocamera",
-      "scanDesc": "Mostra il codice a barre alla fotocamera",
-      "openCamera": "Apri fotocamera"
     },
     "manual": {
       "title": "Inserimento manuale",

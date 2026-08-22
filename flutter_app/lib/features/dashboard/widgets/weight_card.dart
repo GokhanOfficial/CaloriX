@@ -77,8 +77,8 @@ class WeightCard extends ConsumerWidget {
 
     // Otomatik makro yeniden hesaplama (web handleWeightSubmit parity)
     final p = profile;
-    var description =
-        'dashboard.savedAs'.tr(args: [weight.toStringAsFixed(1)]);
+    var description = 'dashboard.savedAs'
+        .tr(namedArgs: {'weight': weight.toStringAsFixed(1)});
     if (p != null &&
         (p.autoRecalculateMacros ?? false) &&
         weight != p.currentWeightKg) {
@@ -122,8 +122,15 @@ class WeightCard extends ConsumerWidget {
       }
     }
 
-    ref.invalidate(dailyDataProvider);
-    ref.invalidate(profileProvider);
+    // Await zinciri (kilo kaydı → makro yeniden hesap → profil güncelle)
+    // boyunca widget dispose olabilir. `ref` dispose sonrası kullanılamaz
+    // ("Bad state: Cannot use "ref" after the widget was disposed") —
+    // invalidate'i atla; `messenger` await öncesi yakalandığı için snackbar
+    // yine de güvenle gösterilir.
+    if (context.mounted) {
+      ref.invalidate(dailyDataProvider);
+      ref.invalidate(profileProvider);
+    }
     messenger.showSnackBar(
       SnackBar(
         content: Text('${'dashboard.weightSaved'.tr()} — $description'),
@@ -149,7 +156,10 @@ class WeightCard extends ConsumerWidget {
       final date = DateTime.tryParse(latest.entryDate);
       if (date != null) {
         final days = DateTime.now().difference(date).inDays;
-        subtitle = 'dashboard.lastWeight'.tr(args: ['$days']);
+        // JSON `dashboard.lastWeight` named placeholder `{days}` kullanır;
+        // `.tr(args:)` positional `{}` bekler → değiştirme olmaz, literal
+        // `{days}` gösterilirdi. `namedArgs` ile doğru substitute edilir.
+        subtitle = 'dashboard.lastWeight'.tr(namedArgs: {'days': '$days'});
       }
     }
 

@@ -68,7 +68,7 @@ class MealEntry {
   @JsonKey(name: 'photo_url')
   final String? photoUrl;
 
-  /// `food_source` enum: barcode | photo | text | manual
+  /// `food_source` enum: photo | text | manual
   final String source;
 
   @JsonKey(name: 'created_at')

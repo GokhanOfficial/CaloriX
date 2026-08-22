@@ -75,7 +75,6 @@
     "required": "必填",
     "customAmount": "自定义数量",
     "addWithAI": "用AI添加",
-    "addWithBarcode": "用条码添加",
     "addFood": "添加食物",
     "editFood": "编辑食物",
     "searchFood": "搜索食物",
@@ -117,14 +116,6 @@
     "proPer100g": "蛋白质/100克",
     "carbPer100g": "碳水/100克",
     "fatPer100g": "脂肪/100克",
-    "barcode": {
-      "title": "用条码添加",
-      "scanning": "扫描中...",
-      "productFound": "找到产品",
-      "productNotFound": "未找到产品",
-      "tryAgain": "重试",
-      "manualEntry": "手动输入"
-    },
     "weight": {
       "title": "记录体重",
       "currentWeight": "当前体重",
@@ -323,8 +314,6 @@
     "recordWeight": "记录您的体重",
     "quickAdd": "快速添加",
     "quick": {
-      "barcode": "条形码",
-      "scan": "扫描产品",
       "search": "搜索",
       "findFood": "查找食物",
       "ai": "用AI添加",
@@ -360,7 +349,6 @@
     "features": {
       "title": "功能",
       "ai": "AI食物识别（照片和文字）",
-      "barcode": "条形码扫描",
       "tracker": "饮水和体重追踪",
       "analytics": "详细分析和图表",
       "notifications": "智能提醒"
@@ -394,8 +382,7 @@
       "empty": "暂无添加的食物"
     },
     "tabs": {
-      "search": "搜索",
-      "barcode": "条形码"
+      "search": "搜索"
     },
     "search": {
       "title": "搜索食物",
@@ -403,12 +390,6 @@
       "noResults": "无结果",
       "promptTitle": "从数据库搜索食物",
       "promptDesc": "请输入至少2个字符"
-    },
-    "barcode": {
-      "title": "扫描条形码",
-      "scanTitle": "用相机扫描",
-      "scanDesc": "将产品条形码对准相机",
-      "openCamera": "打开相机"
     },
     "manual": {
       "title": "手动输入",

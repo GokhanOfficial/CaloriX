@@ -70,12 +70,11 @@
     "noResults": "Keine Ergebnisse",
     "analyzeWithAI": "Mit KI analysieren",
     "reanalyze": "Erneut analysieren",
-    "example": "z.B.",
+    "example": "z.B. {example}",
     "optional": "optional",
     "required": "erforderlich",
     "customAmount": "Benutzerdefinierte Menge",
     "addWithAI": "Mit KI hinzufügen",
-    "addWithBarcode": "Mit Barcode hinzufügen",
     "addFood": "Lebensmittel hinzufügen",
     "editFood": "Lebensmittel bearbeiten",
     "searchFood": "Lebensmittel suchen",
@@ -109,45 +108,16 @@
     "aiRequiresInternet": "KI-Analyse benötigt Internet",
     "analysisFailed": "Analyse fehlgeschlagen",
     "selectAtLeastOne": "Wählen Sie mindestens ein Lebensmittel",
-    "foodAdded": "Lebensmittel hinzugefügt",
-    "foodsAdded": "Lebensmittel hinzugefügt",
+    "foodAdded": "Lebensmittel hinzugefügt ({count})",
+    "foodsAdded": "{count} Lebensmittel hinzugefügt",
     "saveFailed": "Speichern fehlgeschlagen",
     "inputText": "Eingegebener Text",
-    "confidence": "Vertrauen",
+    "confidence": "{percent}% Vertrauen",
     "calories": "Kal",
     "calPer100g": "Kal/100g",
     "proPer100g": "Pro/100g",
     "carbPer100g": "Khyd/100g",
     "fatPer100g": "Fett/100g",
-    "barcode": {
-      "title": "Mit Barcode hinzufügen",
-      "scanning": "Scannen...",
-      "productFound": "Produkt gefunden",
-      "productNotFound": "Produkt nicht gefunden",
-      "tryAgain": "Erneut versuchen",
-      "manualEntry": "Manuelle Eingabe",
-      "scanDesc": "Richte die Kamera auf den Barcode, um ihn automatisch zu scannen",
-      "manualPlaceholder": "Barcode manuell eingeben",
-      "search": "Suchen",
-      "cameraError": "Kamerazugriff fehlgeschlagen. Bitte Berechtigungen prüfen.",
-      "searching": "Datenbank wird durchsucht …",
-      "productNotFoundDesc": "Dieses Produkt wurde in der Datenbank nicht gefunden. Per KI analysieren oder manuell hinzufügen.",
-      "aiPrompt": "Zusätzliche Details (optional) – z. B. Marke oder Größe",
-      "aiPromptRequired": "Gib zusätzliche Details ein oder mach ein Foto für die KI-Analyse.",
-      "aiTextPrompt": "Barcode-Nummer: {0}. Schätze die Nährwerte des Produkts mit diesem Barcode.",
-      "barcodeLabel": "Barcode: {0}",
-      "foundInDb": "In der Datenbank gefunden",
-      "reScan": "Erneut scannen",
-      "brand": "Marke",
-      "servingSize": "Portionsgröße (g)",
-      "extendedNutrition": "Erweiterte Nährwerte",
-      "saturatedFat": "Gesättigte Fette (g)",
-      "transFat": "Transfette (g)",
-      "sugars": "Zucker (g)",
-      "salt": "Salz (g)",
-      "novaScore": "NOVA-Score",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "Gewicht erfassen",
       "currentWeight": "Aktuelles Gewicht",
@@ -173,7 +143,11 @@
     "title": "Benachrichtigungen",
     "new": "neu",
     "markAllRead": "Alle als gelesen markieren",
-    "empty": "Noch keine Benachrichtigungen"
+    "empty": "Noch keine Benachrichtigungen",
+    "breakfastTitle": "Frühstückszeit ☀️",
+    "breakfastBody": "Starte gut in den Tag — trage dein Frühstück ein",
+    "snoozeHour": "1 Stunde später",
+    "skipBreakfast": "Ich frühstücke nicht"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -314,7 +288,11 @@
       "email": "E-Mail-Benachrichtigungen",
       "weighInFrequency": "Wiege-Häufigkeit (Tage)",
       "autoRecalculate": "Makros automatisch neu berechnen",
-      "days": "Tage"
+      "days": "Tage",
+      "reminderTitle": "Kalorien-Erinnerung am Morgen",
+      "reminderDesc": "Erhalte täglich zur gewählten Zeit eine Frühstückserinnerung",
+      "reminderTime": "Erinnerungszeit",
+      "webOnlyInApp": "Im Web werden Erinnerungen nur bei geöffneter App angezeigt"
     },
     "import": {
       "title": "Daten importieren",
@@ -358,8 +336,6 @@
     "recordWeight": "Erfassen Sie Ihr Gewicht",
     "quickAdd": "Schnell hinzufügen",
     "quick": {
-      "barcode": "Barcode",
-      "scan": "Produkt scannen",
       "search": "Suchen",
       "findFood": "Lebensmittel finden",
       "ai": "Mit KI hinzufügen",
@@ -395,7 +371,6 @@
     "features": {
       "title": "Funktionen",
       "ai": "KI-gestützte Lebensmittelerkennung (Foto und Text)",
-      "barcode": "Barcode-Scannen",
       "tracker": "Wasser- und Gewichtstracking",
       "analytics": "Detaillierte Analysen und Diagramme",
       "notifications": "Intelligente Erinnerungen"
@@ -429,8 +404,7 @@
       "empty": "Noch keine Lebensmittel hinzugefügt"
     },
     "tabs": {
-      "search": "Suchen",
-      "barcode": "Barcode"
+      "search": "Suchen"
     },
     "search": {
       "title": "Lebensmittel suchen",
@@ -438,12 +412,6 @@
       "noResults": "Keine Ergebnisse",
       "promptTitle": "Lebensmittel in Datenbank suchen",
       "promptDesc": "Mindestens 2 Zeichen eingeben"
-    },
-    "barcode": {
-      "title": "Barcode scannen",
-      "scanTitle": "Mit Kamera scannen",
-      "scanDesc": "Zeigen Sie den Barcode zur Kamera",
-      "openCamera": "Kamera öffnen"
     },
     "manual": {
       "title": "Manuelle Eingabe",
@@ -528,5 +496,17 @@
       "clear": "Chat konnte nicht gelöscht werden"
     },
     "welcomeMessage": "Hallo! Ich bin CaloriX AI. Ich kann dir helfen, deine Mahlzeiten, deinen Wasserkonsum, dein Gewicht und deine Ziele zu verfolgen."
+  },
+  "updates": {
+    "requiredTitle": "Update erforderlich",
+    "requiredBody": "CaloriX benötigt Version {version}. Deine Daten sind sicher — installiere das Update, um fortzufahren.",
+    "optionalTitle": "Neue Version verfügbar",
+    "optionalBody": "CaloriX {version} ist da. Jetzt aktualisieren?",
+    "updateNow": "Aktualisieren",
+    "later": "Später",
+    "recheck": "Erneut prüfen",
+    "checkFailed": "Update-Prüfung fehlgeschlagen",
+    "notesTitle": "Neu in dieser Version",
+    "openFailed": "Download-Seite konnte nicht geöffnet werden"
   }
 }

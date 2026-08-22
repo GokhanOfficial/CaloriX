@@ -69,7 +69,6 @@ class Food {
     required this.id,
     required this.name,
     this.brand,
-    this.barcode,
     this.imageUrl,
     this.servingSizeG,
     this.servingDescription,
@@ -82,7 +81,6 @@ class Food {
   final String id;
   final String name;
   final String? brand;
-  final String? barcode;
 
   @JsonKey(name: 'image_url')
   final String? imageUrl;

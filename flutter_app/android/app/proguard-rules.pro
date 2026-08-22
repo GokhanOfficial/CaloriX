@@ -40,12 +40,10 @@
 # EasyLocalization sınıf hiyerarşisini koru.
 -keep class com.github.easylocalization.** { *; }
 
-# --- mobile_scanner / camera / image_picker (native plugin) ---
+# --- camera / image_picker (native plugin) ---
 # Plugin'ler MethodChannel ile konuşur; plugin proxy sınıfları
 # R8 tarafından küçültülmemeli. Flutter plugin consumer rules genelde
 # bunu otomatik yapar, burada yedek olarak.
--keep class com.google.zxing.** { *; }
--keep class me.leon.** { *; }
 
 # --- Genel: enum ve serialVersionUID ---
 -keepclassmembers enum * {

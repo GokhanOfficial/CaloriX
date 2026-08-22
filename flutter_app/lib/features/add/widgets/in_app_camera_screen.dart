@@ -5,7 +5,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Uygulama içi kamera ekranı — barkod-tarayıcı benzeri tam ekran deneyim.
+/// Uygulama içi kamera ekranı — tam ekran kamera deneyimi.
 ///
 /// Akış (Faz 4 planı §1):
 ///  - Arka kamera + `ResolutionPreset.high` + flash toggle.

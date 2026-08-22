@@ -75,7 +75,6 @@
     "required": "obligatoire",
     "customAmount": "Quantité personnalisée",
     "addWithAI": "Ajouter avec l'IA",
-    "addWithBarcode": "Ajouter par code-barres",
     "addFood": "Ajouter un aliment",
     "editFood": "Modifier l'aliment",
     "searchFood": "Rechercher un aliment",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Glu/100g",
     "fatPer100g": "Lip/100g",
-    "barcode": {
-      "title": "Ajouter par code-barres",
-      "scanning": "Scan...",
-      "productFound": "Produit trouvé",
-      "productNotFound": "Produit non trouvé",
-      "tryAgain": "Réessayer",
-      "manualEntry": "Saisie manuelle"
-    },
     "weight": {
       "title": "Enregistrer le poids",
       "currentWeight": "Poids actuel",
@@ -323,8 +314,6 @@
     "recordWeight": "Enregistrez votre poids",
     "quickAdd": "Ajout rapide",
     "quick": {
-      "barcode": "Code-barres",
-      "scan": "Scanner un produit",
       "search": "Rechercher",
       "findFood": "Trouver un aliment",
       "ai": "Ajouter avec l'IA",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Fonctionnalités",
       "ai": "Reconnaissance alimentaire par IA (photo et texte)",
-      "barcode": "Scan de code-barres",
       "tracker": "Suivi de l'eau et du poids",
       "analytics": "Analyses détaillées et graphiques",
       "notifications": "Rappels intelligents"
@@ -394,8 +382,7 @@
       "empty": "Aucun aliment ajouté"
     },
     "tabs": {
-      "search": "Rechercher",
-      "barcode": "Code-barres"
+      "search": "Rechercher"
     },
     "search": {
       "title": "Rechercher un aliment",
@@ -403,12 +390,6 @@
       "noResults": "Aucun résultat",
       "promptTitle": "Rechercher dans la base de données",
       "promptDesc": "Entrez au moins 2 caractères"
-    },
-    "barcode": {
-      "title": "Scanner le code-barres",
-      "scanTitle": "Scanner avec la caméra",
-      "scanDesc": "Montrez le code-barres à la caméra",
-      "openCamera": "Ouvrir la caméra"
     },
     "manual": {
       "title": "Saisie manuelle",

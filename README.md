@@ -30,7 +30,6 @@ CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi ya
 ### 🍽️ Yemek Takibi
 - **AI Destekli Tanıma**: Fotoğraf veya metin ile yemek tanıma
 - **AI Chat Beslenme Asistanı**: Günlük kayıtlarınız, hedefleriniz ve beslenme kararlarınız hakkında sohbet ederek destek alın
-- **Barkod Tarama**: Paketli ürünleri barkod ile hızlıca ekleyin
 - **Detaylı Besin Değerleri**: Kalori, protein, karbonhidrat, yağ ve daha fazlası
 - **NOVA & Nutri-Score**: Gıda işlenme ve beslenme skorları
 
@@ -153,6 +152,37 @@ supabase functions deploy
 ## 📝 Sürüm Notları
 
 En güncel sürüm notları için [CHANGELOG.md](CHANGELOG.md) dosyasına bakın.
+
+## 📦 Android Sürüm Yayınlama ve Zorunlu Güncelleme
+
+Android APK'ları GitHub Releases üzerinden dağıtılır. Uygulama açılışında
+[`releases/latest/download/latest.json`](https://github.com/GokhanOfficial/CaloriX/releases/latest/download/latest.json)
+manifestini kontrol eder ve cihaz sürümüne göre davranır:
+
+- **Zorunlu güncelleme**: Cihazın build numarası manifestteki
+  `minSupportedVersionCode`'un altındaysa uygulama açılmaz; kullanıcı APK'yı
+  tarayıcıdan kurana kadar "Güncelleme Gerekli" ekranı gösterilir.
+- **Opsiyonel güncelleme**: Sürüme `minSupportedVersionCode` destekliyor ama
+  yeniyse atlanabilir bir hatırlatma dialog'u çıkar.
+- **Kontrol yapılamazsa** (çevrimdışı): Son başarılı manifest cihazda
+  cache'lendiğinden karar yine verilir; hiç veri yoksa uygulama uyarıyla açılır.
+
+Yayınlama akışı:
+
+```bash
+# 1) flutter_app/pubspec.yaml içinde sürümü yükselt: version: 1.2.0+3
+
+# 2) Normal sürüm (eskiler opsiyonel güncelleme görür):
+tool/release_android.sh --notes-tr "Hata düzeltmeleri" --notes-en "Bug fixes"
+
+# 3) DB migration'ı gibi kırıcı değişiklikte — build 3'ten eskiler ÇALIŞMAZ:
+tool/release_android.sh --min-code 3
+```
+
+Script; release APK'yı derler, `sha256` + `latest.json` üretir ve GitHub
+Releases'a yükler. `--min-code` mantığı: veritabanına migration girdiğinizde
+(eski şemayla uyumsuzluk), o migration'ı içeren ilk build'in numarasını
+`--min-code` olarak verin — altındaki tüm sürümler zorunlu güncellemeye düşer.
 
 ## 🔧 Teknolojiler
 

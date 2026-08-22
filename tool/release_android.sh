@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# CaloriX Android sürüm yayınlama scripti.
+#
+# APK + latest.json dosyalarını GitHub Releases'a yükler; Flutter uygulaması
+# açılışta https://github.com/GokhanOfficial/CaloriX/releases/latest/download/latest.json
+# adresinden kontrol eder.
+#
+# Kullanım:
+#   tool/release_android.sh [--min-code N] [--notes-tr "..."] [--notes-en "..."]
+#
+# Örnekler:
+#   # Normal sürüm — eski sürümler OPSİYONEL güncelleme görür:
+#   tool/release_android.sh
+#
+#   # DB migration'ı geldi (ör. şema değişti) — build 4'ten eskiler ÇALIŞMAZ:
+#   tool/release_android.sh --min-code 4
+#
+# Ön koşullar: flutter, gh (girişli), python3, curl.
+set -euo pipefail
+
+REPO="GokhanOfficial/CaloriX"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FLUTTER_DIR="$ROOT/flutter_app"
+PUBSPEC="$FLUTTER_DIR/pubspec.yaml"
+ASSET_NAME="calorix.apk"
+
+MIN_CODE=""
+NOTES_TR=""
+NOTES_EN=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --min-code)  MIN_CODE="$2"; shift 2 ;;
+    --notes-tr)  NOTES_TR="$2"; shift 2 ;;
+    --notes-en)  NOTES_EN="$2"; shift 2 ;;
+    -h|--help)   sed -n '2,20p' "$0"; exit 0 ;;
+    *) echo "Bilinmeyen argüman: $1" >&2; exit 1 ;;
+  esac
+done
+
+command -v flutter >/dev/null || { echo "HATA: flutter bulunamadı." >&2; exit 1; }
+command -v gh >/dev/null || { echo "HATA: gh bulunamadı (gh auth login)." >&2; exit 1; }
+
+# --- 1) Sürüm bilgisi pubspec'ten ---
+VERSION_LINE="$(grep -m1 '^version:' "$PUBSPEC")"
+VERSION="$( cut -d'+' -f1 <<<"${VERSION_LINE#version: }" )"
+BUILD="$(  cut -d'+' -f2 <<<"${VERSION_LINE#version: }" )"
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "HATA: pubspec version biçimi: $VERSION_LINE" >&2; exit 1; }
+[[ "$BUILD" =~ ^[0-9]+$ ]] || { echo "HATA: pubspec build numarası yok (örn. version: 1.2.0+3): $VERSION_LINE" >&2; exit 1; }
+
+# min-code yoksa: cutoff = 1 → eskilere opsiyonel güncelleme (zorunluluk
+# yalnızca DB migration'ı gibi kırıcı değişiklikte --min-code ile gelir).
+MIN_CODE="${MIN_CODE:-1}"
+[[ "$MIN_CODE" =~ ^[0-9]+$ ]] || { echo "HATA: --min-code sayısal olmalı." >&2; exit 1; }
+if (( MIN_CODE > BUILD )); then
+  echo "HATA: --min-code ($MIN_CODE) yayınlanan build'den ($BUILD) büyük olamaz." >&2; exit 1
+fi
+
+TAG="android-v${VERSION}+${BUILD}"
+echo "» Sürüm: $VERSION (build $BUILD) | min desteklenen build: $MIN_CODE | tag: $TAG"
+
+if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+  echo "HATA: $TAG tag'i zaten var. pubspec'te sürümü/build'i yükselt." >&2; exit 1
+fi
+
+# --- 2) Release APK derle ---
+echo "» flutter build apk --release ..."
+( cd "$FLUTTER_DIR" && flutter build apk --release )
+APK="$FLUTTER_DIR/build/app/outputs/flutter-apk/app-release.apk"
+[[ -f "$APK" ]] || { echo "HATA: APK bulunamadı: $APK" >&2; exit 1; }
+
+SHA256="$(sha256sum "$APK" | cut -d' ' -f1)"
+APK_SIZE_MB="$(( $(stat -c%s "$APK") / 1024 / 1024 ))"
+echo "» APK hazır: ${APK_SIZE_MB} MB, sha256=$SHA256"
+
+# --- 3) latest.json üret ---
+# Not: tag'deki '+' URL'de %2B olmalı; GitHub asset URL'si tag'ı olduğu gibi
+# kullanır, APK asset adını sabit tutuyoruz (calorix.apk) ki URL basit kalsın.
+APK_URL="https://github.com/${REPO}/releases/download/${TAG//+/%2B}/${ASSET_NAME}"
+GENERATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+python3 - "$APK_URL" "$SHA256" "$GENERATED_AT" "$VERSION" "$BUILD" "$MIN_CODE" "$NOTES_TR" "$NOTES_EN" <<'PYEOF' > "$ROOT/latest.json"
+import json, sys
+apk_url, sha256, released_at, version, code, min_code, notes_tr, notes_en = sys.argv[1:9]
+notes = {k: v for k, v in (("tr", notes_tr), ("en", notes_en)) if v}
+print(json.dumps({
+    "versionName": version,
+    "versionCode": int(code),
+    "minSupportedVersionCode": int(min_code),
+    "apkUrl": apk_url,
+    "sha256": sha256,
+    "notes": notes,
+    "releasedAt": released_at,
+}, indent=2, ensure_ascii=False))
+PYEOF
+echo "» latest.json üretildi:"
+cat "$ROOT/latest.json"
+
+# --- 4) Release oluştur ---
+NOTES_FILE="$(mktemp)"
+trap 'rm -f "$NOTES_FILE"' EXIT
+{
+  echo "CaloriX Android $VERSION (build $BUILD)"
+  echo
+  echo "- APK: \`$ASSET_NAME\` (${APK_SIZE_MB} MB, sha256: \`${SHA256:0:16}…\`)"
+  echo "- Minimum desteklenen build: **$MIN_CODE**$( (( MIN_CODE <= 1 )) && echo " — tüm eski sürümler opsiyonel güncelleme görür" || echo " — daha eskiler zorunlu güncelleme görür")"
+  [[ -n "$NOTES_TR" ]] && { echo; echo "## Notlar"; echo "$NOTES_TR"; }
+} > "$NOTES_FILE"
+
+echo "» gh release create $TAG ..."
+gh release create "$TAG" \
+  --repo "$REPO" \
+  --title "CaloriX Android $VERSION" \
+  --notes-file "$NOTES_FILE" \
+  "$APK#$ASSET_NAME" \
+  "$ROOT/latest.json"
+
+rm -f "$ROOT/latest.json"
+
+# --- 5) Kararlı URL'yi doğrula ---
+MANIFEST_URL="https://github.com/${REPO}/releases/latest/download/latest.json"
+sleep 3
+STATUS="$(curl -sIL -o /dev/null -w '%{http_code}' "$MANIFEST_URL")"
+if [[ "$STATUS" == "200" ]]; then
+  echo "✓ Yayınlandı ve doğrulandı: $MANIFEST_URL"
+  curl -sL "$MANIFEST_URL" | python3 -c 'import json,sys; m=json.load(sys.stdin); print(f"  manifest: v{m[\"versionName\"]} build {m[\"versionCode\"]}, min build {m[\"minSupportedVersionCode\"]}")'
+else
+  echo "⚠ UYARI: manifest URL'si HTTP $STATUS döndü (yayınlanması birkaç saniye sürebilir): $MANIFEST_URL" >&2
+fi

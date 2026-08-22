@@ -1,8 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/notifications/reminder_settings.dart';
 import '../../../data/models/profile.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/profile_repository.dart';
@@ -78,8 +80,21 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
     }
   }
 
+  Future<void> _pickTime() async {
+    final reminder = ref.read(reminderSettingsProvider);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: reminder.hour, minute: reminder.minute),
+    );
+    if (picked == null) return;
+    await ref
+        .read(reminderSettingsProvider.notifier)
+        .setTime(picked.hour, picked.minute);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final reminder = ref.watch(reminderSettingsProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
@@ -121,6 +136,36 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
             value: _autoRecalc,
             onChanged: (v) => setState(() => _autoRecalc = v),
           ),
+          const Divider(height: 32),
+          Text('settings.notifications.reminderTitle'.tr(),
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            kIsWeb
+                ? 'settings.notifications.webOnlyInApp'.tr()
+                : 'settings.notifications.reminderDesc'.tr(),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('settings.notifications.reminderTitle'.tr()),
+            value: reminder.enabled,
+            onChanged: (v) =>
+                ref.read(reminderSettingsProvider.notifier).setEnabled(v),
+          ),
+          if (reminder.enabled)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.schedule),
+              title: Text('settings.notifications.reminderTime'.tr()),
+              subtitle: Text(
+                '${reminder.hour.toString().padLeft(2, '0')}:'
+                '${reminder.minute.toString().padLeft(2, '0')}',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _pickTime,
+            ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,

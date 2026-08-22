@@ -383,6 +383,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           vertical: 12,
                         ),
                       ),
+                      onChanged: (_) => setState(() {}),
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),

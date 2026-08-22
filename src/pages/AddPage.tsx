@@ -4,9 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScanBarcode, Pencil, Search, Sparkles, Loader2 } from "lucide-react";
+import { Pencil, Search, Sparkles, Loader2 } from "lucide-react";
 import { MEAL_TYPES, type MealType } from "@/lib/constants";
 import { UnifiedFoodDialog } from "@/components/dialogs/UnifiedFoodDialog";
 import { AddFromFoodDialog } from "@/components/dialogs/AddFromFoodDialog";
@@ -249,110 +248,69 @@ const AddPage = () => {
           onSelect={handleFoodSelect}
         />
 
-        {/* Add Methods */}
-        <Tabs defaultValue="search" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-secondary">
-            <TabsTrigger value="search" className="gap-1.5">
-              <Search className="h-4 w-4" />
-              <span>{t('addFood.tabs.search')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="barcode" className="gap-1.5">
-              <ScanBarcode className="h-4 w-4" />
-              <span>{t('addFood.tabs.barcode')}</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Search */}
+        <Card className="border-none bg-card shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('addFood.search.title')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={t('addFood.search.placeholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-12 pl-10 bg-secondary"
+              />
+            </div>
 
-          {/* Search Tab */}
-          <TabsContent value="search" className="mt-4">
-            <Card className="border-none bg-card shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{t('addFood.search.title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder={t('addFood.search.placeholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-12 pl-10 bg-secondary"
-                  />
-                </div>
-
-                {searchQuery.length >= 2 && (
-                  <div className="space-y-2">
-                    {searchLoading ? (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            {searchQuery.length >= 2 && (
+              <div className="space-y-2">
+                {searchLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((result) => (
+                    <button
+                      key={result.id}
+                      onClick={() => handleSearchResultSelect(result)}
+                      className="flex w-full items-center justify-between rounded-lg bg-secondary p-3 text-left transition-colors hover:bg-muted"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{result.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {result.brand && <span className="mr-2">{result.brand}</span>}
+                          100g • {result.calories} kcal
+                        </p>
                       </div>
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((result) => (
-                        <button
-                          key={result.id}
-                          onClick={() => handleSearchResultSelect(result)}
-                          className="flex w-full items-center justify-between rounded-lg bg-secondary p-3 text-left transition-colors hover:bg-muted"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground truncate">{result.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {result.brand && <span className="mr-2">{result.brand}</span>}
-                              100g • {result.calories} kcal
-                            </p>
-                          </div>
-                          <div className="ml-3 text-right text-xs text-muted-foreground">
-                            <p>P: {result.protein_g}g</p>
-                            <p>K: {result.carbs_g}g</p>
-                            <p>Y: {result.fat_g}g</p>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="py-4 text-center text-sm text-muted-foreground">
-                        {t('addFood.search.noResults')}
-                      </p>
-                    )}
-                  </div>
+                      <div className="ml-3 text-right text-xs text-muted-foreground">
+                        <p>P: {result.protein_g}g</p>
+                        <p>K: {result.carbs_g}g</p>
+                        <p>Y: {result.fat_g}g</p>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    {t('addFood.search.noResults')}
+                  </p>
                 )}
+              </div>
+            )}
 
-                {searchQuery.length < 2 && (
-                  <div className="py-8 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      {t('addFood.search.promptTitle')}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t('addFood.search.promptDesc')}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Barcode Tab */}
-          <TabsContent value="barcode" className="mt-4">
-            <Card className="border-none bg-card shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{t('addFood.barcode.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center gap-4 py-8">
-                  <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary/10">
-                    <ScanBarcode className="h-12 w-12 text-primary" />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-medium text-foreground">{t('addFood.barcode.scanTitle')}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t('addFood.barcode.scanDesc')}
-                    </p>
-                  </div>
-                  <Button size="lg" className="w-full max-w-xs">
-                    {t('addFood.barcode.openCamera')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            {searchQuery.length < 2 && (
+              <div className="py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {t('addFood.search.promptTitle')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('addFood.search.promptDesc')}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Manual Entry Option */}
         <Card className="border-none bg-card shadow-lg">

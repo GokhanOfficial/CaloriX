@@ -140,14 +140,15 @@ class _AuthPageState extends ConsumerState<AuthPage>
       }
       return;
     }
-    // Kayıt başarılı: parola yöneticisine yeni kimlik bilgilerini
-    // kaydetme önerisi göster (Bitwarden / Google Password Manager vb.).
+    // Kayıt başarılı. "Confirm email" Dashboard'da KAPALI olduğu için
+    // Supabase anında session döndürür (mail gönderilmez) — kayıt = giriş.
+    // Parola yöneticisine yeni kimlik bilgilerini kaydetme önerisi göster
+    // (Bitwarden / Google Password Manager vb.), ardından router redirect
+    // dashboard/onboarding'a taşır (signIn başarılı yoluyla aynı).
+    // Önceki "mail gönderildi" toast + pendingVerification geçişi kaldırıldı
+    // — mail kapalı politikada yanıltıcıydı.
     TextInput.finishAutofillContext(shouldSave: true);
-    _toast('auth.messages.verificationSent'.tr());
-    setState(() {
-      _pendingEmail = _emailCtrl.text.trim();
-      _view = _AuthView.pendingVerification;
-    });
+    // Başarılı girişte router redirect dashboard'a taşır.
   }
 
   Future<void> _handleForgotPassword() async {
@@ -311,14 +312,11 @@ class _AuthPageState extends ConsumerState<AuthPage>
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () =>
-                            setState(() => _view = _AuthView.forgotPassword),
-                        child: Text('auth.forgotPassword'.tr()),
-                      ),
-                    ),
+                    // "Şifremi unuttum" — mail-tabanlı şifre sıfırlama.
+                    // Supabase Dashboard'da "Confirm email"/SMTP KAPALI iken
+                    // mail gönderilemeyeceği için link gizleniyor. SMTP
+                    // açılırsa bu TextButton'ı tekrar görünür yapın.
+                    // (forgotPassword view + handler kodu korunuyor.)
                     const SizedBox(height: 8),
                     _textField(
                       controller: _displayNameCtrl,
@@ -436,8 +434,9 @@ class _AuthPageState extends ConsumerState<AuthPage>
                     style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Text(
-                  'auth.pendingVerification.description'
-                      .tr(args: [_pendingEmail]),
+                  'auth.pendingVerification.description'.tr(
+                    namedArgs: {'email': _pendingEmail},
+                  ),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),

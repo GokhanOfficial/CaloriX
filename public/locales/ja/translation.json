@@ -75,7 +75,6 @@
     "required": "必須",
     "customAmount": "カスタム量",
     "addWithAI": "AIで追加",
-    "addWithBarcode": "バーコードで追加",
     "addFood": "食品を追加",
     "editFood": "食品を編集",
     "searchFood": "食品を検索",
@@ -117,14 +116,6 @@
     "proPer100g": "タンパク質/100g",
     "carbPer100g": "炭水化物/100g",
     "fatPer100g": "脂質/100g",
-    "barcode": {
-      "title": "バーコードで追加",
-      "scanning": "スキャン中...",
-      "productFound": "商品が見つかりました",
-      "productNotFound": "商品が見つかりません",
-      "tryAgain": "再試行",
-      "manualEntry": "手動入力"
-    },
     "weight": {
       "title": "体重を記録",
       "currentWeight": "現在の体重",
@@ -323,8 +314,6 @@
     "recordWeight": "体重を記録してください",
     "quickAdd": "クイック追加",
     "quick": {
-      "barcode": "バーコード",
-      "scan": "商品をスキャン",
       "search": "検索",
       "findFood": "食品を探す",
       "ai": "AIで追加",
@@ -360,7 +349,6 @@
     "features": {
       "title": "機能",
       "ai": "AI食品認識（写真とテキスト）",
-      "barcode": "バーコードスキャン",
       "tracker": "水分と体重トラッカー",
       "analytics": "詳細な分析とグラフ",
       "notifications": "スマートリマインダー"
@@ -394,8 +382,7 @@
       "empty": "食品がまだ追加されていません"
     },
     "tabs": {
-      "search": "検索",
-      "barcode": "バーコード"
+      "search": "検索"
     },
     "search": {
       "title": "食品を検索",
@@ -403,12 +390,6 @@
       "noResults": "結果なし",
       "promptTitle": "データベースから食品を検索",
       "promptDesc": "2文字以上入力してください"
-    },
-    "barcode": {
-      "title": "バーコードをスキャン",
-      "scanTitle": "カメラでスキャン",
-      "scanDesc": "商品のバーコードをカメラに向けてください",
-      "openCamera": "カメラを開く"
     },
     "manual": {
       "title": "手動入力",

@@ -10,17 +10,23 @@ import '../../data/repositories/food_repository.dart';
 import 'widgets/add_from_food_dialog.dart';
 import 'widgets/add_manual_entry_dialog.dart';
 import 'widgets/add_with_ai_dialog.dart';
-import 'widgets/barcode_scan_dialog.dart';
+import 'widgets/meal_selector.dart';
 
 /// Arama girdisinin debounce edilmiş hâli (web `useFoodSearch` 300ms parity).
 final _debouncedQueryProvider = StateProvider<String>((ref) => '');
 
-/// Yemek ekleme sayfası — web `AddPage.tsx` karşılığı.
+/// Yemek ekleme hub sayfası — web `AddPage.tsx` karşılığı.
 ///
-/// Bölümler (web ile aynı sıra): öğün seçici → AI aksiyonları →
-/// son eklenenler → en çok yenenler → arama/barkod sekmeleri → manuel giriş.
+/// Bölümler: öğün seçici (SegmentedButton) → sadeleşmiş AI kartı →
+/// arama → manuel → son eklenenler/favoriler (arama aktifken gizli).
+/// FAB ve öğün kartı "+" butonları AI dialogunu doğrudan açtığından buraya
+/// genellikle alt navigasyonla gelinir; `initialMealType` opsiyonel.
 class AddPage extends ConsumerStatefulWidget {
-  const AddPage({super.key});
+  const AddPage({super.key, this.initialMealType});
+
+  /// Rota `extra` ile gelen öğün (gelecek "öğüne hızlı ekle" için).
+  /// `null` ise [MealType.defaultForNow] kullanılır.
+  final MealType? initialMealType;
 
   @override
   ConsumerState<AddPage> createState() => _AddPageState();
@@ -30,8 +36,14 @@ class _AddPageState extends ConsumerState<AddPage> {
   final _searchController = TextEditingController();
   Timer? _debounce;
 
-  /// Web parity: `useState<MealType>("lunch")`.
-  MealType _selectedMeal = MealType.lunch;
+  /// Seçili öğün — sonraki tüm dialog'lara (AI/manuel/food) taşınır.
+  late MealType _selectedMeal;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMeal = widget.initialMealType ?? MealType.defaultForNow();
+  }
 
   @override
   void dispose() {
@@ -59,10 +71,6 @@ class _AddPageState extends ConsumerState<AddPage> {
     await AddWithAiDialog.show(context, defaultMealType: _selectedMeal);
   }
 
-  Future<void> _scanBarcode() async {
-    await BarcodeScanDialog.show(context, defaultMealType: _selectedMeal);
-  }
-
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(_debouncedQueryProvider);
@@ -73,14 +81,28 @@ class _AddPageState extends ConsumerState<AddPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          _MealSelector(
+          MealSegmentedButton(
             value: _selectedMeal,
             onChanged: (type) => setState(() => _selectedMeal = type),
           ),
           const SizedBox(height: 12),
           _AiCard(onTap: _addWithAi),
           const SizedBox(height: 12),
+          _SearchCard(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            query: query,
+            onSelect: _openFood,
+          ),
+          const SizedBox(height: 12),
+          _ManualCard(
+            onTap: () => AddManualEntryDialog.show(
+              context,
+              defaultMealType: _selectedMeal,
+            ),
+          ),
           if (!searching) ...[
+            const SizedBox(height: 12),
             _FoodListSection(
               title: 'addFood.recent.title'.tr(),
               icon: Icons.history,
@@ -96,63 +118,8 @@ class _AddPageState extends ConsumerState<AddPage> {
               emptyMessage: 'addFood.favorites.empty'.tr(),
               onSelect: _openFood,
             ),
-            const SizedBox(height: 12),
           ],
-          _SearchCard(
-            controller: _searchController,
-            onChanged: _onSearchChanged,
-            query: query,
-            onSelect: _openFood,
-          ),
-          const SizedBox(height: 12),
-          _BarcodeCard(onTap: _scanBarcode),
-          const SizedBox(height: 12),
-          _ManualCard(
-            onTap: () => AddManualEntryDialog.show(
-              context,
-              defaultMealType: _selectedMeal,
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _MealSelector extends StatelessWidget {
-  const _MealSelector({required this.value, required this.onChanged});
-
-  final MealType value;
-  final ValueChanged<MealType> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: DropdownButtonFormField<MealType>(
-          initialValue: value,
-          decoration: InputDecoration(
-            labelText: 'addFood.meal'.tr(),
-            border: const OutlineInputBorder(),
-          ),
-          items: [
-            for (final type in MealType.values)
-              DropdownMenuItem(
-                value: type,
-                child: Row(
-                  children: [
-                    Text(type.emoji),
-                    const SizedBox(width: 8),
-                    Text('meals.${type.name}'.tr()),
-                  ],
-                ),
-              ),
-          ],
-          onChanged: (type) {
-            if (type != null) onChanged(type);
-          },
-        ),
       ),
     );
   }
@@ -167,61 +134,49 @@ class _AiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome,
-                    size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'addFood.ai.title'.tr(),
-                  style: theme.textTheme.titleSmall,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: onTap,
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'addFood.ai.buttonTitle'.tr(),
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        Text(
-                          'addFood.ai.buttonDesc'.tr(),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'addFood.ai.title'.tr(),
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    Text(
+                      'addFood.ai.buttonDesc'.tr(),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -485,62 +440,6 @@ class _SearchCard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BarcodeCard extends StatelessWidget {
-  const _BarcodeCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Text(
-              'addFood.barcode.title'.tr(),
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                Icons.barcode_reader,
-                size: 36,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'addFood.barcode.scanTitle'.tr(),
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'addFood.barcode.scanDesc'.tr(),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: onTap,
-              child: Text('addFood.barcode.openCamera'.tr()),
-            ),
           ],
         ),
       ),

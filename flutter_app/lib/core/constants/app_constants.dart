@@ -1,6 +1,13 @@
+import 'package:flutter/foundation.dart';
+
 /// CaloriX sabitleri — web `src/lib/constants.ts` karşılığı.
 abstract final class AppConstants {
-  static const String appVersion = '1.1.0';
+  static const String appVersion = '1.2.0';
+
+  /// GitHub Releases — en son Android sürümünün manifesti (APK + min sürüm
+  /// bilgisi). `tool/release_android.sh` her release'de günceller.
+  static const String updateManifestUrl =
+      'https://github.com/GokhanOfficial/CaloriX/releases/latest/download/latest.json';
 
   /// Varsayılan hedefler (hesaplama yapılamazsa).
   static const int defaultCalories = 2000;
@@ -68,7 +75,7 @@ enum Gender {
       };
 }
 
-/// Öğün tipleri (Faz 2'de kullanılacak; sıralama web ile aynı).
+/// Öğün tipleri (sıralama web ile aynı).
 enum MealType {
   breakfast(1, '🌅'),
   lunch(2, '☀️'),
@@ -80,4 +87,23 @@ enum MealType {
 
   /// Web `MEAL_TYPES[type].icon` karşılığı.
   final String emoji;
+
+  /// Şu anki saate göre mantıklı varsayılan öğün.
+  ///
+  /// `hour < 11` breakfast, `< 16` lunch, `< 21` dinner, else snack.
+  /// Dashboard FAB'ın akla yakın bir öğün açması için kullanılır.
+  static MealType defaultForNow() => defaultMealForHour(DateTime.now().hour);
+
+  /// Saat eşiklerine göre varsayılan öğün — test edilebilir çekirdek.
+  ///
+  /// `@visibleForTesting`: [defaultForNow] bunu `DateTime.now().hour` ile
+  /// çağırır. Eşikler: `< 11` breakfast, `< 16` lunch, `< 21` dinner, else
+  /// snack.
+  @visibleForTesting
+  static MealType defaultMealForHour(int hour) {
+    if (hour < 11) return MealType.breakfast;
+    if (hour < 16) return MealType.lunch;
+    if (hour < 21) return MealType.dinner;
+    return MealType.snack;
+  }
 }

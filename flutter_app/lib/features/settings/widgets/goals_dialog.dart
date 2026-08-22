@@ -65,8 +65,12 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
   bool _aiLoading = false;
   bool _saving = false;
 
-  static double _parse(String t, num fallback) =>
-      double.tryParse(t.trim().replaceAll(',', '.')) ?? fallback.toDouble();
+  // DB sütunları (daily_calorie_target, *_target_g, daily_water_target_ml)
+  // INTEGER — double gönderince Postgres `22P02 invalid input syntax for type
+  // integer: "2500.0"` → 400. Bu yüzden int (round) döndür.
+  static int _parse(String t, num fallback) =>
+      (double.tryParse(t.trim().replaceAll(',', '.')) ?? fallback.toDouble())
+          .round();
 
   @override
   void dispose() {

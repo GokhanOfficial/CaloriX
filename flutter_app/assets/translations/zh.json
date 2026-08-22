@@ -70,12 +70,11 @@
     "noResults": "无结果",
     "analyzeWithAI": "用AI分析",
     "reanalyze": "重新分析",
-    "example": "例如",
+    "example": "例如 {example}",
     "optional": "可选",
     "required": "必填",
     "customAmount": "自定义数量",
     "addWithAI": "用AI添加",
-    "addWithBarcode": "用条码添加",
     "addFood": "添加食物",
     "editFood": "编辑食物",
     "searchFood": "搜索食物",
@@ -109,45 +108,16 @@
     "aiRequiresInternet": "AI分析需要网络",
     "analysisFailed": "分析失败",
     "selectAtLeastOne": "请至少选择一个",
-    "foodAdded": "食物已添加",
-    "foodsAdded": "个已添加",
+    "foodAdded": "食物已添加 ({count})",
+    "foodsAdded": "{count} 个已添加",
     "saveFailed": "保存失败",
     "inputText": "输入的文字",
-    "confidence": "置信度",
+    "confidence": "{percent}% 置信度",
     "calories": "卡路里",
     "calPer100g": "卡/100克",
     "proPer100g": "蛋白质/100克",
     "carbPer100g": "碳水/100克",
     "fatPer100g": "脂肪/100克",
-    "barcode": {
-      "title": "用条码添加",
-      "scanning": "扫描中...",
-      "productFound": "找到产品",
-      "productNotFound": "未找到产品",
-      "tryAgain": "重试",
-      "manualEntry": "手动输入",
-      "scanDesc": "将摄像头对准条形码即可自动扫描",
-      "manualPlaceholder": "手动输入条形码编号",
-      "search": "搜索",
-      "cameraError": "无法访问摄像头，请检查权限。",
-      "searching": "正在数据库中搜索...",
-      "productNotFoundDesc": "数据库中未找到此产品。可用 AI 分析或手动添加。",
-      "aiPrompt": "附加详情（可选）— 例如品牌或规格",
-      "aiPromptRequired": "请输入附加详情或拍照以供 AI 分析。",
-      "aiTextPrompt": "条形码编号: {0}。请估算该条形码产品的营养值。",
-      "barcodeLabel": "条形码: {0}",
-      "foundInDb": "在数据库中找到",
-      "reScan": "重新扫描",
-      "brand": "品牌",
-      "servingSize": "份量 (克)",
-      "extendedNutrition": "详细营养信息",
-      "saturatedFat": "饱和脂肪 (克)",
-      "transFat": "反式脂肪 (克)",
-      "sugars": "糖 (克)",
-      "salt": "盐 (克)",
-      "novaScore": "NOVA 评分",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "记录体重",
       "currentWeight": "当前体重",
@@ -173,7 +143,11 @@
     "title": "通知",
     "new": "新",
     "markAllRead": "全部标为已读",
-    "empty": "暂无通知"
+    "empty": "暂无通知",
+    "breakfastTitle": "早餐时间到 ☀️",
+    "breakfastBody": "美好的一天从早餐开始 — 记录您的早餐",
+    "snoozeHour": "推迟1小时",
+    "skipBreakfast": "我不吃早餐"
   },
   "auth": {
     "signIn": "登录",
@@ -314,7 +288,11 @@
       "email": "电子邮件通知",
       "weighInFrequency": "称重频率（天）",
       "autoRecalculate": "自动重新计算宏量营养素",
-      "days": "天"
+      "days": "天",
+      "reminderTitle": "早晨卡路里提醒",
+      "reminderDesc": "每天在您选择的时间收到早餐提醒",
+      "reminderTime": "提醒时间",
+      "webOnlyInApp": "在网页端，仅当应用打开时显示提醒"
     },
     "import": {
       "title": "导入数据",
@@ -358,8 +336,6 @@
     "recordWeight": "记录您的体重",
     "quickAdd": "快速添加",
     "quick": {
-      "barcode": "条形码",
-      "scan": "扫描产品",
       "search": "搜索",
       "findFood": "查找食物",
       "ai": "用AI添加",
@@ -395,7 +371,6 @@
     "features": {
       "title": "功能",
       "ai": "AI食物识别（照片和文字）",
-      "barcode": "条形码扫描",
       "tracker": "饮水和体重追踪",
       "analytics": "详细分析和图表",
       "notifications": "智能提醒"
@@ -429,8 +404,7 @@
       "empty": "暂无添加的食物"
     },
     "tabs": {
-      "search": "搜索",
-      "barcode": "条形码"
+      "search": "搜索"
     },
     "search": {
       "title": "搜索食物",
@@ -438,12 +412,6 @@
       "noResults": "无结果",
       "promptTitle": "从数据库搜索食物",
       "promptDesc": "请输入至少2个字符"
-    },
-    "barcode": {
-      "title": "扫描条形码",
-      "scanTitle": "用相机扫描",
-      "scanDesc": "将产品条形码对准相机",
-      "openCamera": "打开相机"
     },
     "manual": {
       "title": "手动输入",
@@ -528,5 +496,17 @@
       "clear": "无法清除聊天"
     },
     "welcomeMessage": "你好！我是 CaloriX AI。我可以帮助你跟踪餐食、饮水量、体重和目标。"
+  },
+  "updates": {
+    "requiredTitle": "需要更新",
+    "requiredBody": "CaloriX 需要版本 {version} 才能运行。您的数据是安全的 — 请安装更新后继续。",
+    "optionalTitle": "有新版本可用",
+    "optionalBody": "CaloriX {version} 已就绪。现在更新吗？",
+    "updateNow": "更新",
+    "later": "稍后",
+    "recheck": "重新检查",
+    "checkFailed": "更新检查失败",
+    "notesTitle": "更新内容",
+    "openFailed": "无法打开下载页面"
   }
 }

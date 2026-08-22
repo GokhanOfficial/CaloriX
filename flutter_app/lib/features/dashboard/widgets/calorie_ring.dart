@@ -6,15 +6,20 @@ import 'package:flutter/material.dart';
 /// Kalori halkası — web `Index.tsx`'teki dairesel ilerleme karşılığı.
 ///
 /// Ortada kalan kalori (veya hedefe ulaşıldıysa 0) ve tüketilen/hedef özeti.
+///
+/// `onTap` verilirse halka tıklanır (dashboard → `/analytics`). Erişilebilirlik
+/// için [InkWell] + `Semantics(button: true)` ile saranır.
 class CalorieRing extends StatelessWidget {
   const CalorieRing({
     super.key,
     required this.consumed,
     required this.target,
+    this.onTap,
   });
 
   final double consumed;
   final double target;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +28,7 @@ class CalorieRing extends StatelessWidget {
     final remaining = math.max(0, target - consumed);
     final over = consumed > target;
 
-    return SizedBox(
+    final ring = SizedBox(
       width: 180,
       height: 180,
       child: Stack(
@@ -63,6 +68,17 @@ class CalorieRing extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return ring;
+    return Semantics(
+      button: true,
+      label: 'analytics.goToCalories'.tr(),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(90),
+        child: ring,
       ),
     );
   }

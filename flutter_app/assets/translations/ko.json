@@ -70,12 +70,11 @@
     "noResults": "결과 없음",
     "analyzeWithAI": "AI로 분석",
     "reanalyze": "재분석",
-    "example": "예",
+    "example": "예 {example}",
     "optional": "선택",
     "required": "필수",
     "customAmount": "사용자 지정 양",
     "addWithAI": "AI로 추가",
-    "addWithBarcode": "바코드로 추가",
     "addFood": "음식 추가",
     "editFood": "음식 편집",
     "searchFood": "음식 검색",
@@ -109,45 +108,16 @@
     "aiRequiresInternet": "AI 분석에 인터넷 필요",
     "analysisFailed": "분석 실패",
     "selectAtLeastOne": "하나 이상 선택하세요",
-    "foodAdded": "음식 추가됨",
-    "foodsAdded": "개 추가됨",
+    "foodAdded": "음식 추가됨 ({count})",
+    "foodsAdded": "{count} 개 추가됨",
     "saveFailed": "저장 실패",
     "inputText": "입력된 텍스트",
-    "confidence": "신뢰도",
+    "confidence": "{percent}% 신뢰도",
     "calories": "칼로리",
     "calPer100g": "칼로리/100g",
     "proPer100g": "단백질/100g",
     "carbPer100g": "탄수화물/100g",
     "fatPer100g": "지방/100g",
-    "barcode": {
-      "title": "바코드로 추가",
-      "scanning": "스캔 중...",
-      "productFound": "제품 발견",
-      "productNotFound": "제품 없음",
-      "tryAgain": "다시 시도",
-      "manualEntry": "수동 입력",
-      "scanDesc": "바코드에 카메라를 맞추면 자동으로 스캔됩니다",
-      "manualPlaceholder": "바코드 번호 수동 입력",
-      "search": "검색",
-      "cameraError": "카메라에 접근할 수 없습니다. 권한을 확인하세요.",
-      "searching": "데이터베이스 검색 중...",
-      "productNotFoundDesc": "이 제품은 데이터베이스에서 찾을 수 없습니다. AI로 분석하거나 수동으로 추가하세요.",
-      "aiPrompt": "추가 정보(선택) — 예: 브랜드 또는 용량",
-      "aiPromptRequired": "AI 분석을 위해 추가 정보를 입력하거나 사진을 촬영하세요.",
-      "aiTextPrompt": "바코드 번호: {0}. 이 바코드의 제품 영양값을 추정하세요.",
-      "barcodeLabel": "바코드: {0}",
-      "foundInDb": "데이터베이스에서 찾음",
-      "reScan": "다시 스캔",
-      "brand": "브랜드",
-      "servingSize": "제공량 (g)",
-      "extendedNutrition": "상세 영양 정보",
-      "saturatedFat": "포화지방 (g)",
-      "transFat": "트랜스지방 (g)",
-      "sugars": "당류 (g)",
-      "salt": "소금 (g)",
-      "novaScore": "NOVA 점수",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "체중 기록",
       "currentWeight": "현재 체중",
@@ -173,7 +143,11 @@
     "title": "알림",
     "new": "새로운",
     "markAllRead": "모두 읽음 표시",
-    "empty": "알림이 없습니다"
+    "empty": "알림이 없습니다",
+    "breakfastTitle": "아침 식사 시간이에요 ☀️",
+    "breakfastBody": "좋은 하루를 시작하세요 — 아침 식사를 기록하세요",
+    "snoozeHour": "1시간 미루기",
+    "skipBreakfast": "아침 건너뛸게요"
   },
   "auth": {
     "signIn": "로그인",
@@ -314,7 +288,11 @@
       "email": "이메일 알림",
       "weighInFrequency": "계량 빈도(일)",
       "autoRecalculate": "매크로 자동 재계산",
-      "days": "일"
+      "days": "일",
+      "reminderTitle": "아침 칼로리 알림",
+      "reminderDesc": "매일 선택한 시간에 아침 식사 알림을 받으세요",
+      "reminderTime": "알림 시간",
+      "webOnlyInApp": "웹에서는 앱이 열려 있을 때만 알림이 표시됩니다"
     },
     "import": {
       "title": "데이터 가져오기",
@@ -358,8 +336,6 @@
     "recordWeight": "체중을 기록하세요",
     "quickAdd": "빠른 추가",
     "quick": {
-      "barcode": "바코드",
-      "scan": "제품 스캔",
       "search": "검색",
       "findFood": "음식 찾기",
       "ai": "AI로 추가",
@@ -395,7 +371,6 @@
     "features": {
       "title": "기능",
       "ai": "AI 식품 인식 (사진 및 텍스트)",
-      "barcode": "바코드 스캔",
       "tracker": "수분 및 체중 추적",
       "analytics": "상세 분석 및 그래프",
       "notifications": "스마트 알림"
@@ -429,8 +404,7 @@
       "empty": "추가된 음식 없음"
     },
     "tabs": {
-      "search": "검색",
-      "barcode": "바코드"
+      "search": "검색"
     },
     "search": {
       "title": "음식 검색",
@@ -438,12 +412,6 @@
       "noResults": "결과 없음",
       "promptTitle": "데이터베이스에서 음식 검색",
       "promptDesc": "최소 2자 이상 입력하세요"
-    },
-    "barcode": {
-      "title": "바코드 스캔",
-      "scanTitle": "카메라로 스캔",
-      "scanDesc": "제품 바코드를 카메라에 보여주세요",
-      "openCamera": "카메라 열기"
     },
     "manual": {
       "title": "수동 입력",
@@ -528,5 +496,17 @@
       "clear": "채팅을 지울 수 없습니다"
     },
     "welcomeMessage": "안녕하세요! 저는 CaloriX AI입니다. 식사, 물 섭취, 체중과 목표를 관리할 수 있도록 도와드릴 수 있습니다."
+  },
+  "updates": {
+    "requiredTitle": "업데이트 필요",
+    "requiredBody": "CaloriX를 실행하려면 버전 {version}이(가) 필요합니다. 데이터는 안전합니다 — 업데이트를 설치하고 계속하세요.",
+    "optionalTitle": "새 버전 사용 가능",
+    "optionalBody": "CaloriX {version}이(가) 준비되었습니다. 지금 업데이트할까요?",
+    "updateNow": "업데이트",
+    "later": "나중에",
+    "recheck": "다시 확인",
+    "checkFailed": "업데이트 확인 실패",
+    "notesTitle": "새로운 기능",
+    "openFailed": "다운로드 페이지를 열 수 없습니다"
   }
 }

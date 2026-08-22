@@ -1,7 +1,7 @@
 name: calorix
 description: "CaloriX — Akıllı kalori, makro takip ve AI beslenme asistanı (Flutter)"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.2.0+2
 
 environment:
   sdk: ^3.13.0
@@ -33,8 +33,7 @@ dependencies:
   # Charts
   fl_chart: ^0.69.2
 
-  # Camera / barcode / images
-  mobile_scanner: ^5.2.3
+  # Camera / images
   camera: ^0.11.1
   image_picker: ^1.1.2
 
@@ -54,6 +53,12 @@ dependencies:
 
   # Local notifications
   flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
+
+  # Sürüm / zorunlu güncelleme kontrolü (GitHub Releases manifesti)
+  package_info_plus: ^8.3.0
+  http: ^1.4.0
 
   # Utils
   intl: ^0.20.2
@@ -93,7 +98,10 @@ flutter:
 # Kaynak görsel: assets/images/logo.png (1024x1024).
 flutter_launcher_icons:
   android: true
-  ios: true
+  # iOS Runner klasörü bu projede mevcut değil (Android/web odaklı);
+  # bu yüzden iOS ikon üretimi devre dışı. iOS hedeflenirse ios: true yapıp
+  # flutter create --platforms ios ile Runner şablonunu ekleyin.
+  ios: false
   image_path: assets/images/logo.png
   min_sdk_android: 21
   adaptive_icon_background: "#00C7B7"

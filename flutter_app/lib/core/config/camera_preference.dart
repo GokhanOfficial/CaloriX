@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Kullanıcı ayarlardan seçer; `shared_preferences` anahtarı `camera_preference`.
 enum CameraPreference {
-  /// Uygulama içi (barkod-tarayıcı benzeri) kamera.
+  /// Uygulama içi kamera (tam ekran deneyim).
   inApp('in_app'),
 
   /// Telefonun yerel kamera uygulaması / galeri seçici.

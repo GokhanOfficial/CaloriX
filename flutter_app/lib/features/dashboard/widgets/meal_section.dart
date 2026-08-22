@@ -1,12 +1,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/router/app_router.dart';
 import '../../../data/models/meal_entry.dart';
 import '../../../data/repositories/diary_repository.dart';
+import '../../add/widgets/add_with_ai_dialog.dart';
+import '../../add/widgets/edit_meal_entry_dialog.dart';
 
 /// Öğün grupları — web `Index.tsx`'teki MealSection karşılığı.
 ///
@@ -17,6 +17,9 @@ class MealSections extends ConsumerWidget {
 
   final Map<MealType, List<MealEntry>> mealsByType;
 
+  /// Girdiyi soft-siler ve "Geri Al" SnackBar'ı gösterir. Kart yerinde
+  /// kalır (Dismissible `confirmDismiss` false döner); geri al eylemi
+  /// `restoreMealEntry` ile kaydı canlandırır.
   Future<void> _deleteEntry(
     BuildContext context,
     WidgetRef ref,
@@ -26,14 +29,43 @@ class MealSections extends ConsumerWidget {
     try {
       await ref.read(diaryRepositoryProvider).deleteMealEntry(entry.id);
       ref.invalidate(dailyDataProvider);
-      messenger.showSnackBar(
-        SnackBar(content: Text('dashboard.deletedSuccessfully'.tr())),
-      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('dashboard.deletedSuccessfully'.tr()),
+            action: SnackBarAction(
+              label: 'common.undo'.tr(),
+              onPressed: () async {
+                try {
+                  await ref
+                      .read(diaryRepositoryProvider)
+                      .restoreMealEntry(entry.id);
+                  ref.invalidate(dailyDataProvider);
+                } catch (_) {
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('dashboard.errorDelete'.tr())),
+                  );
+                }
+              },
+            ),
+          ),
+        );
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('dashboard.errorDelete'.tr())),
       );
     }
+  }
+
+  Future<void> _editEntry(
+    BuildContext context,
+    WidgetRef ref,
+    MealEntry entry,
+  ) async {
+    final saved = await EditMealEntryDialog.show(context, entry: entry);
+    if (saved) ref.invalidate(dailyDataProvider);
   }
 
   @override
@@ -46,6 +78,7 @@ class MealSections extends ConsumerWidget {
             emoji: type.emoji,
             entries: mealsByType[type] ?? const [],
             onDelete: (entry) => _deleteEntry(context, ref, entry),
+            onEdit: (entry) => _editEntry(context, ref, entry),
           ),
           const SizedBox(height: 8),
         ],
@@ -60,12 +93,14 @@ class _MealCard extends StatelessWidget {
     required this.emoji,
     required this.entries,
     required this.onDelete,
+    required this.onEdit,
   });
 
   final MealType type;
   final String emoji;
   final List<MealEntry> entries;
-  final ValueChanged<MealEntry> onDelete;
+  final Future<void> Function(MealEntry) onDelete;
+  final ValueChanged<MealEntry> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +119,8 @@ class _MealCard extends StatelessWidget {
             trailing: IconButton(
               icon: const Icon(Icons.add_circle_outline),
               tooltip: 'dashboard.addFood'.tr(),
-              onPressed: () => context.go(AppRoutes.add),
+              onPressed: () =>
+                  AddWithAiDialog.show(context, defaultMealType: type),
             ),
           ),
           if (entries.isNotEmpty) const Divider(height: 1),
@@ -101,17 +137,38 @@ class _MealCard extends StatelessWidget {
                   color: theme.colorScheme.onErrorContainer,
                 ),
               ),
-              onDismissed: (_) => onDelete(entry),
+              // Kart yerinde kalsın, "Geri Al" SnackBar silmeyi aktif
+              // eylesin — kullanıcı kaydırmayı görsel ipucu olarak kullanır.
+              confirmDismiss: (_) async {
+                await onDelete(entry);
+                return false;
+              },
               child: ListTile(
                 dense: true,
                 title: Text(entry.displayName),
                 subtitle: Text('${entry.amountGMl.round()}g'),
-                trailing: Text(
-                  '${entry.calculatedKcal.round()} kcal',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${entry.calculatedKcal.round()} kcal',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      tooltip: 'dashboard.edit'.tr(),
+                      onPressed: () => onEdit(entry),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      tooltip: 'dashboard.delete'.tr(),
+                      onPressed: () => onDelete(entry),
+                    ),
+                  ],
                 ),
+                onTap: () => onEdit(entry),
               ),
             ),
         ],

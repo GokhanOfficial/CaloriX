@@ -8,6 +8,7 @@ import '../../../data/models/food_item.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../../data/repositories/food_repository.dart';
+import 'meal_selector.dart';
 
 /// Seçili yemeği miktar + öğün seçerek günlüğe ekleme dialogu.
 /// Web `AddFromFoodDialog.tsx` karşılığı — hesaplama formülleri aynı:
@@ -98,7 +99,10 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
         SnackBar(
           content: Text(
             'dashboard.addedToMeal'.tr(
-              args: [widget.food.name, 'meals.${_mealType.name}'.tr()],
+              namedArgs: {
+                'food': widget.food.name,
+                'meal': 'meals.${_mealType.name}'.tr(),
+              },
             ),
           ),
         ),
@@ -149,22 +153,9 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<MealType>(
-              initialValue: _mealType,
-              decoration: InputDecoration(
-                labelText: 'addFood.meal'.tr(),
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                for (final type in MealType.values)
-                  DropdownMenuItem(
-                    value: type,
-                    child: Text('meals.${type.name}'.tr()),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _mealType = value);
-              },
+            MealSegmentedButton(
+              value: _mealType,
+              onChanged: (value) => setState(() => _mealType = value),
             ),
             const SizedBox(height: 16),
             Card(

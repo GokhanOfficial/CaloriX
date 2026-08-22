@@ -37,8 +37,33 @@ class AppTheme {
       brightness: brightness,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
+      // Kartlar: M3 surface tint gürültüsünü azalt, tek tip yuvarlatılmış köşe.
+      cardTheme: CardThemeData(
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        surfaceTintColor: Colors.transparent,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(fontWeight: FontWeight.w500),
+        ),
+      ),
+      // Giriş alanları: yumuşak dolgu + outlined border (odak fix'inin
+      // görsel güvenini de artırır).
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceContainerLowest,
+        border: const OutlineInputBorder(),
       ),
     );
   }

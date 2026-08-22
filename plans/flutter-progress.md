@@ -213,13 +213,24 @@ Plan: `flutter-plan-phase5-release.md`
 ### 5c — Uygulama ikonu + açılış ekranı
 - `flutter_launcher_icons ^0.14.3` + `flutter_native_splash ^2.4.6`
   dev_dependencies'e eklendi; pubspec'te config blokları (kaynak
-  `assets/images/logo.png` 1024×1024, arka plan CaloriX teal #00C7B7,
-  Android adaptive + iOS + web).
-- Üretim komutları (config repo'da, çalıştırma kullanıcıya):
-  `dart run flutter_launcher_icons`
-  `dart run flutter_native_splash:create`
-  (Bu session'da classifier engelledi; config hazır, runtime bağımlılık
-  değil.)
+  `assets/images/logo.png` 1024×1024, arka plan CaloriX teal #00C7B7).
+- **İkon üretildi** (`dart run flutter_launcher_icons`):
+  - Android default mipmap PNG'leri (mdpi…xxxhdpi) Flutter logosu yerine
+    CaloriX logosu ile değişti (442→2879, …1443→24885 byte — içerik
+    tamamen yenilendi).
+  - Android adaptive icon: `mipmap-anydpi-v26/ic_launcher.xml` + foreground
+    drawables (drawable-*dpi/ic_launcher_foreground.png, 108…432dp) +
+    `values/colors.xml` (`ic_launcher_background #00C7B7`).
+  - Web: `favicon.png`, `icons/Icon-{192,512,maskable-192,maskable-512}.png`
+    logo ile üretildi; `manifest.json` tema/arka plan rengi `#0175C2`→
+    `#00C7B7` (Flutter mavisi → CaloriX teal).
+  - iOS üretimi devre dışı (`ios: false`) — projede iOS Runner klasörü yok
+    (Android/web odaklı); iOS hedeflenirse `ios: true` + `flutter create
+    --platforms ios` ile Runner şablonu eklenmeli.
+  - Debug APK build ✓ — ikonlar APK içine gömüldü doğrulandı
+    (mipmap + adaptive XML + foreground drawables byte-boyut uyumlu).
+- **Açılış ekranı (splash) üretimi hâlâ bekliyor** (config hazır):
+  `dart run flutter_native_splash:create` (kullanıcı çalıştıracak).
 
 ### 5d — CHANGELOG + sürüm
 - `CHANGELOG.md`'ye "Flutter App" bölümü eklendi (EN + TR), pubspec
@@ -240,7 +251,8 @@ Plan: `flutter-plan-phase5-release.md`
 - GitHub Secrets: `FLUTTER_SUPABASE_URL`, `FLUTTER_SUPABASE_ANON_KEY`
 - Hosting kararı (ayrı Vercel projesi / subdomain / React yanında paralel)
 - Play Store listeleme metinleri/görselleri (TR + EN)
-- İkon/splash üretim komutlarını çalıştırma
+- İkon üretildi (5c); splash üretim komutunu çalıştırma:
+  `dart run flutter_native_splash:create`
 - iOS (opsiyonel): Apple Developer hesabı + macOS build ortamı gerekir
 - Tüm fazlar bitince canlı DB uçtan uca test (kullanıcı)
 
@@ -249,3 +261,71 @@ Plan: `flutter-plan-phase5-release.md`
 - CI imzalama yok (debug fallback) — Play Console yüklemesi elle imzalanır
 - Gradle KGP uyarısı (camera_android_camerax/mobile_scanner/share_plus)
   bilgi amaçlı; plugin Built-in Kotlin geçişi sonraki güncellemelerde
+
+---
+
+## UI/UX Redesign (feature/flutter-app üstünde, 3 faz)
+
+Kullanıcı arayüzü olgun/modern bulmadığını bildirdi ve 6 somut sorun verdi:
+AI ekle tuşu çirkin; öğün "+" sonradan öğle seçiyor; ekle menüsü kullanışsız;
+ring/makro tıklanmıyor (istatistik eksik hissi); kaydırınca anında siliniyor
+(undo/edit yok); AI tanıma onayda gram editlerken her tuşta cursor odağı
+kayboluyor + satır görünümü çirkin. Plan `plans/flutter-redesign-master.md`
++ 3 faz dosyasında. Backend/Supabase değişikliği YOK, yeni ağır bağımlılık
+YOK (mevcut `fl_chart` yeterli).
+
+### Faz 1 — Odak kaybı fix + tanıma satırı görsel + M3 tema cila ✓
+- `recognition_confirm_dialog.dart`: satır tile `_FoodRowTile`
+  `ConsumerStatefulWidget`'a taşındı; 6稳定 controller `initState`'te seed,
+  `addListener` ile row alanı günceller, `dispose`'da bırakır. ListView
+  item'larına `ValueKey`. → her tuşta cursor sabit, çok satırda bağımsız.
+- `_NumField`/`_MiniNum` controller-param versiyonuna geçti;
+  `lib/shared/widgets/number_fields.dart` shared helper (barkod dialogu da
+  import eder). `barcode_scan_dialog.dart` sonuç adımı aynı desenle fix.
+- Tanıma satırı `Card` içine alındı; 4 per-100g makro tek satırda kompakt.
+- `app_theme.dart`: `cardTheme`/`appBarTheme`/`navigationBarTheme`/
+  `inputDecorationTheme(filled)` M3 cilası; `AppColors.macro*` korundu.
+
+### Faz 2 — /add hub + meal preselection + SegmentedButton ✓
+- `meal_selector.dart` (yeni): `MealSegmentedButton` (SegmentedButton<
+  MealType>, 4 segment emoji + i18n etiket).
+- `MealType.defaultForNow()`: saat eşikli varsayılan öğün
+  (`<11` breakfast, `<16` lunch, `<21` dinner, else snack).
+- FAB + öğün kartı "+" → `AddWithAiDialog.show(defaultMealType:)` doğrudan
+  (meal pre-set); `/add` builder `state.extra is MealType ?` okur.
+- `/add` hub: `_AiCard` tek tıkla AI dialogu (iç içe Card/Buton kaldırıldı).
+- 4 dialog DropdownButtonFormField → `MealSegmentedButton`.
+
+### Faz 3 — Tıklanabilir ring/makro + per-macro analitik + öğün satırı ✓
+- `macro_focus.dart` (yeni): `MacroFocus` enum (protein/carbs/fat) +
+  `fromName`, `labelKey`, `color`, `percentOfTarget` (test edilebilir çekirdek).
+- `app_router.dart`: `/analytics?macro=` → `MacroFocus.fromName` →
+  `AnalyticsPage(focusedMacro:)`. `analytics_page.dart` StatefulWidget'a
+  çevrildi; `_FocusedMacroChartCard` (fl_chart LineChart, `dailyStats`
+  P/C/F → hedef yüzdesi, 100% dashed `success` çizgisi, `%X (Yg)` tooltip,
+  `Scrollable.ensureVisible` ile scroll-vurgu).
+- `calorie_ring.dart` + `macro_cards.dart` tıklanabilir (InkWell + Semantics);
+  dashboard → `/analytics` / `/analytics?macro=`. `macro_cards`
+  `Colors.redAccent/amber/lightBlue` → `AppColors.macro*`.
+- `meal_section.dart`: `Dismissible.confirmDismiss` false döner (kart yerinde
+  kalır) + "Geri Al" SnackBar (`restoreMealEntry`); ListTile trailing
+  edit + delete IconButtons; onTap düzenle dialogu.
+- `diary_repository.dart`: `restoreMealEntry(id)` (`deleted_at=null` +
+  `updated_at`), `updateMealEntry` `updated_at` damgalı.
+- `edit_meal_entry_dialog.dart` (yeni): `MealEntry` calculated_* toplamından
+  per-100g geri hesaplar; 6稳定 controller (odak kaybı yok).
+- i18n: `common.undo`, `dashboard.edit/delete`, `analytics.charts.macroFocus.title`,
+  `analytics.goToCalories` (en + tr; diğer 10 dil en fallback).
+
+### Doğrulama
+- `flutter analyze` → 0 sorun
+- `flutter test` → 117/117 (101 + 16 yeni: `macro_focus_test.dart`
+  10, `meal_type_test.dart` 6 — `MacroFocus.fromName/labelKey/color/
+  percentOfTarget`, `MealType.defaultMealForHour` eşikleri)
+- `flutter build apk --debug` → ✓
+
+### Kalan / kullanıcı tarafından yapılacak
+- Canlı DB uçtan uça test (DB deaktif): ring tıkla → analitik; makro kartı
+  tıkla → per-macro grafik; öğün satırı kaydır → Geri Al; edit ikonu →
+  dialog kaydet; AI tanıma gram edit → cursor sabit.
+- Tema cilası light tema okunaklı; manuel görsel onay.

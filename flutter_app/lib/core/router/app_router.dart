@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../constants/app_constants.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/profile_repository.dart';
 import '../../features/about/about_page.dart';
 import '../../features/add/add_page.dart';
 import '../../features/analytics/analytics_page.dart';
+import '../../features/analytics/macro_focus.dart';
 import '../../features/auth/auth_page.dart';
 import '../../features/chat/chat_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
@@ -97,9 +99,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (decision is _RouteLoading) return null;
 
       final target = (decision as _RouteReady).location;
-      if (target == null) return null; // serbest
-
       final goingTo = state.matchedLocation;
+
+      // Serbest (girişli + onboarding tamamlı): /auth veya /onboarding'de
+      // kaldıysa → /dashboard'a çek. Bu, onboarding "Kaydet" sonrası
+      // `ref.invalidate(profileProvider)` + `context.go` race'ini kökten
+      // çözer: invalidate → _routeDecisionProvider target=null →
+      // _RouterRefresh notifyListeners → redirect goingTo=/onboarding +
+      // target==null → /dashboard. Login sonrası /auth'ta kalanı da taşır.
+      if (target == null) {
+        if (goingTo == AppRoutes.auth || goingTo == AppRoutes.onboarding) {
+          return AppRoutes.dashboard;
+        }
+        return null;
+      }
 
       // Auth'a gitmesi gerekiyorsa ve zaten auth'ta değilse → auth.
       if (target == AppRoutes.auth && goingTo != AppRoutes.auth) {
@@ -130,11 +143,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.add,
-            builder: (context, state) => const AddPage(),
+            builder: (context, state) {
+              final meal =
+                  state.extra is MealType ? state.extra as MealType : null;
+              return AddPage(initialMealType: meal);
+            },
           ),
           GoRoute(
             path: AppRoutes.analytics,
-            builder: (context, state) => const AnalyticsPage(),
+            builder: (context, state) {
+              final macro = MacroFocus.fromName(
+                state.uri.queryParameters['macro'],
+              );
+              return AnalyticsPage(focusedMacro: macro);
+            },
           ),
           GoRoute(
             path: AppRoutes.chat,

@@ -9,6 +9,33 @@ All notable changes to CaloriX are documented in this file.
 The Flutter app (`flutter_app/`) carries its own version independent of the
 React web app. Versions below track `pubspec.yaml` version only.
 
+## [flutter 1.2.0+2] - 2026-08-22
+
+### Added — Zamanlanmış hatırlatıcılar
+- Android: günlük sabah kalori/kahvaltı hatırlatıcısı — aç/kapa + saat
+  ayarı (Bildirim Ayarları diyaloğu), bildirim aksiyon tuşları
+  ("Kahvaltı yapmayacağım", "1 saat ertele"), reboot sonrası plan korunumu.
+- Web: uygulama açıkken gösterilen in-app hatırlatma banner'ı (aynı ayarlar).
+
+### Removed — Barkod özelliği tamamen kaldırıldı
+- Flutter ve React uygulamalarından tarayıcı/barkod akışı, `mobile_scanner`
+  ve `@zxing/library` bağımlılıkları çıkarıldı; `foods.barcode` kolonu ve
+  `food_source` enum'undaki 'barcode' değeri düşürüldü
+  (`20260822000000_remove_barcode.sql` — mevcut satırlar 'manual'a taşındı).
+
+### Added — Android zorunlu güncelleme mekanizması
+- Launch-time update check against the GitHub Releases manifest
+  (`releases/latest/download/latest.json`): builds below
+  `minSupportedVersionCode` are blocked with a full-screen "Update Required"
+  page (browser APK download); older-but-supported builds get a dismissible
+  optional-update dialog; offline check falls back to the cached manifest and
+  finally opens with a one-time warning.
+- `tool/release_android.sh`: builds the release APK, generates `latest.json`
+  (versionName/versionCode/minSupportedVersionCode/apkUrl/sha256/notes) and
+  publishes both to GitHub Releases; `--min-code` sets the forced-update
+  cutoff for breaking changes (e.g. DB migrations).
+- Translations: `updates.*` keys in all 12 locales.
+
 ## [flutter 1.0.0+1] - 2026-08-16
 
 ### Added — Phase foundation (Faz 0–1)

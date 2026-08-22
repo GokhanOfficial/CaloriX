@@ -30,7 +30,6 @@ CaloriX is a modern PWA (Progressive Web App) that allows you to track daily cal
 ### 🍽️ Food Tracking
 - **AI Powered Recognition**: Recognize food via photo or text
 - **AI Chat Nutrition Assistant**: Chat about your daily logs, goals, and nutrition decisions for personalized support
-- **Barcode Scanning**: Quickly add packaged products via barcode
 - **Detailed Nutritional Values**: Calories, protein, carbohydrates, fat, and more
 - **NOVA & Nutri-Score**: Food processing and nutrition scores
 
@@ -153,6 +152,39 @@ supabase functions deploy
 ## 📝 Release Notes
 
 See [CHANGELOG.md](CHANGELOG.md) for the latest release notes.
+
+## 📦 Android Release & Forced Updates
+
+Android APKs are distributed via GitHub Releases. On launch the app checks the
+[`releases/latest/download/latest.json`](https://github.com/GokhanOfficial/CaloriX/releases/latest/download/latest.json)
+manifest and behaves based on the device version:
+
+- **Forced update**: If the device build number is below the manifest's
+  `minSupportedVersionCode`, the app refuses to open and shows a
+  "Update Required" screen until the user installs the APK from the browser.
+- **Optional update**: If the device is older than the latest but still
+  supported, a dismissible reminder dialog is shown.
+- **Check unavailable** (offline): The last successful manifest is cached on
+  device, so a decision is still made; with no data at all the app opens with
+  a one-time warning.
+
+Release flow:
+
+```bash
+# 1) Bump the version in flutter_app/pubspec.yaml: version: 1.2.0+3
+
+# 2) Normal release (older versions get an OPTIONAL update):
+tool/release_android.sh --notes-en "Bug fixes" --notes-tr "Hata düzeltmeleri"
+
+# 3) Breaking change such as a DB migration — builds below 3 STOP WORKING:
+tool/release_android.sh --min-code 3
+```
+
+The script builds the release APK, generates `sha256` + `latest.json` and
+uploads both to GitHub Releases. The `--min-code` rule: whenever you migrate
+the database (old clients would hit an incompatible schema), pass the first
+build number that contains the migration — everything below it gets a forced
+update.
 
 ## 🔧 Technologies
 

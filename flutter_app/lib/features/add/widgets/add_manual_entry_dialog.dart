@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../../data/repositories/food_repository.dart';
+import 'meal_selector.dart';
 
 /// Manuel yiyecek girişi dialogu — web `AddMealDialog.tsx` karşılığı.
 ///
@@ -124,28 +125,17 @@ class _AddManualEntryDialogState extends ConsumerState<AddManualEntryDialog> {
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 labelText: 'dialogs.foodName'.tr(),
-                hintText: 'dialogs.example'.tr(args: ['Tavuk Göğsü']),
+                hintText: 'dialogs.example'.tr(
+                  namedArgs: {'example': 'Tavuk Göğsü'},
+                ),
                 border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<MealType>(
-              initialValue: _mealType,
-              decoration: InputDecoration(
-                labelText: 'addFood.meal'.tr(),
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                for (final type in MealType.values)
-                  DropdownMenuItem(
-                    value: type,
-                    child: Text('meals.${type.name}'.tr()),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _mealType = value);
-              },
+            MealSegmentedButton(
+              value: _mealType,
+              onChanged: (value) => setState(() => _mealType = value),
             ),
             const SizedBox(height: 12),
             TextField(

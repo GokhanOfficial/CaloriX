@@ -185,7 +185,23 @@ class DiaryRepository {
         .eq('id', id);
   }
 
+  /// Yemek girdisini geri al — `deleted_at = null` (soft-delete undo).
+  /// Dashboard kaydır-sil sonrası "Geri Al" SnackBar aksiyonu.
+  Future<void> restoreMealEntry(String id) async {
+    await _client.from('meal_entries').update(
+      {'deleted_at': null, 'updated_at': _nowIso()},
+    ).eq('id', id);
+  }
+
   /// Su ekle (web `addWaterEntry` — entry_time DB default'una bırakılır).
+  ///
+  /// `water_entries.amount_ml` DB sütunu `integer`. Dart tarafı ml'yi
+  /// `double` tutar (UI ilerleme çubuğu bölmesi için) ama PostgREST'e
+  /// `250.0` gönderilirse Postgres integer ayrıştırıcısı ondalık noktayı
+  /// reddeder → `22P02 invalid input syntax for type integer: "250.0"` →
+  /// POST 400. Bu yüzden insert'te `int`'e dönüştürülür (su ml her zaman
+  /// tam sayıdır; okuma yolu json_serializable'ın int→double zorlamasıyla
+  /// zararsız çalışır).
   Future<WaterEntry> addWaterEntry(
     String userId, {
     required double amountMl,
@@ -195,7 +211,7 @@ class DiaryRepository {
         .from('water_entries')
         .insert({
           'user_id': userId,
-          'amount_ml': amountMl,
+          'amount_ml': amountMl.round(),
           'entry_date': entryDate,
         })
         .select()

@@ -75,7 +75,6 @@
     "required": "required",
     "customAmount": "Custom Amount",
     "addWithAI": "Add with AI",
-    "addWithBarcode": "Add with Barcode",
     "addFood": "Add Food",
     "editFood": "Edit Food",
     "searchFood": "Search Food",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Carb/100g",
     "fatPer100g": "Fat/100g",
-    "barcode": {
-      "title": "Add with Barcode",
-      "scanning": "Scanning...",
-      "productFound": "Product found",
-      "productNotFound": "Product not found",
-      "tryAgain": "Try again",
-      "manualEntry": "Manual entry"
-    },
     "weight": {
       "title": "Log Weight",
       "currentWeight": "Current Weight",
@@ -323,8 +314,6 @@
     "recordWeight": "Record your weight",
     "quickAdd": "Quick Add",
     "quick": {
-      "barcode": "Barcode",
-      "scan": "Scan product",
       "search": "Search",
       "findFood": "Find food",
       "ai": "Add with AI",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Features",
       "ai": "AI-powered food recognition (photo and text)",
-      "barcode": "Barcode scanning for food entry",
       "tracker": "Water and weight tracking",
       "analytics": "Detailed analysis and charts",
       "notifications": "Smart notification reminders"
@@ -394,8 +382,7 @@
       "empty": "No food added yet"
     },
     "tabs": {
-      "search": "Search",
-      "barcode": "Barcode"
+      "search": "Search"
     },
     "search": {
       "title": "Search Food",
@@ -403,12 +390,6 @@
       "noResults": "No results found",
       "promptTitle": "Search food from database",
       "promptDesc": "Enter at least 2 characters"
-    },
-    "barcode": {
-      "title": "Scan Barcode",
-      "scanTitle": "Scan with Camera",
-      "scanDesc": "Show product barcode to camera",
-      "openCamera": "Open Camera"
     },
     "manual": {
       "title": "Manual Entry",

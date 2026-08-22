@@ -1,6 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -8,6 +7,8 @@ import '../../../data/models/recognized_food.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../../data/repositories/food_repository.dart';
+import '../../../shared/widgets/number_fields.dart';
+import 'meal_selector.dart';
 
 /// Tanıma sonucu onay ekranı — web `UnifiedFoodDialog` ("results" adımı).
 ///
@@ -47,7 +48,7 @@ class RecognitionConfirmDialog extends StatelessWidget {
 
   /// Verilirse başlık satırında "geri" butonu gösterilir (yeniden analiz
   /// için AI giriş dialogunun results adımına gömüldüğünde kullanılır).
-  /// Bağımsız `.show()` kullanımında (barkod) null kalır.
+  /// Bağımsız `.show()` kullanımında null kalır.
   final VoidCallback? onBack;
 
   /// Dialog'u gösterir; en az bir yemek kaydedildiyse true döner.
@@ -123,6 +124,11 @@ class RecognitionConfirmBody extends ConsumerStatefulWidget {
 }
 
 /// Listedeki tek yemeğin düzenlenebilir durumu.
+///
+/// Controller'lar [_FoodRowTileState] içinde稳定 tutulur; her tuş
+/// vuruşunda yeniden yaratılmaz → odak kaybı yok (eski sürümde `build`
+/// içinde `TextEditingController(text:)` yaratılıyordu, bu odak
+/// kaybına ve controller sızıntısına yol açıyordu).
 class _FoodRow {
   _FoodRow(this.food)
       : name = food.name,
@@ -198,7 +204,7 @@ class _RecognitionConfirmBodyState
     var added = 0;
 
     try {
-      // Web parity: seçili her yemek için sıralı ayrı INSERT.
+      // Webparity: seçili her yemek için sıralı ayrı INSERT.
       for (final r in selected) {
         final calc = _rowCalc(r);
         await ref.read(diaryRepositoryProvider).addMealEntry(
@@ -226,7 +232,11 @@ class _RecognitionConfirmBodyState
       ref.invalidate(favoriteFoodsProvider);
 
       messenger.showSnackBar(
-        SnackBar(content: Text('dialogs.foodsAdded'.tr(args: ['$added']))),
+        SnackBar(
+          content: Text(
+            'dialogs.foodsAdded'.tr(namedArgs: {'count': '$added'}),
+          ),
+        ),
       );
       widget.onSaved(true);
     } catch (_) {
@@ -280,34 +290,12 @@ class _RecognitionConfirmBodyState
               ],
               const SizedBox(height: 12),
               // Ortak öğün seçici (web: tek shared meal-type).
-              DropdownButtonFormField<MealType>(
-                initialValue: _mealType,
-                decoration: InputDecoration(
-                  labelText: 'addFood.meal'.tr(),
-                  border: const OutlineInputBorder(),
-                ),
-                items: [
-                  for (final type in MealType.values)
-                    DropdownMenuItem(
-                      value: type,
-                      child: Text('meals.${type.name}'.tr()),
-                    ),
-                ],
-                onChanged: (value) {
-                  if (value != null) setState(() => _mealType = value);
-                },
+              MealSegmentedButton(
+                value: _mealType,
+                onChanged: (value) => setState(() => _mealType = value),
               ),
               const SizedBox(height: 12),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _rows.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) => _rowTile(theme, _rows[i]),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Toplam (seçili yemekler).
+              // Toplam (seçili yemekler) — listenin üstünde sabit.
               Card(
                 color: theme.colorScheme.surfaceContainerHighest,
                 child: Padding(
@@ -333,6 +321,25 @@ class _RecognitionConfirmBodyState
                 ),
               ),
               const SizedBox(height: 12),
+              // Tanınan yemekler — her satır kendi State'inde controller
+              // tutar (odak kaybı fix). ValueKey ile parent rebuild
+              // sırasında element korunur.
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _rows.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final r = _rows[i];
+                    return _FoodRowTile(
+                      key: ValueKey('food-row-$i-${r.food.name}'),
+                      row: r,
+                      onChanged: () => setState(() {}), // toplamı yenile
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _selectedCount > 0 && !_saving ? _save : null,
                 icon: _saving
@@ -342,7 +349,11 @@ class _RecognitionConfirmBodyState
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check),
-                label: Text('dialogs.foodAdded'.tr(args: ['$_selectedCount'])),
+                label: Text(
+                  'dialogs.foodAdded'.tr(
+                    namedArgs: {'count': '$_selectedCount'},
+                  ),
+                ),
               ),
             ],
           ),
@@ -350,185 +361,223 @@ class _RecognitionConfirmBodyState
       ),
     );
   }
+}
 
-  Widget _rowTile(ThemeData theme, _FoodRow r) {
-    final calc = _rowCalc(r);
+/// Tek bir tanınan yemek satırı — State içinde稳定 controller'lar.
+///
+/// Odak kaybı fix: eski sürümde `_rowTile` metodu her `build`'da yeni
+/// `TextEditingController` yaratıyordu; parent `setState` (her tuşta)
+/// tüm ListView'i yeniden mount ediyor → controller yeniden yaratılıyor
+/// → odak kaybı. Artık controller'lar `initState`'te bir kez yaratılır,
+/// `dispose`'da bırakılır; `ValueKey` ile parent rebuild sırasında
+/// element + State korunur.
+class _FoodRowTile extends StatefulWidget {
+  const _FoodRowTile({super.key, required this.row, required this.onChanged});
+
+  final _FoodRow row;
+
+  /// Satır alanı değiştiğinde parent'ı total'i yeniden hesaplaması için.
+  final VoidCallback onChanged;
+
+  @override
+  State<_FoodRowTile> createState() => _FoodRowTileState();
+}
+
+class _FoodRowTileState extends State<_FoodRowTile> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _amountController;
+  late final TextEditingController _calController;
+  late final TextEditingController _proteinController;
+  late final TextEditingController _carbsController;
+  late final TextEditingController _fatController;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.row;
+    _nameController = TextEditingController(text: r.name);
+    _amountController = TextEditingController(text: formatAmount(r.amount));
+    _calController =
+        TextEditingController(text: formatAmount(r.calories));
+    _proteinController =
+        TextEditingController(text: formatAmount(r.protein));
+    _carbsController = TextEditingController(text: formatAmount(r.carbs));
+    _fatController = TextEditingController(text: formatAmount(r.fat));
+
+    void notify() => widget.onChanged();
+    _nameController.addListener(() {
+      widget.row.name = _nameController.text;
+      notify();
+    });
+    // Sayısal alanlar: geçersiz parse ise row'u güncelleme (kullanıcı
+    // yazıyor olabilir — ara durumlar), geçerli ise güncelle + parent'a haber ver.
+    _amountController.addListener(() {
+      final n = double.tryParse(_amountController.text);
+      if (n != null) {
+        widget.row.amount = n;
+        notify();
+      }
+    });
+    _calController.addListener(() {
+      final n = double.tryParse(_calController.text);
+      if (n != null) {
+        widget.row.calories = n;
+        notify();
+      }
+    });
+    _proteinController.addListener(() {
+      final n = double.tryParse(_proteinController.text);
+      if (n != null) {
+        widget.row.protein = n;
+        notify();
+      }
+    });
+    _carbsController.addListener(() {
+      final n = double.tryParse(_carbsController.text);
+      if (n != null) {
+        widget.row.carbs = n;
+        notify();
+      }
+    });
+    _fatController.addListener(() {
+      final n = double.tryParse(_fatController.text);
+      if (n != null) {
+        widget.row.fat = n;
+        notify();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _amountController.dispose();
+    _calController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final r = widget.row;
+    final calc = (
+      kcal: (r.calories * r.amount / 100).round(),
+      protein: (r.protein * r.amount / 10).round() / 10,
+      carbs: (r.carbs * r.amount / 10).round() / 10,
+      fat: (r.fat * r.amount / 10).round() / 10,
+    );
+
     return Opacity(
       opacity: r.selected ? 1.0 : 0.6,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Checkbox(
-                  value: r.selected,
-                  onChanged: (v) => setState(() => r.selected = v ?? false),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: TextEditingController(text: r.name),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: const OutlineInputBorder(),
-                      labelText: 'dialogs.foodName'.tr(),
-                    ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Üst satır: seçim + yemek adı.
+              Row(
+                children: [
+                  Checkbox(
+                    value: r.selected,
                     onChanged: (v) {
-                      r.name = v;
-                      setState(() {});
+                      setState(() => r.selected = v ?? false);
+                      widget.onChanged();
                     },
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: _NumField(
-                    label: 'dialogs.amount'.tr(),
-                    suffix: 'g/ml',
-                    value: r.amount,
-                    onChanged: (v) => setState(() => r.amount = v),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 3,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _MiniNum(
-                        label: 'dialogs.calPer100g'.tr(),
-                        value: r.calories,
-                        onChanged: (v) => setState(() => r.calories = v),
+                  Expanded(
+                    child: TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        border: const OutlineInputBorder(),
+                        labelText: 'dialogs.foodName'.tr(),
                       ),
-                      _MiniNum(
-                        label: 'dialogs.proPer100g'.tr(),
-                        value: r.protein,
-                        onChanged: (v) => setState(() => r.protein = v),
-                      ),
-                      _MiniNum(
-                        label: 'dialogs.carbPer100g'.tr(),
-                        value: r.carbs,
-                        onChanged: (v) => setState(() => r.carbs = v),
-                      ),
-                      _MiniNum(
-                        label: 'dialogs.fatPer100g'.tr(),
-                        value: r.fat,
-                        onChanged: (v) => setState(() => r.fat = v),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Text(
-                  'dialogs.confidence'.tr(args: [r.confidence.toStringAsFixed(0)]),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Miktar — belirgin, tam genişlik.
+              NumField(
+                controller: _amountController,
+                label: 'dialogs.amount'.tr(),
+                suffix: 'g/ml',
+              ),
+              const SizedBox(height: 8),
+              // 100g başına makrolar — tek satırda 4 eşit kompakt alan
+              // (eski Wrap/2×2 yerine, daha düzenli).
+              Row(
+                children: [
+                  Expanded(
+                    child: MiniNumField(
+                      controller: _calController,
+                      label: 'dialogs.calPer100g'.tr(),
+                      width: double.infinity,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  '${calc.kcal} kcal · '
-                  'P ${calc.protein.toStringAsFixed(1)} · '
-                  'K ${calc.carbs.toStringAsFixed(1)} · '
-                  'Y ${calc.fat.toStringAsFixed(1)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: MiniNumField(
+                      controller: _proteinController,
+                      label: 'dialogs.proPer100g'.tr(),
+                      width: double.infinity,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: MiniNumField(
+                      controller: _carbsController,
+                      label: 'dialogs.carbPer100g'.tr(),
+                      width: double.infinity,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: MiniNumField(
+                      controller: _fatController,
+                      label: 'dialogs.fatPer100g'.tr(),
+                      width: double.infinity,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Alt satır: güven + toplam.
+              Row(
+                children: [
+                  Text(
+                    'dialogs.confidence'.tr(
+                      namedArgs: {
+                        'percent': r.confidence.toStringAsFixed(0),
+                      },
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${calc.kcal} kcal · '
+                    'P ${calc.protein.toStringAsFixed(1)} · '
+                    'K ${calc.carbs.toStringAsFixed(1)} · '
+                    'Y ${calc.fat.toStringAsFixed(1)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-/// Miktar için tam genişlikli sayı alanı.
-class _NumField extends StatelessWidget {
-  const _NumField({
-    required this.label,
-    required this.suffix,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String suffix;
-  final double value;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: TextEditingController(text: _format(value)),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-      ],
-      decoration: InputDecoration(
-        isDense: true,
-        labelText: label,
-        suffixText: suffix,
-        border: const OutlineInputBorder(),
-      ),
-      onChanged: (v) {
-        final n = double.tryParse(v);
-        if (n != null) onChanged(n);
-      },
-    );
-  }
-}
-
-/// 100g başına makro için küçük sayı alanı (Wrap içinde).
-class _MiniNum extends StatelessWidget {
-  const _MiniNum({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 78,
-      child: TextField(
-        controller: TextEditingController(text: _format(value)),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-        ],
-        decoration: InputDecoration(
-          isDense: true,
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        onChanged: (v) {
-          final n = double.tryParse(v);
-          if (n != null) onChanged(n);
-        },
-      ),
-    );
-  }
-}
-
-String _format(double v) {
-  if (v == v.roundToDouble()) return v.toInt().toString();
-  return v.toStringAsFixed(1);
 }
 
 class _Macro extends StatelessWidget {

@@ -12,7 +12,6 @@ import { AddMealDialog } from "@/components/dialogs/AddMealDialog";
 import { EditMealDialog } from "@/components/dialogs/EditMealDialog";
 import { AddWeightDialog } from "@/components/dialogs/AddWeightDialog";
 import { UnifiedFoodDialog } from "@/components/dialogs/UnifiedFoodDialog";
-import { BarcodeScanDialog } from "@/components/dialogs/BarcodeScanDialog";
 import { MEAL_TYPES, type MealType, DEFAULT_GOALS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useDailyData } from "@/hooks/useDailyData";
@@ -29,7 +28,6 @@ const Index = () => {
   const [addWeightOpen, setAddWeightOpen] = useState(false);
   const [unifiedFoodDialogOpen, setUnifiedFoodDialogOpen] = useState(false);
   const [unifiedFoodDialogTab, setUnifiedFoodDialogTab] = useState<"search" | "ai">("search");
-  const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealType>("breakfast");
   const [editingEntry, setEditingEntry] = useState<{
@@ -338,7 +336,6 @@ const Index = () => {
 
           {/* Quick Add Menu */}
           <QuickAddMenu
-            onBarcodeScan={() => setBarcodeDialogOpen(true)}
             onPhotoAdd={() => openUnifiedDialog("ai")}
             onTextAdd={() => openUnifiedDialog("search")}
             onRecent={() => navigate("/add")}
@@ -385,26 +382,6 @@ const Index = () => {
         onOpenChange={setUnifiedFoodDialogOpen}
         defaultMealType={selectedMealType}
         defaultTab={unifiedFoodDialogTab}
-        onSubmit={async (foods) => {
-          try {
-            for (const food of foods) {
-              await addMealEntry({
-                ...food,
-                food_id: food.food_id || null,
-                entry_date: format(selectedDate, "yyyy-MM-dd"),
-                note: null,
-              });
-            }
-            return { error: null };
-          } catch (err) {
-            return { error: err as Error };
-          }
-        }}
-      />
-      <BarcodeScanDialog
-        open={barcodeDialogOpen}
-        onOpenChange={setBarcodeDialogOpen}
-        defaultMealType="snack"
         onSubmit={async (foods) => {
           try {
             for (const food of foods) {

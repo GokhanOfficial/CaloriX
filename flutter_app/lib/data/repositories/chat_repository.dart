@@ -217,10 +217,9 @@ class ChatRepository {
       }
       final newAttachments = <ChatAttachment>[];
       for (final a in m.attachments) {
-        if (a.signedUrl != null && a.signedUrl!.isNotEmpty) {
-          newAttachments.add(a);
-          continue;
-        }
+        // DB'de saklanan signedUrl yükleme anından kalma ve 1 saat içinde
+        // süresi dolar → her yüklemede taze imzalı URL üret (web `signAttachments`
+        // da koşulsuz yeniden imzalar). Aksi halde eski URL → Storage 400.
         final signedUrl = await _client.storage
             .from(_bucket)
             .createSignedUrl(a.path, 60 * 60);

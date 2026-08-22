@@ -70,12 +70,11 @@
     "noResults": "لا نتائج",
     "analyzeWithAI": "تحليل بالذكاء الاصطناعي",
     "reanalyze": "إعادة التحليل",
-    "example": "مثال",
+    "example": "مثال {example}",
     "optional": "اختياري",
     "required": "مطلوب",
     "customAmount": "كمية مخصصة",
     "addWithAI": "إضافة بالذكاء الاصطناعي",
-    "addWithBarcode": "إضافة بالباركود",
     "addFood": "إضافة طعام",
     "editFood": "تعديل الطعام",
     "searchFood": "بحث عن طعام",
@@ -109,45 +108,16 @@
     "aiRequiresInternet": "تحليل الذكاء الاصطناعي يتطلب إنترنت",
     "analysisFailed": "فشل التحليل",
     "selectAtLeastOne": "اختر واحداً على الأقل",
-    "foodAdded": "تمت إضافة الطعام",
-    "foodsAdded": "أطعمة مضافة",
+    "foodAdded": "تمت إضافة الطعام ({count})",
+    "foodsAdded": "{count} أطعمة مضافة",
     "saveFailed": "فشل الحفظ",
     "inputText": "النص المدخل",
-    "confidence": "الثقة",
+    "confidence": "{percent}% الثقة",
     "calories": "سعرات",
     "calPer100g": "سعرات/100غ",
     "proPer100g": "بروتين/100غ",
     "carbPer100g": "كارب/100غ",
     "fatPer100g": "دهون/100غ",
-    "barcode": {
-      "title": "إضافة بالباركود",
-      "scanning": "جار المسح...",
-      "productFound": "تم العثور على المنتج",
-      "productNotFound": "المنتج غير موجود",
-      "tryAgain": "أعد المحاولة",
-      "manualEntry": "إدخال يدوي",
-      "scanDesc": "وجّه الكاميرا نحو الباركود لمسحه تلقائياً",
-      "manualPlaceholder": "أدخل رقم الباركود يدوياً",
-      "search": "بحث",
-      "cameraError": "تعذّر الوصول إلى الكاميرا. تحقق من الأذونات.",
-      "searching": "جارٍ البحث في قاعدة البيانات...",
-      "productNotFoundDesc": "لم يتم العثور على هذا المنتج في قاعدة البيانات. حلّله بالذكاء الاصطناعي أو أضفه يدوياً.",
-      "aiPrompt": "تفاصيل إضافية (اختياري) — مثلاً العلامة التجارية أو الحجم",
-      "aiPromptRequired": "أدخل تفاصيل إضافية أو التقط صورة للتحليل بالذكاء الاصطناعي.",
-      "aiTextPrompt": "رقم الباركود: {0}. خمّن القيمة الغذائية للمنتج بهذا الباركود.",
-      "barcodeLabel": "الباركود: {0}",
-      "foundInDb": "وُجد في قاعدة البيانات",
-      "reScan": "إعادة المسح",
-      "brand": "العلامة التجارية",
-      "servingSize": "حجم الحصة (غ)",
-      "extendedNutrition": "قيم غذائية تفصيلية",
-      "saturatedFat": "دهون مشبعة (غ)",
-      "transFat": "دهون متحولة (غ)",
-      "sugars": "السكريات (غ)",
-      "salt": "الملح (غ)",
-      "novaScore": "درجة NOVA",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "تسجيل الوزن",
       "currentWeight": "الوزن الحالي",
@@ -173,7 +143,11 @@
     "title": "الإشعارات",
     "new": "جديد",
     "markAllRead": "تعليم الكل مقروء",
-    "empty": "لا توجد إشعارات"
+    "empty": "لا توجد إشعارات",
+    "breakfastTitle": "وقت الفطور ☀️",
+    "breakfastBody": "ابدأ يومك بشكل جيد — سجّل فطورك",
+    "snoozeHour": "تأجيل ساعة",
+    "skipBreakfast": "لن أتناول الفطور"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -314,7 +288,11 @@
       "email": "إشعارات البريد الإلكتروني",
       "weighInFrequency": "تكرار الوزن (أيام)",
       "autoRecalculate": "إعادة حساب المغذيات الكبرى تلقائيًا",
-      "days": "أيام"
+      "days": "أيام",
+      "reminderTitle": "تذكير السعرات الصباحي",
+      "reminderDesc": "تلقَّ تذكيرًا بالفطور كل يوم في الوقت الذي تختاره",
+      "reminderTime": "وقت التذكير",
+      "webOnlyInApp": "على الويب، تظهر التذكيرات فقط عندما يكون التطبيق مفتوحًا"
     },
     "import": {
       "title": "استيراد البيانات",
@@ -358,8 +336,6 @@
     "recordWeight": "سجل وزنك",
     "quickAdd": "إضافة سريعة",
     "quick": {
-      "barcode": "الباركود",
-      "scan": "مسح المنتج",
       "search": "بحث",
       "findFood": "البحث عن طعام",
       "ai": "إضافة بالذكاء الاصطناعي",
@@ -395,7 +371,6 @@
     "features": {
       "title": "المميزات",
       "ai": "التعرف على الطعام بالذكاء الاصطناعي (صورة ونص)",
-      "barcode": "مسح الباركود",
       "tracker": "تتبع الماء والوزن",
       "analytics": "تحليلات ورسوم بيانية مفصلة",
       "notifications": "تذكيرات ذكية"
@@ -429,8 +404,7 @@
       "empty": "لم يتم إضافة طعام بعد"
     },
     "tabs": {
-      "search": "بحث",
-      "barcode": "الباركود"
+      "search": "بحث"
     },
     "search": {
       "title": "بحث عن طعام",
@@ -438,12 +412,6 @@
       "noResults": "لا توجد نتائج",
       "promptTitle": "البحث عن طعام في قاعدة البيانات",
       "promptDesc": "أدخل حرفين على الأقل"
-    },
-    "barcode": {
-      "title": "مسح الباركود",
-      "scanTitle": "المسح بالكاميرا",
-      "scanDesc": "وجه باركود المنتج نحو الكاميرا",
-      "openCamera": "فتح الكاميرا"
     },
     "manual": {
       "title": "إدخال يدوي",
@@ -528,5 +496,17 @@
       "clear": "تعذر مسح الدردشة"
     },
     "welcomeMessage": "مرحبًا! أنا CaloriX AI. يمكنني مساعدتك في متابعة وجباتك، استهلاكك للماء، وزنك وأهدافك."
+  },
+  "updates": {
+    "requiredTitle": "التحديث مطلوب",
+    "requiredBody": "يحتاج CaloriX إلى الإصدار {version}. بياناتك بأمان — ثبّت التحديث للمتابعة.",
+    "optionalTitle": "إصدار جديد متاح",
+    "optionalBody": "CaloriX {version} جاهز. هل تريد التحديث الآن؟",
+    "updateNow": "تحديث",
+    "later": "لاحقًا",
+    "recheck": "تحقق مجددًا",
+    "checkFailed": "فشل التحقق من التحديث",
+    "notesTitle": "ما الجديد",
+    "openFailed": "تعذر فتح صفحة التنزيل"
   }
 }

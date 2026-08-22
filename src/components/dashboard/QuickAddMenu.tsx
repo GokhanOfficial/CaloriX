@@ -1,9 +1,8 @@
-import { ScanBarcode, Sparkles, Search, History, Star } from "lucide-react";
+import { Sparkles, Search, History, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "react-i18next";
 
 interface QuickAddMenuProps {
-  onBarcodeScan?: () => void;
   onPhotoAdd?: () => void;
   onTextAdd?: () => void;
   onRecent?: () => void;
@@ -11,7 +10,6 @@ interface QuickAddMenuProps {
 }
 
 export function QuickAddMenu({
-  onBarcodeScan,
   onPhotoAdd,
   onTextAdd,
   onRecent,
@@ -20,12 +18,6 @@ export function QuickAddMenu({
   const { t } = useTranslation();
 
   const actions = [
-    {
-      icon: ScanBarcode,
-      label: t('dashboard.quick.barcode'),
-      description: t('dashboard.quick.scan'),
-      onClick: onBarcodeScan,
-    },
     {
       icon: Search,
       label: t('dashboard.quick.search'),
@@ -58,7 +50,7 @@ export function QuickAddMenu({
         <CardTitle className="text-lg font-semibold">{t('dashboard.quickAdd')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
           {actions.map(({ icon: Icon, label, description, onClick }) => (
             <button
               key={label}

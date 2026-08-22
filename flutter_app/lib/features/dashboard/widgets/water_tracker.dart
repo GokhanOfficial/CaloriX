@@ -35,14 +35,26 @@ class WaterTracker extends ConsumerWidget {
             amountMl: amount,
             entryDate: formatEntryDate(date),
           );
-      ref.invalidate(dailyDataProvider);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'dashboard.waterAdded'.tr(args: ['${amount.round()}']),
+      // Await sırasında widget dispose olabilir — `ref.invalidate` dispose
+      // sonrası "Bad state: Cannot use "ref" after the widget was disposed"
+      // fırlatır ve alttaki catch bunu bir insert hatası sanıp yanıltıcı
+      // "Hata" toast'u gösterir. Dispose olduysa invalidate'i atla; başarılı
+      // kayıt zaten günlük veriyi yeniden yükleyen sayfayı yeniden canlandırınca
+      // görünür olacak.
+      if (context.mounted) {
+        ref.invalidate(dailyDataProvider);
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              // JSON `dashboard.waterAdded` named placeholder `{amount}`
+              // kullanır; `.tr(namedArgs:)` ile substitute edilir (positional
+              // `args` boş `{}` bekler, literal `{amount}` gösterilirdi).
+              'dashboard.waterAdded'
+                  .tr(namedArgs: {'amount': '${amount.round()}'}),
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('common.error'.tr())),
@@ -120,8 +132,9 @@ class WaterTracker extends ConsumerWidget {
             Text(
               remaining <= 0
                   ? 'dashboard.goalReached'.tr()
-                  : 'dashboard.mlRemaining'
-                      .tr(args: ['${remaining.round()}']),
+                  : 'dashboard.mlRemaining'.tr(
+                      namedArgs: {'amount': '${remaining.round()}'},
+                    ),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

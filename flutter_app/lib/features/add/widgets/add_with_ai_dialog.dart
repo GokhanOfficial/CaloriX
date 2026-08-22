@@ -23,7 +23,7 @@ import 'recognition_confirm_dialog.dart';
 ///     metin ise `"text"`. Geri butonu → giriş adımına dön (yeniden analiz).
 ///
 /// Kamera tercihi (`cameraPreferenceProvider`):
-///  - `inApp` → [InAppCameraScreen] (barkod-tarayıcı benzeri tam ekran).
+///  - `inApp` → [InAppCameraScreen] (tam ekran kamera deneyimi).
 ///    İzin reddedilirse boş döner → native `ImagePicker.camera`'a düşer.
 ///  - `native` → doğrudan `ImagePicker.camera` (telefon kamera uygulaması).
 class AddWithAiDialog extends ConsumerStatefulWidget {

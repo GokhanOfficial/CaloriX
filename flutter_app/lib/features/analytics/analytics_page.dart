@@ -8,17 +8,56 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/analytics_repository.dart';
 import '../../data/repositories/profile_repository.dart';
+import 'macro_focus.dart';
 
 /// Analitik sayfası — web `AnalyticsPage.tsx` karşılığı.
 ///
 /// Periyot sekmeleri (Hafta / Ay / 3 Ay), 4 istatistik kartı,
 /// kalori alan grafiği (hedef %100 çizgili), makro çubuk grafiği,
 /// makro ortalamaları ilerleme çubukları ve kilo trendi.
-class AnalyticsPage extends ConsumerWidget {
-  const AnalyticsPage({super.key});
+///
+/// `focusedMacro` (isteğe bağlı) `/analytics?macro=protein|carbs|fat` sorgu
+/// parametresinden gelir; seçili makro için kalori grafiğinin üstünde ek
+/// bir per-macro takip kartı gösterir ve görünür alanı ona kaydırır.
+class AnalyticsPage extends ConsumerStatefulWidget {
+  const AnalyticsPage({super.key, this.focusedMacro});
+
+  final MacroFocus? focusedMacro;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnalyticsPage> createState() => _AnalyticsPageState();
+}
+
+class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
+  final _scrollController = ScrollController();
+  final _focusChartKey = GlobalKey();
+  bool _scrolledToFocus = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Veri yüklendikten sonra per-macro odak kartına bir kez kaydır (vurgu).
+  void _maybeScrollToFocus() {
+    if (widget.focusedMacro == null || _scrolledToFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final ctx = _focusChartKey.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      _scrolledToFocus = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final locale = context.locale.languageCode;
     final dataAsync = ref.watch(analyticsDataProvider(locale));
     final profileAsync = ref.watch(profileProvider);
@@ -26,6 +65,7 @@ class AnalyticsPage extends ConsumerWidget {
 
     final profile = profileAsync.valueOrNull;
     final targets = _Targets.fromProfile(profile);
+    final focus = widget.focusedMacro;
 
     return Scaffold(
       appBar: AppBar(title: Text('analytics.title'.tr())),
@@ -59,30 +99,44 @@ class AnalyticsPage extends ConsumerWidget {
               error: (e, _) => Center(
                 child: Text('${'common.error'.tr()}: $e'),
               ),
-              data: (data) => RefreshIndicator(
-                onRefresh: () async =>
-                    ref.invalidate(analyticsDataProvider(locale)),
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _StatGrid(data: data, targets: targets),
-                    const SizedBox(height: 16),
-                    _CaloriesChartCard(
-                        data: data, targets: targets, period: period),
-                    const SizedBox(height: 16),
-                    _MacrosChartCard(
-                        data: data, targets: targets, period: period),
-                    const SizedBox(height: 16),
-                    _MacroAveragesCard(data: data, targets: targets),
-                    if (data.weightTrend.isNotEmpty) ...[
+              data: (data) {
+                if (focus != null) _maybeScrollToFocus();
+                return RefreshIndicator(
+                  onRefresh: () async =>
+                      ref.invalidate(analyticsDataProvider(locale)),
+                  child: ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _StatGrid(data: data, targets: targets),
                       const SizedBox(height: 16),
-                      _WeightTrendCard(data: data),
+                      if (focus != null) ...[
+                        _FocusedMacroChartCard(
+                          key: _focusChartKey,
+                          data: data,
+                          targets: targets,
+                          period: period,
+                          focus: focus,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _CaloriesChartCard(
+                          data: data, targets: targets, period: period),
+                      const SizedBox(height: 16),
+                      _MacrosChartCard(
+                          data: data, targets: targets, period: period),
+                      const SizedBox(height: 16),
+                      _MacroAveragesCard(data: data, targets: targets),
+                      if (data.weightTrend.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _WeightTrendCard(data: data),
+                      ],
+                      const SizedBox(height: 16),
+                      _SummaryCard(data: data),
                     ],
-                    const SizedBox(height: 16),
-                    _SummaryCard(data: data),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -285,6 +339,181 @@ class _StatCard extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-macro odak grafiği — dashboard makro kartından derin bağlantı
+// (`/analytics?macro=protein|carbs|fat`). `_CaloriesChartCard` alan grafiği
+// deseniyle aynı; tek fark: veri seçici (protein|carbs|fat), renk ve gram
+// tooltip. Hedef %100 dashed çizgisi korunur. Backend değişikliği yok —
+// `dailyStats` zaten P/C/F içeriyor.
+// ---------------------------------------------------------------------------
+class _FocusedMacroChartCard extends StatelessWidget {
+  const _FocusedMacroChartCard({
+    super.key,
+    required this.data,
+    required this.targets,
+    required this.period,
+    required this.focus,
+  });
+
+  final AnalyticsData data;
+  final _Targets targets;
+  final AnalyticsPeriod period;
+  final MacroFocus focus;
+
+  /// Odak makro için ham gram değeri ve hedef gram.
+  ({double value, double target}) _pick(DailyStats s) => switch (focus) {
+        MacroFocus.protein =>
+          (value: s.protein, target: targets.protein),
+        MacroFocus.carbs => (value: s.carbs, target: targets.carbs),
+        MacroFocus.fat => (value: s.fat, target: targets.fat),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final stats = data.dailyStats;
+    final color = focus.color;
+
+    final spots = <FlSpot>[
+      for (var i = 0; i < stats.length; i++)
+        FlSpot(
+          i.toDouble(),
+          MacroFocus.percentOfTarget(
+            value: _pick(stats[i]).value,
+            target: _pick(stats[i]).target,
+          ),
+        ),
+    ];
+    final maxY = spots.isEmpty
+        ? 150.0
+        : [150.0, ...spots.map((s) => s.y + 20)].reduce((a, b) => a > b ? a : b);
+
+    final title = 'analytics.charts.macroFocus.title'
+        .tr(namedArgs: {'macro': focus.labelKey.tr()});
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(title, style: theme.textTheme.titleSmall)),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  minY: 0,
+                  maxY: maxY,
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    topTitles: const AxisTitles(),
+                    rightTitles: const AxisTitles(),
+                    leftTitles: const AxisTitles(),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 24,
+                        interval: 1,
+                        getTitlesWidget: (value, meta) {
+                          final i = value.toInt();
+                          if (i < 0 || i >= stats.length) {
+                            return const SizedBox.shrink();
+                          }
+                          // week: her gün; diğer: seyrek (web preserveStartEnd)
+                          if (period != AnalyticsPeriod.week &&
+                              stats.length > 8 &&
+                              i % (stats.length ~/ 5).clamp(1, 99) != 0 &&
+                              i != stats.length - 1) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              stats[i].dayLabel,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 9,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  extraLinesData: ExtraLinesData(
+                    horizontalLines: [
+                      HorizontalLine(
+                        y: 100,
+                        color: AppColors.success,
+                        strokeWidth: 2,
+                        dashArray: [5, 5],
+                        label: HorizontalLineLabel(
+                          show: true,
+                          alignment: Alignment.topRight,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 10,
+                            color: AppColors.success,
+                          ),
+                          labelResolver: (_) => '100%',
+                        ),
+                      ),
+                    ],
+                  ),
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (touched) => [
+                        for (final t in touched)
+                          LineTooltipItem(
+                            '%${t.y.round()} '
+                            '(${_pick(stats[t.x.toInt()]).value.toStringAsFixed(1)}g)',
+                            theme.textTheme.bodySmall!
+                                .copyWith(color: theme.colorScheme.onSurface),
+                          ),
+                      ],
+                    ),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      color: color,
+                      barWidth: 2,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            color.withValues(alpha: 0.3),
+                            color.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

@@ -20,7 +20,8 @@
     "meal": "Meal",
     "searchFood": "Search Food",
     "searchPlaceholder": "Search food...",
-    "version": "Version"
+    "version": "Version",
+    "undo": "Undo"
   },
   "header": {
     "signedOut": "Signed Out",
@@ -70,12 +71,11 @@
     "noResults": "No results found",
     "analyzeWithAI": "Analyze with AI",
     "reanalyze": "Re-analyze",
-    "example": "e.g.",
+    "example": "e.g. {example}",
     "optional": "optional",
     "required": "required",
     "customAmount": "Custom Amount",
     "addWithAI": "Add with AI",
-    "addWithBarcode": "Add with Barcode",
     "addFood": "Add Food",
     "editFood": "Edit Food",
     "searchFood": "Search Food",
@@ -109,45 +109,16 @@
     "aiRequiresInternet": "AI analysis requires internet connection",
     "analysisFailed": "Analysis failed",
     "selectAtLeastOne": "Select at least one food",
-    "foodAdded": "Food added",
-    "foodsAdded": "foods added",
+    "foodAdded": "Food added ({count})",
+    "foodsAdded": "{count} foods added",
     "saveFailed": "Save failed",
     "inputText": "Entered text",
-    "confidence": "confidence",
+    "confidence": "{percent}% confidence",
     "calories": "Cal",
     "calPer100g": "Cal/100g",
     "proPer100g": "Pro/100g",
     "carbPer100g": "Carb/100g",
     "fatPer100g": "Fat/100g",
-    "barcode": {
-      "title": "Add with Barcode",
-      "scanning": "Scanning...",
-      "productFound": "Product found",
-      "productNotFound": "Product not found",
-      "tryAgain": "Try again",
-      "manualEntry": "Manual entry",
-      "scanDesc": "Point the camera at a barcode to scan it automatically",
-      "manualPlaceholder": "Enter barcode number manually",
-      "search": "Search",
-      "cameraError": "Could not access the camera. Please check permissions.",
-      "searching": "Searching the database...",
-      "productNotFoundDesc": "This product was not found in the database. Analyze it with AI or add it manually.",
-      "aiPrompt": "Additional details (optional) — e.g. brand or size",
-      "aiPromptRequired": "Enter additional details or take a photo for AI analysis.",
-      "aiTextPrompt": "Barcode number: {0}. Estimate the nutritional values of the product with this barcode.",
-      "barcodeLabel": "Barcode: {0}",
-      "foundInDb": "Found in database",
-      "reScan": "Scan again",
-      "brand": "Brand",
-      "servingSize": "Serving size (g)",
-      "extendedNutrition": "Extended nutrition",
-      "saturatedFat": "Saturated fat (g)",
-      "transFat": "Trans fat (g)",
-      "sugars": "Sugars (g)",
-      "salt": "Salt (g)",
-      "novaScore": "NOVA score",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "Log Weight",
       "currentWeight": "Current Weight",
@@ -173,7 +144,11 @@
     "title": "Notifications",
     "new": "new",
     "markAllRead": "Mark All Read",
-    "empty": "No notifications yet"
+    "empty": "No notifications yet",
+    "breakfastTitle": "Breakfast time ☀️",
+    "breakfastBody": "Start the day right — log your breakfast",
+    "snoozeHour": "Snooze 1 hour",
+    "skipBreakfast": "Skipping breakfast"
   },
   "auth": {
     "signIn": "Sign In",
@@ -314,7 +289,11 @@
       "email": "Email Notifications",
       "weighInFrequency": "Weigh-in Frequency (days)",
       "autoRecalculate": "Auto-recalculate Macros",
-      "days": "days"
+      "days": "days",
+      "reminderTitle": "Morning Calorie Reminder",
+      "reminderDesc": "Get a breakfast reminder every day at your chosen time",
+      "reminderTime": "Reminder Time",
+      "webOnlyInApp": "On web, reminders are shown only while the app is open"
     },
     "import": {
       "title": "Import Data",
@@ -358,8 +337,6 @@
     "recordWeight": "Record your weight",
     "quickAdd": "Quick Add",
     "quick": {
-      "barcode": "Barcode",
-      "scan": "Scan product",
       "search": "Search",
       "findFood": "Find food",
       "ai": "Add with AI",
@@ -386,7 +363,9 @@
     "updatedSuccessfully": "{food} updated successfully",
     "errorDelete": "Error deleting food",
     "foodDeleted": "Food deleted",
-    "deletedSuccessfully": "Record deleted successfully"
+    "deletedSuccessfully": "Record deleted successfully",
+    "edit": "Edit",
+    "delete": "Delete"
   },
   "about": {
     "title": "About",
@@ -395,7 +374,6 @@
     "features": {
       "title": "Features",
       "ai": "AI-powered food recognition (photo and text)",
-      "barcode": "Barcode scanning for food entry",
       "tracker": "Water and weight tracking",
       "analytics": "Detailed analysis and charts",
       "notifications": "Smart notification reminders"
@@ -429,8 +407,7 @@
       "empty": "No food added yet"
     },
     "tabs": {
-      "search": "Search",
-      "barcode": "Barcode"
+      "search": "Search"
     },
     "search": {
       "title": "Search Food",
@@ -438,12 +415,6 @@
       "noResults": "No results found",
       "promptTitle": "Search food from database",
       "promptDesc": "Enter at least 2 characters"
-    },
-    "barcode": {
-      "title": "Scan Barcode",
-      "scanTitle": "Scan with Camera",
-      "scanDesc": "Show product barcode to camera",
-      "openCamera": "Open Camera"
     },
     "manual": {
       "title": "Manual Entry",
@@ -476,8 +447,12 @@
       "macros": {
         "title": "Macro Track (% of Target)",
         "subtitle": "Line = 100% target"
+      },
+      "macroFocus": {
+        "title": "{macro} Track"
       }
     },
+    "goToCalories": "View calorie analytics",
     "averages": {
       "title": "Average Macro Values"
     },
@@ -528,5 +503,17 @@
       "clear": "Chat could not be cleared"
     },
     "welcomeMessage": "Hello! I’m CaloriX AI. I can help you track your meals, water intake, weight and goals."
+  },
+  "updates": {
+    "requiredTitle": "Update Required",
+    "requiredBody": "CaloriX needs version {version} to run. Your data is safe — install the update to continue.",
+    "optionalTitle": "New Version Available",
+    "optionalBody": "CaloriX {version} is ready. Update now?",
+    "updateNow": "Update",
+    "later": "Later",
+    "recheck": "Check again",
+    "checkFailed": "Update check failed",
+    "notesTitle": "What's new",
+    "openFailed": "Could not open the download page"
   }
 }

@@ -65,7 +65,6 @@ class AboutPage extends StatelessWidget {
             title: 'about.features.title'.tr(),
             children: [
               _bullet(context, 'about.features.ai'.tr()),
-              _bullet(context, 'about.features.barcode'.tr()),
               _bullet(context, 'about.features.tracker'.tr()),
               _bullet(context, 'about.features.analytics'.tr()),
               _bullet(context, 'about.features.notifications'.tr()),

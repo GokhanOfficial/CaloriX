@@ -7,6 +7,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../data/repositories/diary_repository.dart';
 import '../../data/repositories/profile_repository.dart';
+import '../add/widgets/add_with_ai_dialog.dart';
 import '../../shared/widgets/date_selector.dart';
 import 'widgets/calorie_ring.dart';
 import 'widgets/macro_cards.dart';
@@ -69,6 +70,7 @@ class DashboardPage extends ConsumerWidget {
                   child: CalorieRing(
                     consumed: totals.calories,
                     target: targets.calories,
+                    onTap: () => context.go(AppRoutes.analytics),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -79,6 +81,8 @@ class DashboardPage extends ConsumerWidget {
                   proteinTarget: targets.protein,
                   carbsTarget: targets.carbs,
                   fatTarget: targets.fat,
+                  onMacroTap: (macro) =>
+                      context.go('${AppRoutes.analytics}?macro=${macro.name}'),
                 ),
                 const SizedBox(height: 16),
                 WaterTracker(
@@ -98,9 +102,12 @@ class DashboardPage extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go(AppRoutes.add),
-        icon: const Icon(Icons.add),
-        label: Text('dashboard.addFood'.tr()),
+        onPressed: () => AddWithAiDialog.show(
+          context,
+          defaultMealType: MealType.defaultForNow(),
+        ),
+        icon: const Icon(Icons.auto_awesome),
+        label: Text('dashboard.quick.ai'.tr()),
       ),
     );
   }

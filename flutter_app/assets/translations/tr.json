@@ -20,7 +20,8 @@
     "meal": "Öğün",
     "searchFood": "Yiyecek Ara",
     "searchPlaceholder": "Yiyecek ara...",
-    "version": "Sürüm"
+    "version": "Sürüm",
+    "undo": "Geri Al"
   },
   "header": {
     "signedOut": "Çıkış Yapıldı",
@@ -70,12 +71,11 @@
     "noResults": "Sonuç bulunamadı",
     "analyzeWithAI": "AI ile analiz et",
     "reanalyze": "Tekrar Analiz Et",
-    "example": "Örn.",
+    "example": "Örn. {example}",
     "optional": "opsiyonel",
     "required": "zorunlu",
     "customAmount": "Özel Miktar Ekle",
     "addWithAI": "AI ile Ekle",
-    "addWithBarcode": "Barkod ile Ekle",
     "addFood": "Yiyecek Ekle",
     "editFood": "Yiyeceği Düzenle",
     "searchFood": "Yiyecek Ara",
@@ -109,45 +109,16 @@
     "aiRequiresInternet": "AI analizi için internet bağlantısı gerekli",
     "analysisFailed": "Analiz başarısız oldu",
     "selectAtLeastOne": "En az bir yiyecek seçin",
-    "foodAdded": "Yiyecek eklendi",
-    "foodsAdded": "yiyecek eklendi",
+    "foodAdded": "Yiyecek eklendi ({count})",
+    "foodsAdded": "{count} yiyecek eklendi",
     "saveFailed": "Kayıt başarısız",
     "inputText": "Girilen metin",
-    "confidence": "güvenilirlik",
+    "confidence": "{percent}% güvenilirlik",
     "calories": "Kal",
     "calPer100g": "Kal/100g",
     "proPer100g": "Pro/100g",
     "carbPer100g": "Karb/100g",
     "fatPer100g": "Yağ/100g",
-    "barcode": {
-      "title": "Barkod ile Ekle",
-      "scanning": "Taranıyor...",
-      "productFound": "Ürün bulundu",
-      "productNotFound": "Ürün bulunamadı",
-      "tryAgain": "Tekrar dene",
-      "manualEntry": "Manuel giriş",
-      "scanDesc": "Barkodu otomatik taramak için kamerayı üzerine tutun",
-      "manualPlaceholder": "Barkod numarasını manuel girin",
-      "search": "Ara",
-      "cameraError": "Kameraya erişilemedi. Lütfen izinleri kontrol edin.",
-      "searching": "Veritabanında aranıyor...",
-      "productNotFoundDesc": "Bu ürün veritabanında bulunamadı. AI ile analiz et veya manuel ekle.",
-      "aiPrompt": "Ek detaylar (opsiyonel) — örn. marka veya boyut",
-      "aiPromptRequired": "AI analizi için ek detay gir veya fotoğraf çek.",
-      "aiTextPrompt": "Barkod numarası: {0}. Bu barkoda sahip ürünün besin değerlerini tahmin et.",
-      "barcodeLabel": "Barkod: {0}",
-      "foundInDb": "Veritabanında bulundu",
-      "reScan": "Tekrar tara",
-      "brand": "Marka",
-      "servingSize": "Porsiyon boyutu (g)",
-      "extendedNutrition": "Genişletilmiş besin değerleri",
-      "saturatedFat": "Doymuş yağ (g)",
-      "transFat": "Trans yağ (g)",
-      "sugars": "Şeker (g)",
-      "salt": "Tuz (g)",
-      "novaScore": "NOVA skoru",
-      "nutriScore": "Nutri-Score"
-    },
     "weight": {
       "title": "Kilo Kaydet",
       "currentWeight": "Mevcut Kilo",
@@ -173,7 +144,11 @@
     "title": "Bildirimler",
     "new": "yeni",
     "markAllRead": "Tümünü Oku",
-    "empty": "Henüz bildirim yok"
+    "empty": "Henüz bildirim yok",
+    "breakfastTitle": "Kahvaltı zamanı ☀️",
+    "breakfastBody": "Güne iyi başla — kahvaltını günlüğüne ekle",
+    "snoozeHour": "1 saat ertele",
+    "skipBreakfast": "Kahvaltı yapmayacağım"
   },
   "auth": {
     "signIn": "Giriş Yap",
@@ -314,7 +289,11 @@
       "email": "E-posta Bildirimleri",
       "weighInFrequency": "Tartılma Sıklığı (gün)",
       "autoRecalculate": "Makroları Otomatik Yeniden Hesapla",
-      "days": "gün"
+      "days": "gün",
+      "reminderTitle": "Sabah Kalori Hatırlatıcısı",
+      "reminderDesc": "Her gün seçtiğin saatte kahvaltı hatırlatması al",
+      "reminderTime": "Hatırlatma Saati",
+      "webOnlyInApp": "Web'de hatırlatma yalnızca uygulama açıkken gösterilir"
     },
     "import": {
       "title": "Verileri İçe Aktar",
@@ -358,8 +337,6 @@
     "recordWeight": "Kilonuzu kaydedin",
     "quickAdd": "Hızlı Ekle",
     "quick": {
-      "barcode": "Barkod",
-      "scan": "Ürün tara",
       "search": "Ara",
       "findFood": "Yiyecek bul",
       "ai": "Yapay Zeka ile Ekle",
@@ -386,7 +363,9 @@
     "updatedSuccessfully": "{food} başarıyla güncellendi",
     "errorDelete": "Yiyecek silinemedi",
     "foodDeleted": "Yiyecek silindi",
-    "deletedSuccessfully": "Kayıt başarıyla silindi"
+    "deletedSuccessfully": "Kayıt başarıyla silindi",
+    "edit": "Düzenle",
+    "delete": "Sil"
   },
   "about": {
     "title": "Hakkında",
@@ -395,7 +374,6 @@
     "features": {
       "title": "Özellikler",
       "ai": "Yapay zeka destekli yiyecek tanıma (fotoğraf ve metin)",
-      "barcode": "Barkod ile yiyecek ekleme",
       "tracker": "Su ve kilo takibi",
       "analytics": "Detaylı analiz ve grafikler",
       "notifications": "Akıllı bildirim hatırlatıcıları"
@@ -429,8 +407,7 @@
       "empty": "Henüz yiyecek eklenmedi"
     },
     "tabs": {
-      "search": "Ara",
-      "barcode": "Barkod"
+      "search": "Ara"
     },
     "search": {
       "title": "Yiyecek Ara",
@@ -438,12 +415,6 @@
       "noResults": "Sonuç bulunamadı",
       "promptTitle": "Veritabanından yiyecek ara",
       "promptDesc": "En az 2 karakter girin"
-    },
-    "barcode": {
-      "title": "Barkod Tara",
-      "scanTitle": "Kamera ile Tara",
-      "scanDesc": "Ürün barkodunu kameraya gösterin",
-      "openCamera": "Kamerayı Aç"
     },
     "manual": {
       "title": "Manuel Giriş",
@@ -476,8 +447,12 @@
       "macros": {
         "title": "Makro Takibi (Hedefe Göre %)",
         "subtitle": "Çizgi = %100 hedef"
+      },
+      "macroFocus": {
+        "title": "{macro} Takibi"
       }
     },
+    "goToCalories": "Kalori analizini gör",
     "averages": {
       "title": "Ortalama Makro Değerleri"
     },
@@ -528,5 +503,17 @@
       "clear": "Sohbet temizlenemedi"
     },
     "welcomeMessage": "Merhaba! Ben CaloriX AI. Öğünlerini, su tüketimini, kilonu ve hedeflerini takip etmene yardımcı olabilirim."
+  },
+  "updates": {
+    "requiredTitle": "Güncelleme Gerekli",
+    "requiredBody": "CaloriX {version} sürümüyle çalışmak için güncellemen gerekiyor. Verilerin güvende — güncellemeyi kurduktan sonra devam edebilirsin.",
+    "optionalTitle": "Yeni Sürüm Mevcut",
+    "optionalBody": "CaloriX {version} hazır. Güncellemek ister misin?",
+    "updateNow": "Güncelle",
+    "later": "Daha Sonra",
+    "recheck": "Yeniden kontrol et",
+    "checkFailed": "Güncelleme kontrolü yapılamadı",
+    "notesTitle": "Bu sürümde",
+    "openFailed": "İndirme sayfası açılamadı"
   }
 }

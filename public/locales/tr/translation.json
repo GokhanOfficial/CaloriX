@@ -75,7 +75,6 @@
     "required": "zorunlu",
     "customAmount": "Özel Miktar Ekle",
     "addWithAI": "AI ile Ekle",
-    "addWithBarcode": "Barkod ile Ekle",
     "addFood": "Yiyecek Ekle",
     "editFood": "Yiyeceği Düzenle",
     "searchFood": "Yiyecek Ara",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Karb/100g",
     "fatPer100g": "Yağ/100g",
-    "barcode": {
-      "title": "Barkod ile Ekle",
-      "scanning": "Taranıyor...",
-      "productFound": "Ürün bulundu",
-      "productNotFound": "Ürün bulunamadı",
-      "tryAgain": "Tekrar dene",
-      "manualEntry": "Manuel giriş"
-    },
     "weight": {
       "title": "Kilo Kaydet",
       "currentWeight": "Mevcut Kilo",
@@ -323,8 +314,6 @@
     "recordWeight": "Kilonuzu kaydedin",
     "quickAdd": "Hızlı Ekle",
     "quick": {
-      "barcode": "Barkod",
-      "scan": "Ürün tara",
       "search": "Ara",
       "findFood": "Yiyecek bul",
       "ai": "Yapay Zeka ile Ekle",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Özellikler",
       "ai": "Yapay zeka destekli yiyecek tanıma (fotoğraf ve metin)",
-      "barcode": "Barkod ile yiyecek ekleme",
       "tracker": "Su ve kilo takibi",
       "analytics": "Detaylı analiz ve grafikler",
       "notifications": "Akıllı bildirim hatırlatıcıları"
@@ -394,8 +382,7 @@
       "empty": "Henüz yiyecek eklenmedi"
     },
     "tabs": {
-      "search": "Ara",
-      "barcode": "Barkod"
+      "search": "Ara"
     },
     "search": {
       "title": "Yiyecek Ara",
@@ -403,12 +390,6 @@
       "noResults": "Sonuç bulunamadı",
       "promptTitle": "Veritabanından yiyecek ara",
       "promptDesc": "En az 2 karakter girin"
-    },
-    "barcode": {
-      "title": "Barkod Tara",
-      "scanTitle": "Kamera ile Tara",
-      "scanDesc": "Ürün barkodunu kameraya gösterin",
-      "openCamera": "Kamerayı Aç"
     },
     "manual": {
       "title": "Manuel Giriş",

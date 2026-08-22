@@ -110,7 +110,6 @@ export type Database = {
       }
       foods: {
         Row: {
-          barcode: string | null
           brand: string | null
           created_at: string
           created_by: string | null
@@ -125,7 +124,6 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
-          barcode?: string | null
           brand?: string | null
           created_at?: string
           created_by?: string | null
@@ -140,7 +138,6 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
-          barcode?: string | null
           brand?: string | null
           created_at?: string
           created_by?: string | null
@@ -589,7 +586,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      food_source: "barcode" | "photo" | "text" | "manual"
+      food_source: "photo" | "text" | "manual"
       meal_type: "breakfast" | "lunch" | "dinner" | "snack"
     }
     CompositeTypes: {
@@ -719,7 +716,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      food_source: ["barcode", "photo", "text", "manual"],
+      food_source: ["photo", "text", "manual"],
       meal_type: ["breakfast", "lunch", "dinner", "snack"],
     },
   },

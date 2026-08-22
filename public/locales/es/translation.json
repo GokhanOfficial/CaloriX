@@ -75,7 +75,6 @@
     "required": "obligatorio",
     "customAmount": "Cantidad personalizada",
     "addWithAI": "Añadir con IA",
-    "addWithBarcode": "Añadir con código",
     "addFood": "Añadir alimento",
     "editFood": "Editar alimento",
     "searchFood": "Buscar alimento",
@@ -117,14 +116,6 @@
     "proPer100g": "Pro/100g",
     "carbPer100g": "Carb/100g",
     "fatPer100g": "Grasa/100g",
-    "barcode": {
-      "title": "Añadir con código",
-      "scanning": "Escaneando...",
-      "productFound": "Producto encontrado",
-      "productNotFound": "Producto no encontrado",
-      "tryAgain": "Intentar de nuevo",
-      "manualEntry": "Entrada manual"
-    },
     "weight": {
       "title": "Registrar peso",
       "currentWeight": "Peso actual",
@@ -323,8 +314,6 @@
     "recordWeight": "Registre su peso",
     "quickAdd": "Añadir rápido",
     "quick": {
-      "barcode": "Código de barras",
-      "scan": "Escanear producto",
       "search": "Buscar",
       "findFood": "Buscar alimento",
       "ai": "Añadir con IA",
@@ -360,7 +349,6 @@
     "features": {
       "title": "Características",
       "ai": "Reconocimiento de alimentos con IA (foto y texto)",
-      "barcode": "Escaneo de código de barras",
       "tracker": "Seguimiento de agua y peso",
       "analytics": "Análisis detallado y gráficos",
       "notifications": "Recordatorios inteligentes"
@@ -394,8 +382,7 @@
       "empty": "Sin alimentos añadidos aún"
     },
     "tabs": {
-      "search": "Buscar",
-      "barcode": "Código de barras"
+      "search": "Buscar"
     },
     "search": {
       "title": "Buscar alimento",
@@ -403,12 +390,6 @@
       "noResults": "Sin resultados",
       "promptTitle": "Buscar alimento en la base de datos",
       "promptDesc": "Ingrese al menos 2 caracteres"
-    },
-    "barcode": {
-      "title": "Escanear código",
-      "scanTitle": "Escanear con cámara",
-      "scanDesc": "Muestre el código de barras a la cámara",
-      "openCamera": "Abrir cámara"
     },
     "manual": {
       "title": "Entrada manual",
