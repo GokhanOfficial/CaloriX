@@ -146,8 +146,14 @@
     "empty": "通知はありません",
     "breakfastTitle": "朝食の時間です ☀️",
     "breakfastBody": "一日を良いスタートに — 朝食を記録しましょう",
+    "lunchTitle": "昼食の時間です ☀️",
+    "lunchBody": "昼食を記録しましょう",
+    "dinnerTitle": "夕食の時間です 🌙",
+    "dinnerBody": "夕食を記録しましょう",
     "snoozeHour": "1時間後に再通知",
-    "skipBreakfast": "朝食は抜きます"
+    "skipBreakfast": "朝食は抜きます",
+    "skipLunch": "昼食は抜きます",
+    "skipDinner": "夕食は抜きます"
   },
   "auth": {
     "signIn": "ログイン",
@@ -289,9 +295,8 @@
       "weighInFrequency": "計測頻度（日）",
       "autoRecalculate": "マクロを自動再計算",
       "days": "日",
-      "reminderTitle": "朝のカロリーリマインダー",
-      "reminderDesc": "選択した時間に毎朝朝食のリマインダーを受け取ります",
-      "reminderTime": "リマインド時刻",
+      "reminderTitle": "食事リマインダー",
+      "reminderDesc": "食事ごとに個別のリマインダーを設定できます",
       "webOnlyInApp": "Webではアプリ起動中のみリマインダーが表示されます"
     },
     "import": {

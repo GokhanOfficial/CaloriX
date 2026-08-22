@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../../core/notifications/meal_reminder.dart';
 import '../../../core/notifications/reminder_settings.dart';
 import '../../../data/models/profile.dart';
 import '../../../data/repositories/auth_repository.dart';
@@ -80,8 +82,8 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
     }
   }
 
-  Future<void> _pickTime() async {
-    final reminder = ref.read(reminderSettingsProvider);
+  Future<void> _pickTime(MealType meal) async {
+    final reminder = ref.read(reminderSettingsProvider).meals[meal]!;
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: reminder.hour, minute: reminder.minute),
@@ -89,8 +91,12 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
     if (picked == null) return;
     await ref
         .read(reminderSettingsProvider.notifier)
-        .setTime(picked.hour, picked.minute);
+        .setTime(meal, picked.hour, picked.minute);
   }
+
+  String _formatTime(MealReminder reminder) =>
+      '${reminder.hour.toString().padLeft(2, '0')}:'
+      '${reminder.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -146,25 +152,22 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
                 : 'settings.notifications.reminderDesc'.tr(),
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('settings.notifications.reminderTitle'.tr()),
-            value: reminder.enabled,
-            onChanged: (v) =>
-                ref.read(reminderSettingsProvider.notifier).setEnabled(v),
-          ),
-          if (reminder.enabled)
+          for (final meal in reminderMeals)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.schedule),
-              title: Text('settings.notifications.reminderTime'.tr()),
+              leading: Text(meal.emoji,
+                  style: Theme.of(context).textTheme.titleMedium),
+              title: Text('meals.${meal.name}'.tr()),
               subtitle: Text(
-                '${reminder.hour.toString().padLeft(2, '0')}:'
-                '${reminder.minute.toString().padLeft(2, '0')}',
+                _formatTime(reminder.meals[meal]!),
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _pickTime,
+              trailing: Switch(
+                value: reminder.meals[meal]!.enabled,
+                onChanged: (v) =>
+                    ref.read(reminderSettingsProvider.notifier).setEnabled(meal, v),
+              ),
+              onTap: () => _pickTime(meal),
             ),
           const SizedBox(height: 20),
           Row(

@@ -2,33 +2,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants/app_constants.dart';
+import 'meal_reminder.dart';
 import 'notification_service.dart';
 
-/// Sabah kalori hatırlatıcısı ayarları — cihaza lokal (SharedPreferences),
+/// Öğün hatırlatıcı ayarları — cihaza lokal (SharedPreferences),
 /// bildirim zamanlayıcısıyla doğrudan uyumlu. Supabase'e yazılmaz.
 class ReminderSettings {
-  const ReminderSettings({
-    this.enabled = false,
-    this.hour = 8,
-    this.minute = 30,
-  });
+  const ReminderSettings({Map<MealType, MealReminder>? meals})
+      : meals = meals ?? defaultMeals;
 
-  final bool enabled;
-  final int hour;
-  final int minute;
+  /// Öğün başına varsayılan saatler — hepsi kapalı başlar.
+  static const Map<MealType, MealReminder> defaultMeals = {
+    MealType.breakfast: MealReminder(hour: 8, minute: 30),
+    MealType.lunch: MealReminder(hour: 12, minute: 30),
+    MealType.dinner: MealReminder(hour: 19, minute: 0),
+  };
 
-  ReminderSettings copyWith({bool? enabled, int? hour, int? minute}) =>
-      ReminderSettings(
-        enabled: enabled ?? this.enabled,
-        hour: hour ?? this.hour,
-        minute: minute ?? this.minute,
-      );
+  final Map<MealType, MealReminder> meals;
+
+  ReminderSettings copyWith({Map<MealType, MealReminder>? meals}) =>
+      ReminderSettings(meals: meals ?? this.meals);
 }
 
 class ReminderSettingsNotifier extends Notifier<ReminderSettings> {
-  static const enabledKey = 'reminder_enabled';
-  static const hourKey = 'reminder_hour';
-  static const minuteKey = 'reminder_minute';
+  // v1.2.0'daki tekil "sabah hatırlatıcısı" anahtarları — göç için.
+  static const _legacyEnabledKey = 'reminder_enabled';
+  static const _legacyHourKey = 'reminder_hour';
+  static const _legacyMinuteKey = 'reminder_minute';
+
+  static String _enabledKey(MealType meal) => 'reminder_${meal.name}_enabled';
+  static String _hourKey(MealType meal) => 'reminder_${meal.name}_hour';
+  static String _minuteKey(MealType meal) => 'reminder_${meal.name}_minute';
 
   @override
   ReminderSettings build() {
@@ -38,36 +43,61 @@ class ReminderSettingsNotifier extends Notifier<ReminderSettings> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    state = ReminderSettings(
-      enabled: prefs.getBool(enabledKey) ?? false,
-      hour: prefs.getInt(hourKey) ?? 8,
-      minute: prefs.getInt(minuteKey) ?? 30,
+    await _migrateLegacy(prefs);
+    final meals = <MealType, MealReminder>{};
+    for (final meal in reminderMeals) {
+      final def = ReminderSettings.defaultMeals[meal]!;
+      meals[meal] = MealReminder(
+        enabled: prefs.getBool(_enabledKey(meal)) ?? false,
+        hour: prefs.getInt(_hourKey(meal)) ?? def.hour,
+        minute: prefs.getInt(_minuteKey(meal)) ?? def.minute,
+      );
+    }
+    state = ReminderSettings(meals: meals);
+    await _reschedule();
+  }
+
+  /// Eski tekil sabah hatırlatıcısını kahvaltı slotuna taşır; kullanıcı
+  /// açık/kapalı durumu ve saatiyle kesintisiz devam eder.
+  Future<void> _migrateLegacy(SharedPreferences prefs) async {
+    if (!prefs.containsKey(_legacyEnabledKey)) return;
+    if (!prefs.containsKey(_enabledKey(MealType.breakfast))) {
+      await prefs.setBool(_enabledKey(MealType.breakfast),
+          prefs.getBool(_legacyEnabledKey) ?? false);
+      await prefs.setInt(
+          _hourKey(MealType.breakfast), prefs.getInt(_legacyHourKey) ?? 8);
+      await prefs.setInt(_minuteKey(MealType.breakfast),
+          prefs.getInt(_legacyMinuteKey) ?? 30);
+    }
+    await prefs.remove(_legacyEnabledKey);
+    await prefs.remove(_legacyHourKey);
+    await prefs.remove(_legacyMinuteKey);
+  }
+
+  Future<void> setEnabled(MealType meal, bool value) async {
+    assert(reminderMeals.contains(meal), '$meal için hatırlatıcı desteklenmiyor');
+    state = state.copyWith(
+      meals: {...state.meals, meal: state.meals[meal]!.copyWith(enabled: value)},
     );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_enabledKey(meal), value);
     await _reschedule();
   }
 
-  Future<void> setEnabled(bool value) async {
-    state = state.copyWith(enabled: value);
+  Future<void> setTime(MealType meal, int hour, int minute) async {
+    assert(reminderMeals.contains(meal), '$meal için hatırlatıcı desteklenmiyor');
+    state = state.copyWith(
+      meals: {...state.meals, meal: state.meals[meal]!.copyWith(hour: hour, minute: minute)},
+    );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(enabledKey, value);
-    await _reschedule();
-  }
-
-  Future<void> setTime(int hour, int minute) async {
-    state = state.copyWith(hour: hour, minute: minute);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(hourKey, hour);
-    await prefs.setInt(minuteKey, minute);
+    await prefs.setInt(_hourKey(meal), hour);
+    await prefs.setInt(_minuteKey(meal), minute);
     await _reschedule();
   }
 
   Future<void> _reschedule() async {
     if (kIsWeb) return;
-    await NotificationService.instance.reschedule(
-      enabled: state.enabled,
-      hour: state.hour,
-      minute: state.minute,
-    );
+    await NotificationService.instance.reschedule(state.meals);
   }
 }
 

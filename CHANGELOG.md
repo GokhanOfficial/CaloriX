@@ -9,6 +9,22 @@ All notable changes to CaloriX are documented in this file.
 The Flutter app (`flutter_app/`) carries its own version independent of the
 React web app. Versions below track `pubspec.yaml` version only.
 
+## [flutter 1.2.1+3] - 2026-08-22
+
+### Changed — Öğün bazlı hatırlatıcılar
+- Tekil "sabah hatırlatıcısı" yerine her ana öğün (kahvaltı / öğle / akşam)
+  için ayrı açılıp kapanabilen hatırlatıcı ve saat (varsayılan 08:30 /
+  12:30 / 19:00). Mevcut kullanıcıların sabah ayarı göçle kesintisiz
+  kahvaltı slotuna taşınır.
+- Android bildirimleri ve web in-app banner'ı öğün bazlı; "1 saat ertele" /
+  "öğünü atla" aksiyonları tıklanan öğünün bildirimi üzerinde çalışır
+  (bildirim ID'leri 1001–1003, erteleme 1101–1103).
+- Fixed: bildirimler var olmayan `notif.*` çeviri anahtarlarını kullanıyordu
+  (ham anahtar metni gösteriliyordu) — `notifications.*` anahtarlarına
+  düzeltildi.
+- Translations: `notifications.lunch*/dinner*` anahtarları ve güncellenen
+  `settings.notifications.reminder*` metinleri 12 dilde.
+
 ## [flutter 1.2.0+2] - 2026-08-22
 
 ### Added — Zamanlanmış hatırlatıcılar

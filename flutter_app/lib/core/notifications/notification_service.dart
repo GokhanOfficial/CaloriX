@@ -8,7 +8,10 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-/// Günlük kalori hatırlatıcı bildirimlerini yöneten servis (Android).
+import '../constants/app_constants.dart';
+import 'meal_reminder.dart';
+
+/// Öğün hatırlatıcı bildirimlerini yöneten servis (Android).
 ///
 /// Web'de tüm çağrılar no-op'tur; web tarafında uygulama içi hatırlatma
 /// [WebReminder] ile yapılır. iOS hedeflenirse init'e DarwinInitialization
@@ -18,16 +21,22 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  static const int dailyReminderId = 1001;
-  static const int snoozeReminderId = 1002;
+  /// Öğün bildirim ID'leri: 1000 + sıra (1001 kahvaltı, 1002 öğle, 1003 akşam).
+  static int mealReminderId(MealType meal) => 1000 + meal.order;
+
+  /// Erteleme bildirim ID'leri: 1100 + sıra (öğün bildirimleriyle çakışmaz).
+  static int snoozeReminderId(MealType meal) => 1100 + meal.order;
+
   static const String channelId = 'daily_reminders';
   static const String actionSkip = 'action_skip';
   static const String actionSnooze = 'action_snooze';
+  static const String actionOpen = 'action_open';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  /// Bildirim aksiyonları ("Kahvaltı yapmayacağım", "1 saat ertele").
+  /// Bildirim aksiyonları ("1 saat ertele", "öğünü atla"). Aksiyon kimliği
+  /// `action_snooze:lunch` biçiminde öğün bilgisi taşır.
   final StreamController<String> _actions = StreamController.broadcast();
   Stream<String> get onAction => _actions.stream;
 
@@ -72,73 +81,104 @@ class NotificationService {
   }
 
   void _onNotificationResponse(NotificationResponse response) {
+    final meal = _mealForId(response.id);
+    if (meal == null) return;
     if (response.actionId == actionSkip || response.actionId == actionSnooze) {
-      _actions.add(response.actionId!);
-    } else if (response.id == dailyReminderId ||
-        response.id == snoozeReminderId) {
+      _actions.add('${response.actionId}:${meal.name}');
+    } else {
       // Gövdeye tıklama — aksiyon yok, sadece akış.
-      _actions.add('action_open');
+      _actions.add(actionOpen);
     }
   }
 
-  /// Günlük hatırlatıcıyı (yeniden) planlar; kapalıysa iptal eder.
-  Future<void> reschedule({required bool enabled, int hour = 8, int minute = 30}) async {
-    if (kIsWeb || !_initialized) return;
-    await _plugin.cancel(dailyReminderId);
-    await _plugin.cancel(snoozeReminderId);
-    if (!enabled) return;
+  MealType? _mealForId(int? id) {
+    if (id == null) return null;
+    for (final meal in MealType.values) {
+      if (id == mealReminderId(meal) || id == snoozeReminderId(meal)) {
+        return meal;
+      }
+    }
+    return null;
+  }
 
+  /// Öğün hatırlatıcılarını (yeniden) planlar; kapalı öğünler iptal edilir.
+  Future<void> reschedule(Map<MealType, MealReminder> meals) async {
+    if (kIsWeb || !_initialized) return;
+    for (final meal in MealType.values) {
+      await _plugin.cancel(mealReminderId(meal));
+      await _plugin.cancel(snoozeReminderId(meal));
+    }
+    for (final meal in reminderMeals) {
+      final reminder = meals[meal];
+      if (reminder == null || !reminder.enabled) continue;
+      await _scheduleDaily(
+        mealReminderId(meal),
+        meal,
+        reminder.hour,
+        reminder.minute,
+        payload: 'daily_reminder:${meal.name}',
+      );
+    }
+  }
+
+  Future<void> _scheduleDaily(
+    int id,
+    MealType meal,
+    int hour,
+    int minute, {
+    required String payload,
+  }) async {
     final now = tz.TZDateTime.now(tz.local);
     var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
 
     await _plugin.zonedSchedule(
-      dailyReminderId,
-      'notif.breakfastTitle'.tr(),
-      'notif.breakfastBody'.tr(),
+      id,
+      meal.notifTitleKey.tr(),
+      meal.notifBodyKey.tr(),
       when,
-      _details(),
+      _details(meal),
       androidScheduleMode: _exactAllowed
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
-      payload: 'daily_reminder',
+      payload: payload,
     );
   }
 
   /// "1 saat ertele" — günlük plan korunur, ek olarak 1 saat sonra tek seferlik
   /// hatırlatma gösterir.
-  Future<void> snoozeOneHour() async {
+  Future<void> snoozeOneHour(MealType meal) async {
     if (kIsWeb || !_initialized) return;
-    await _plugin.cancel(snoozeReminderId);
+    await _plugin.cancel(snoozeReminderId(meal));
     await _plugin.zonedSchedule(
-      snoozeReminderId,
-      'notif.breakfastTitle'.tr(),
-      'notif.breakfastBody'.tr(),
+      snoozeReminderId(meal),
+      meal.notifTitleKey.tr(),
+      meal.notifBodyKey.tr(),
       tz.TZDateTime.now(tz.local).add(const Duration(hours: 1)),
-      _details(showActions: false),
+      _details(meal, showActions: false),
       androidScheduleMode: _exactAllowed
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'snooze_reminder',
+      payload: 'snooze_reminder:${meal.name}',
     );
   }
 
-  NotificationDetails _details({bool showActions = true}) {
+  NotificationDetails _details(MealType meal, {bool showActions = true}) {
     final actions = showActions
         ? [
             AndroidNotificationAction(
               actionSnooze,
-              'notif.snoozeHour'.tr(),
+              'notifications.snoozeHour'.tr(),
               showsUserInterface: false,
             ),
             AndroidNotificationAction(
               actionSkip,
-              'notif.skipBreakfast'.tr(),
+              meal.notifSkipKey.tr(),
               showsUserInterface: false,
             ),
           ]
@@ -147,7 +187,7 @@ class NotificationService {
       android: AndroidNotificationDetails(
         channelId,
         'Günlük hatırlatıcılar',
-        channelDescription: 'Sabah kalori / öğün hatırlatmaları',
+        channelDescription: 'Öğün hatırlatmaları',
         importance: Importance.high,
         priority: Priority.high,
         color: const Color(0xFF00C7B7),

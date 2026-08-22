@@ -146,8 +146,14 @@
     "empty": "Noch keine Benachrichtigungen",
     "breakfastTitle": "Frühstückszeit ☀️",
     "breakfastBody": "Starte gut in den Tag — trage dein Frühstück ein",
+    "lunchTitle": "Mittagszeit ☀️",
+    "lunchBody": "Mach weiter — trage dein Mittagessen ein",
+    "dinnerTitle": "Abendessenzeit 🌙",
+    "dinnerBody": "Beende den Tag gut — trage dein Abendessen ein",
     "snoozeHour": "1 Stunde später",
-    "skipBreakfast": "Ich frühstücke nicht"
+    "skipBreakfast": "Ich frühstücke nicht",
+    "skipLunch": "Ich esse kein Mittagessen",
+    "skipDinner": "Ich esse kein Abendessen"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -289,9 +295,8 @@
       "weighInFrequency": "Wiege-Häufigkeit (Tage)",
       "autoRecalculate": "Makros automatisch neu berechnen",
       "days": "Tage",
-      "reminderTitle": "Kalorien-Erinnerung am Morgen",
-      "reminderDesc": "Erhalte täglich zur gewählten Zeit eine Frühstückserinnerung",
-      "reminderTime": "Erinnerungszeit",
+      "reminderTitle": "Mahlzeiten-Erinnerungen",
+      "reminderDesc": "Lege für jede Mahlzeit eine eigene Erinnerungszeit fest",
       "webOnlyInApp": "Im Web werden Erinnerungen nur bei geöffneter App angezeigt"
     },
     "import": {

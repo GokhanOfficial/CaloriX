@@ -146,8 +146,14 @@
     "empty": "Nessuna notifica",
     "breakfastTitle": "È ora di colazione ☀️",
     "breakfastBody": "Inizia bene la giornata: registra la colazione",
+    "lunchTitle": "È ora di pranzo ☀️",
+    "lunchBody": "Registra il pranzo",
+    "dinnerTitle": "È ora di cena 🌙",
+    "dinnerBody": "Registra la cena",
     "snoozeHour": "Rinvia di 1 ora",
-    "skipBreakfast": "Salterò la colazione"
+    "skipBreakfast": "Salterò la colazione",
+    "skipLunch": "Salterò il pranzo",
+    "skipDinner": "Salterò la cena"
   },
   "auth": {
     "signIn": "Accedi",
@@ -289,9 +295,8 @@
       "weighInFrequency": "Frequenza di pesatura (giorni)",
       "autoRecalculate": "Ricalcola automaticamente le macro",
       "days": "giorni",
-      "reminderTitle": "Promemoria calorie mattutino",
-      "reminderDesc": "Ricevi un promemoria colazione ogni giorno all'ora scelta",
-      "reminderTime": "Ora del promemoria",
+      "reminderTitle": "Promemoria pasti",
+      "reminderDesc": "Imposta un promemoria separato per ogni pasto",
       "webOnlyInApp": "Sul web i promemoria vengono mostrati solo con l'app aperta"
     },
     "import": {

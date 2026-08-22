@@ -146,8 +146,14 @@
     "empty": "알림이 없습니다",
     "breakfastTitle": "아침 식사 시간이에요 ☀️",
     "breakfastBody": "좋은 하루를 시작하세요 — 아침 식사를 기록하세요",
+    "lunchTitle": "점심 식사 시간이에요 ☀️",
+    "lunchBody": "점심 식사를 기록하세요",
+    "dinnerTitle": "저녁 식사 시간이에요 🌙",
+    "dinnerBody": "저녁 식사를 기록하세요",
     "snoozeHour": "1시간 미루기",
-    "skipBreakfast": "아침 건너뛸게요"
+    "skipBreakfast": "아침 건너뛸게요",
+    "skipLunch": "점심 건너뛸게요",
+    "skipDinner": "저녁 건너뛸게요"
   },
   "auth": {
     "signIn": "로그인",
@@ -289,9 +295,8 @@
       "weighInFrequency": "계량 빈도(일)",
       "autoRecalculate": "매크로 자동 재계산",
       "days": "일",
-      "reminderTitle": "아침 칼로리 알림",
-      "reminderDesc": "매일 선택한 시간에 아침 식사 알림을 받으세요",
-      "reminderTime": "알림 시간",
+      "reminderTitle": "식사 알림",
+      "reminderDesc": "식사마다 별도의 알림을 설정하세요",
       "webOnlyInApp": "웹에서는 앱이 열려 있을 때만 알림이 표시됩니다"
     },
     "import": {

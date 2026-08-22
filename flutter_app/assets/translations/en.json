@@ -147,8 +147,14 @@
     "empty": "No notifications yet",
     "breakfastTitle": "Breakfast time ☀️",
     "breakfastBody": "Start the day right — log your breakfast",
+    "lunchTitle": "Lunch time ☀️",
+    "lunchBody": "Halfway there — log your lunch",
+    "dinnerTitle": "Dinner time 🌙",
+    "dinnerBody": "Wrap up the day — log your dinner",
     "snoozeHour": "Snooze 1 hour",
-    "skipBreakfast": "Skipping breakfast"
+    "skipBreakfast": "Skipping breakfast",
+    "skipLunch": "Skipping lunch",
+    "skipDinner": "Skipping dinner"
   },
   "auth": {
     "signIn": "Sign In",
@@ -290,9 +296,8 @@
       "weighInFrequency": "Weigh-in Frequency (days)",
       "autoRecalculate": "Auto-recalculate Macros",
       "days": "days",
-      "reminderTitle": "Morning Calorie Reminder",
-      "reminderDesc": "Get a breakfast reminder every day at your chosen time",
-      "reminderTime": "Reminder Time",
+      "reminderTitle": "Meal Reminders",
+      "reminderDesc": "Set a separate reminder for each meal",
       "webOnlyInApp": "On web, reminders are shown only while the app is open"
     },
     "import": {

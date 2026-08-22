@@ -88,6 +88,12 @@ enum MealType {
   /// Web `MEAL_TYPES[type].icon` karşılığı.
   final String emoji;
 
+  /// Bildirim başlık/gövde anahtarları (translations `notifications.*`).
+  String get notifTitleKey => 'notifications.${name}Title';
+  String get notifBodyKey => 'notifications.${name}Body';
+  String get notifSkipKey =>
+      'notifications.skip${name[0].toUpperCase()}${name.substring(1)}';
+
   /// Şu anki saate göre mantıklı varsayılan öğün.
   ///
   /// `hour < 11` breakfast, `< 16` lunch, `< 21` dinner, else snack.

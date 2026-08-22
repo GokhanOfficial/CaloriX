@@ -146,8 +146,14 @@
     "empty": "Pas de notifications",
     "breakfastTitle": "C'est l'heure du petit-déjeuner ☀️",
     "breakfastBody": "Bien commencer la journée — ajoutez votre petit-déjeuner",
+    "lunchTitle": "C'est l'heure du déjeuner ☀️",
+    "lunchBody": "Ajoutez votre déjeuner",
+    "dinnerTitle": "C'est l'heure du dîner 🌙",
+    "dinnerBody": "Ajoutez votre dîner",
     "snoozeHour": "Reporter d'1 heure",
-    "skipBreakfast": "Je ne prendrai pas le petit-déjeuner"
+    "skipBreakfast": "Je ne prendrai pas le petit-déjeuner",
+    "skipLunch": "Je ne prendrai pas de déjeuner",
+    "skipDinner": "Je ne prendrai pas de dîner"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -289,9 +295,8 @@
       "weighInFrequency": "Fréquence de pesée (jours)",
       "autoRecalculate": "Recalculer automatiquement les macros",
       "days": "jours",
-      "reminderTitle": "Rappel calories du matin",
-      "reminderDesc": "Recevez un rappel petit-déjeuner chaque jour à l'heure choisie",
-      "reminderTime": "Heure du rappel",
+      "reminderTitle": "Rappels des repas",
+      "reminderDesc": "Définissez un rappel distinct pour chaque repas",
       "webOnlyInApp": "Sur le web, les rappels ne s'affichent que si l'app est ouverte"
     },
     "import": {

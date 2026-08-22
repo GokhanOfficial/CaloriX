@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/constants/app_constants.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/notifications/web_reminder.dart';
 import 'core/router/app_router.dart';
@@ -37,11 +38,14 @@ class _CalorixAppState extends ConsumerState<CalorixApp> {
   }
 
   void _handleAction(String action) {
+    if (action.startsWith('${NotificationService.actionSnooze}:')) {
+      final meal =
+          MealType.values.asNameMap()[action.split(':').last];
+      if (meal != null) NotificationService.instance.snoozeOneHour(meal);
+      return;
+    }
     switch (action) {
-      case NotificationService.actionSnooze:
-        NotificationService.instance.snoozeOneHour();
-        break;
-      case 'action_open':
+      case NotificationService.actionOpen:
         ref.read(appRouterProvider).go(AppRoutes.dashboard);
         break;
       // action_skip: bildirim zaten kapandı, ek işlem yok.

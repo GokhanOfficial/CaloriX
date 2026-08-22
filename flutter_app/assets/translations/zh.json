@@ -146,8 +146,14 @@
     "empty": "暂无通知",
     "breakfastTitle": "早餐时间到 ☀️",
     "breakfastBody": "美好的一天从早餐开始 — 记录您的早餐",
+    "lunchTitle": "午餐时间到 ☀️",
+    "lunchBody": "记录您的午餐",
+    "dinnerTitle": "晚餐时间到 🌙",
+    "dinnerBody": "记录您的晚餐",
     "snoozeHour": "推迟1小时",
-    "skipBreakfast": "我不吃早餐"
+    "skipBreakfast": "我不吃早餐",
+    "skipLunch": "我不吃午餐",
+    "skipDinner": "我不吃晚餐"
   },
   "auth": {
     "signIn": "登录",
@@ -289,9 +295,8 @@
       "weighInFrequency": "称重频率（天）",
       "autoRecalculate": "自动重新计算宏量营养素",
       "days": "天",
-      "reminderTitle": "早晨卡路里提醒",
-      "reminderDesc": "每天在您选择的时间收到早餐提醒",
-      "reminderTime": "提醒时间",
+      "reminderTitle": "餐点提醒",
+      "reminderDesc": "为每餐设置单独的提醒时间",
       "webOnlyInApp": "在网页端，仅当应用打开时显示提醒"
     },
     "import": {

@@ -1,7 +1,7 @@
 name: calorix
 description: "CaloriX — Akıllı kalori, makro takip ve AI beslenme asistanı (Flutter)"
 publish_to: 'none'
-version: 1.2.0+2
+version: 1.2.1+3
 
 environment:
   sdk: ^3.13.0

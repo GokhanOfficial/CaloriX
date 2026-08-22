@@ -146,8 +146,14 @@
     "empty": "لا توجد إشعارات",
     "breakfastTitle": "وقت الفطور ☀️",
     "breakfastBody": "ابدأ يومك بشكل جيد — سجّل فطورك",
+    "lunchTitle": "وقت الغداء ☀️",
+    "lunchBody": "سجّل غداءك",
+    "dinnerTitle": "وقت العشاء 🌙",
+    "dinnerBody": "سجّل عشاءك",
     "snoozeHour": "تأجيل ساعة",
-    "skipBreakfast": "لن أتناول الفطور"
+    "skipBreakfast": "لن أتناول الفطور",
+    "skipLunch": "لن أتناول الغداء",
+    "skipDinner": "لن أتناول العشاء"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -289,9 +295,8 @@
       "weighInFrequency": "تكرار الوزن (أيام)",
       "autoRecalculate": "إعادة حساب المغذيات الكبرى تلقائيًا",
       "days": "أيام",
-      "reminderTitle": "تذكير السعرات الصباحي",
-      "reminderDesc": "تلقَّ تذكيرًا بالفطور كل يوم في الوقت الذي تختاره",
-      "reminderTime": "وقت التذكير",
+      "reminderTitle": "تذكيرات الوجبات",
+      "reminderDesc": "حدد تذكيرًا منفصلًا لكل وجبة",
       "webOnlyInApp": "على الويب، تظهر التذكيرات فقط عندما يكون التطبيق مفتوحًا"
     },
     "import": {

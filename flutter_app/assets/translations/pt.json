@@ -146,8 +146,14 @@
     "empty": "Sem notificações ainda",
     "breakfastTitle": "Hora do café da manhã ☀️",
     "breakfastBody": "Comece bem o dia — registre seu café da manhã",
+    "lunchTitle": "Hora do almoço ☀️",
+    "lunchBody": "Registre seu almoço",
+    "dinnerTitle": "Hora do jantar 🌙",
+    "dinnerBody": "Registre seu jantar",
     "snoozeHour": "Adiar 1 hora",
-    "skipBreakfast": "Não vou tomar café da manhã"
+    "skipBreakfast": "Não vou tomar café da manhã",
+    "skipLunch": "Não vou almoçar",
+    "skipDinner": "Não vou jantar"
   },
   "auth": {
     "signIn": "Entrar",
@@ -289,9 +295,8 @@
       "weighInFrequency": "Frequência de pesagem (dias)",
       "autoRecalculate": "Recalcular macros automaticamente",
       "days": "dias",
-      "reminderTitle": "Lembrete matinal de calorias",
-      "reminderDesc": "Receba um lembrete de café da manhã diariamente no horário escolhido",
-      "reminderTime": "Horário do lembrete",
+      "reminderTitle": "Lembretes de refeições",
+      "reminderDesc": "Defina um lembrete separado para cada refeição",
       "webOnlyInApp": "Na web, os lembretes são exibidos apenas com o app aberto"
     },
     "import": {

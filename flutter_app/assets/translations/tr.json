@@ -147,8 +147,14 @@
     "empty": "Henüz bildirim yok",
     "breakfastTitle": "Kahvaltı zamanı ☀️",
     "breakfastBody": "Güne iyi başla — kahvaltını günlüğüne ekle",
+    "lunchTitle": "Öğle yemeği zamanı ☀️",
+    "lunchBody": "Öğle yemeğini günlüğüne ekle",
+    "dinnerTitle": "Akşam yemeği zamanı 🌙",
+    "dinnerBody": "Akşam yemeğini günlüğüne ekle",
     "snoozeHour": "1 saat ertele",
-    "skipBreakfast": "Kahvaltı yapmayacağım"
+    "skipBreakfast": "Kahvaltı yapmayacağım",
+    "skipLunch": "Öğle yemeği yapmayacağım",
+    "skipDinner": "Akşam yemeği yemeyeceğim"
   },
   "auth": {
     "signIn": "Giriş Yap",
@@ -290,9 +296,8 @@
       "weighInFrequency": "Tartılma Sıklığı (gün)",
       "autoRecalculate": "Makroları Otomatik Yeniden Hesapla",
       "days": "gün",
-      "reminderTitle": "Sabah Kalori Hatırlatıcısı",
-      "reminderDesc": "Her gün seçtiğin saatte kahvaltı hatırlatması al",
-      "reminderTime": "Hatırlatma Saati",
+      "reminderTitle": "Öğün Hatırlatıcıları",
+      "reminderDesc": "Her öğün için ayrı hatırlatma saati belirle",
       "webOnlyInApp": "Web'de hatırlatma yalnızca uygulama açıkken gösterilir"
     },
     "import": {
