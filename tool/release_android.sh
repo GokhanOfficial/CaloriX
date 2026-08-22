@@ -108,11 +108,18 @@ trap 'rm -f "$NOTES_FILE"' EXIT
 } > "$NOTES_FILE"
 
 echo "» gh release create $TAG ..."
+# gh'nin "dosya#ad" sözdizimi asset'i yeniden adlandırmıyor; APK'yı
+# kararlı "calorix.apk" adına kopyalayıp öyle yüklüyoruz (manifest URL'si
+# sürümden bağımsız sabit kalır).
+STAGED_APK="$(mktemp -d)/calorix.apk"
+cp "$APK" "$STAGED_APK"
+trap 'rm -rf "$(dirname "$STAGED_APK")" "$NOTES_FILE"' EXIT
+
 gh release create "$TAG" \
   --repo "$REPO" \
   --title "CaloriX Android $VERSION" \
   --notes-file "$NOTES_FILE" \
-  "$APK#$ASSET_NAME" \
+  "$STAGED_APK" \
   "$ROOT/latest.json"
 
 rm -f "$ROOT/latest.json"
@@ -123,7 +130,7 @@ sleep 3
 STATUS="$(curl -sIL -o /dev/null -w '%{http_code}' "$MANIFEST_URL")"
 if [[ "$STATUS" == "200" ]]; then
   echo "✓ Yayınlandı ve doğrulandı: $MANIFEST_URL"
-  curl -sL "$MANIFEST_URL" | python3 -c 'import json,sys; m=json.load(sys.stdin); print(f"  manifest: v{m[\"versionName\"]} build {m[\"versionCode\"]}, min build {m[\"minSupportedVersionCode\"]}")'
+  curl -sL "$MANIFEST_URL" | python3 -c 'import json,sys; m=json.load(sys.stdin); print("  manifest: v" + m["versionName"] + " build " + str(m["versionCode"]) + ", min build " + str(m["minSupportedVersionCode"]))'
 else
   echo "⚠ UYARI: manifest URL'si HTTP $STATUS döndü (yayınlanması birkaç saniye sürebilir): $MANIFEST_URL" >&2
 fi
