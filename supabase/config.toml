@@ -40,3 +40,10 @@ verify_jwt = false
 # çağrılabilmesi tüm kullanıcı listesini dışarıya açardı (P0).
 [functions.check-reminders]
 verify_jwt = false
+
+# delete-account (KVKK / Google Play "hesap silme" zorunluluğu).
+# Kullanıcının KENDİ JWT'si ile çağrılır ve gövdedeki parola ile onaylanır.
+# Bu bir cron DEĞİLDİR: INTERNAL_FUNCTION_TOKEN deseni **kullanılmaz**;
+# fonksiyon kendi yetkilendirmesini (requireUserContext + parola) taşır.
+[functions.delete-account]
+verify_jwt = true

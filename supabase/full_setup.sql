@@ -553,6 +553,38 @@ CREATE TRIGGER trg_touch_chat_thread_updated_at AFTER INSERT OR UPDATE ON public
 CREATE TRIGGER freeze_recent_foods_food_id BEFORE UPDATE ON public.recent_foods FOR EACH ROW EXECUTE FUNCTION public.freeze_immutable_columns();
 CREATE TRIGGER freeze_chat_messages_thread_id BEFORE UPDATE ON public.chat_messages FOR EACH ROW EXECUTE FUNCTION public.freeze_immutable_columns();
 
+-- PUSH ABONELIK ADET SINIRI (20260928120000 ile hizalandi)
+-- Kullanici basina en fazla 7 push aboneligi. RLS satir guvenligi tek basina
+-- yeterli degildir: kotu niyetli istemci sınırsiz abonelik kaydedip her
+-- bildirimde yuzlerce fetch tetikleyebilirdi. Trigger INSERT'te calisir; ayni
+-- endpoint'e yapilan UPDATE (upsert) siniri tetiklemez.
+CREATE OR REPLACE FUNCTION public.limit_push_subscriptions_per_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_max CONSTANT INTEGER := 7;
+  v_count INTEGER;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    SELECT count(*) INTO v_count
+    FROM public.push_subscriptions
+    WHERE user_id = NEW.user_id;
+
+    IF v_count >= v_max THEN
+      -- Mesaj SABIT ve semasiz: istemciye tablo adi/kolon sizmaz.
+      RAISE EXCEPTION 'Cihaz siniri asildi, daha fazla push aboneliği eklenemiyor'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SET search_path = '';
+
+DROP TRIGGER IF EXISTS limit_push_subscriptions ON public.push_subscriptions;
+CREATE TRIGGER limit_push_subscriptions
+  BEFORE INSERT ON public.push_subscriptions
+  FOR EACH ROW EXECUTE FUNCTION public.limit_push_subscriptions_per_user();
+
 -- 2. RLS Improvements
 -- NOT: foods/food_nutrition INSERT+UPDATE politikaları yukarıdaki "RLS POLICIES"
 -- bölümünde tanımlandı; burada tekrar tanımlanmaz (isim çakışması hatası).
@@ -568,6 +600,10 @@ CREATE TRIGGER update_notification_preferences_updated_at BEFORE UPDATE ON publi
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'Europe/Istanbul';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_water_reminder timestamptz;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_daily_log_reminder timestamptz;
+-- Haftalik ozet idempotency damgasi (20260928120000 ile hizalandi).
+-- Bu kolon olmadan `check-reminders` haftalik ozeti her kosuda yeniden gonderir.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_weekly_summary timestamptz;
+COMMENT ON COLUMN public.profiles.last_weekly_summary IS 'Son gonderilen haftalik ozet hatirlatmasi (idempotency). NULL = hic gonderilmedi.';
 
 -- ============================================================================
 -- 4b. VERI BÜTÜNLÜĞÜ — CHECK kisitlari (20260927120000 ile hizalandi)

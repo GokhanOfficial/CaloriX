@@ -85,8 +85,31 @@ export async function requireUserContext(
   };
 }
 
-/** İstek gövdesini güvenli şekilde JSON olarak okur (boyut sınırlı). */
-export async function readJsonBody(req: Request, maxBytes = 1_000_000): Promise<Record<string, unknown>> {
+/**
+ * Varsayılan gövde boyutu sınırı (bayt).
+ *
+ * Gerekçe: 1 MB **varsayılan olarak çok büyüktü**. `recognize-food` gövdesi
+ * base64 görsel taşır ve 8 MB'a kadar meşru (bkz. `requireImageBase64`), ama
+ * diğer fonksiyonların ihtiyacı bunun çok altında. `maxBytes` verilmeyen her
+ * çağrı JSON metnini tamamen belleğe aldığı için sınırsız bir gövde bellek
+ * tüketimi (DoS) yaratıyordu. Varsayılan bu yüzden 256 KB'a çekildi; görsel
+ * taşıyan fonksiyonlar kendi sınırını **açıkça** geçmeli.
+ */
+export const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
+
+/**
+ * İstek gövdesini güvenli şekilde JSON olarak okur (boyut sınırlı).
+ *
+ * `maxBytes` verilmezse {@link DEFAULT_MAX_BODY_BYTES} kullanılır. Tıklama
+ * bastırma (clickjacking/HTML form) ile `Content-Type: application/json`
+ * gönderilemediği için gövde JSON parse edilemez ve 400 döner.
+ */
+export async function readJsonBody(req: Request, maxBytes = DEFAULT_MAX_BODY_BYTES): Promise<Record<string, unknown>> {
+  const contentType = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (contentType && contentType !== "application/json") {
+    // Yalnızca JSON kabul edilir; `text/plain` ile gelen istek reddedilir.
+    throw new AuthError("Geçersiz içerik türü", 415);
+  }
   const contentLength = Number(req.headers.get("content-length") || "0");
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new AuthError("Gövde çok büyük", 413);

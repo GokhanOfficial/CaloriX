@@ -37,6 +37,9 @@ serve(async (req) => {
     const openAIModel = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
 
     // 3) Gövde doğrulama: metin zorunlu ve en fazla 1000 karakter (token/maliyet koruması).
+    //    Gövde 1000 karakterlik `text` alanı dışında bir şey taşımaz; varsayılan
+    //    256 KB sınırı fazlasıyla yeterli (görsel taşıyan `recognize-food`
+    //    kendi 8 MB sınırını açıkça geçer).
     const body = await readJsonBody(req);
     const text = requireString(body.text, "text", 1000);
 

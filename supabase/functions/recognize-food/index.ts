@@ -37,7 +37,10 @@ serve(async (req) => {
     const openAIModel = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
 
     // 3) Gövde doğrulama (boyut + tip + uzunluk sınırları).
-    const body = await readJsonBody(req);
+    //    Bu fonksiyon base64 GÖRSEL taşıdığı için varsayılan 256 KB gövde
+    //    sınırı yetersizdir; `requireImageBase64` ile aynı 8 MB sınır burada
+    //    açıkça verilir (varsayılan sınır bilinçli olarak küçültüldü).
+    const body = await readJsonBody(req, 8_000_000);
     const imageBase64 = requireImageBase64(body.image_base64);
     const additionalText = optionalString(body.additional_text, "additional_text", 500);
 
