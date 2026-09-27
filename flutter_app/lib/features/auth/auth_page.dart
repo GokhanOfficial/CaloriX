@@ -316,6 +316,10 @@ class _AuthPageState extends ConsumerState<AuthPage>
                       suffix: IconButton(
                         icon: Icon(
                             _obscure ? Icons.visibility_off : Icons.visibility),
+                        // İkon-only buton: ekran okuyucular için etiket
+                        // şart (WCAG 4.1.2). Karşı taraftaki
+                        // `password_dialog.dart:107` aynı anahtarı kullanıyor.
+                        tooltip: 'auth.changePassword.toggleVisibility'.tr(),
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),

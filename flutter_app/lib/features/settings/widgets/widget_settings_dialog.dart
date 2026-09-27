@@ -82,7 +82,10 @@ class WidgetSettingsDialog extends ConsumerWidget {
       initialTime:
           TimeOfDay(hour: current.nudgeHour, minute: current.nudgeMinute),
     );
-    if (picked == null) return;
+    // Saat seçici `await` sırasında kapatılabilir; `WidgetRef` dispose
+    // olmuşsa kullanımı "Bad state: Cannot use ref after the widget was
+    // disposed" fırlatır (ekran çöker).
+    if (picked == null || !context.mounted) return;
     _update(
       ref,
       current.copyWith(nudgeHour: picked.hour, nudgeMinute: picked.minute),

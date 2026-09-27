@@ -37,10 +37,13 @@ class DateSelector extends ConsumerWidget {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-    if (picked != null) {
-      ref.read(selectedDateProvider.notifier).state =
-          DateTime(picked.year, picked.month, picked.day);
-    }
+    // Takvim dialogu `await` sırasında ekran kapatılabilir (geri tuşu,
+    // sistem dialog kapatma, route değişimi). `WidgetRef`, element dispose
+    // olduktan sonra kullanılırsa "Bad state: Cannot use ref after the
+    // widget was disposed" fırlatır ve takvimden dönüşte ekran çöker.
+    if (picked == null || !context.mounted) return;
+    ref.read(selectedDateProvider.notifier).state =
+        DateTime(picked.year, picked.month, picked.day);
   }
 
   void _shift(WidgetRef ref, int days) {
