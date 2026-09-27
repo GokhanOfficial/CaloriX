@@ -20,7 +20,9 @@
     "meal": "Repas",
     "searchFood": "Rechercher un aliment",
     "searchPlaceholder": "Rechercher un aliment...",
-    "version": "Version"
+    "version": "Version",
+    "undo": "Annuler",
+    "comingSoon": "Bientôt"
   },
   "header": {
     "signedOut": "Déconnecté",
@@ -129,7 +131,10 @@
       "updated": "Entrée mise à jour",
       "deleted": "Entrée supprimée"
     },
-    "fiberG": "Fibres (g)"
+    "fiberG": "Fibres (g)",
+    "photoTooLarge": "Photo trop volumineuse",
+    "flash": "Flash",
+    "amountRequired": "Quantité requise"
   },
   "export": {
     "success": "exporté",
@@ -219,6 +224,22 @@
     "analytics": "Analyse",
     "settings": "Paramètres",
     "chat": "Chat"
+  },
+  "widgets": {
+    "dailyTitle": "Résumé quotidien",
+    "weeklyTitle": "Graphique hebdomadaire",
+    "remaining": "restantes",
+    "kcal": "kcal",
+    "avg": "moy.",
+    "onTarget": "jours dans l'objectif",
+    "quickAdd": "Ajouter",
+    "signedOut": "Connecte-toi pour voir ton résumé",
+    "staleHint": "Données obsolètes — ouvre l'app",
+    "encMorning": "Bien débuté la journée ! Ajoute ton premier repas 🌅",
+    "encAfternoon": "La journée est à moitié passée — ajoute un repas et continue ☀️",
+    "encEvening": "Tu es tout près de boucler la journée — ajoute un dernier repas 🌙",
+    "nudgeTitle": "Aucun repas enregistré aujourd'hui",
+    "nudgeBody": "Ajoute rapidement un repas pour garder ton suivi à jour — 30 secondes suffisent !"
   },
   "settings": {
     "title": "Paramètres",
@@ -319,6 +340,22 @@
       "title": "Caméra par défaut",
       "inApp": "Dans l’app",
       "native": "Appareil photo du téléphone"
+    },
+    "widgets": {
+      "title": "Widgets",
+      "desc": "Apparence et rappels des widgets d'écran d'accueil",
+      "showMacros": "Afficher la ligne des macros",
+      "showWater": "Afficher la ligne d'eau",
+      "showWeight": "Afficher la ligne de poids",
+      "weeklyTitle": "Widget hebdomadaire",
+      "showAvg": "Afficher la moyenne hebdomadaire",
+      "showOnTarget": "Afficher les jours dans l'objectif",
+      "encouragementTitle": "Encouragement",
+      "encouragement": "Afficher un message d'encouragement sur le widget quand rien n'est enregistré",
+      "nudgeTitle": "Rappel de suivi quotidien",
+      "nudgeDesc": "Si rien n'est enregistré à l'heure choisie, envoie une notification par jour (heure approximative)",
+      "nudgeTime": "Heure du rappel",
+      "androidOnly": "Les réglages des widgets ne sont disponibles que sur Android"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food} mis à jour avec succès",
     "errorDelete": "Erreur lors de la suppression de l'aliment",
     "foodDeleted": "Aliment supprimé",
-    "deletedSuccessfully": "Enregistrement supprimé avec succès"
+    "deletedSuccessfully": "Enregistrement supprimé avec succès",
+    "edit": "Modifier",
+    "delete": "Supprimer"
   },
   "about": {
     "title": "À propos",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "Suivi des macros (% de l'objectif)",
         "subtitle": "Ligne = 100% objectif"
+      },
+      "macroFocus": {
+        "title": "Suivi de {macro}"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "Premier enregistrement",
       "change": "Variation",
       "last": "Dernier enregistrement"
-    }
+    },
+    "goToCalories": "Voir les analyses caloriques"
   },
   "chat": {
     "title": "Chat AI",
@@ -513,5 +556,8 @@
     "checkFailed": "Échec de la vérification de mise à jour",
     "notesTitle": "Nouveautés",
     "openFailed": "Impossible d'ouvrir la page de téléchargement"
+  },
+  "errors": {
+    "notFound": "Page introuvable"
   }
 }

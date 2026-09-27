@@ -20,7 +20,9 @@
     "meal": "餐次",
     "searchFood": "搜索食物",
     "searchPlaceholder": "搜索食物...",
-    "version": "版本"
+    "version": "版本",
+    "undo": "撤销",
+    "comingSoon": "即将推出"
   },
   "header": {
     "signedOut": "已登出",
@@ -129,7 +131,10 @@
       "updated": "条目已更新",
       "deleted": "条目已删除"
     },
-    "fiberG": "纤维 (克)"
+    "fiberG": "纤维 (克)",
+    "photoTooLarge": "照片太大",
+    "flash": "闪光灯",
+    "amountRequired": "请输入数量"
   },
   "export": {
     "success": "已导出",
@@ -219,6 +224,22 @@
     "analytics": "分析",
     "settings": "设置",
     "chat": "聊天"
+  },
+  "widgets": {
+    "dailyTitle": "每日总结",
+    "weeklyTitle": "每周图表",
+    "remaining": "剩余",
+    "kcal": "kcal",
+    "avg": "平均",
+    "onTarget": "天达到目标",
+    "quickAdd": "添加",
+    "signedOut": "登录以查看你的总结",
+    "staleHint": "数据已过期 — 请打开应用",
+    "encMorning": "开启新的一天！添加第一餐吧 🌅",
+    "encAfternoon": "一天过半了 — 添加一餐继续吧 ☀️",
+    "encEvening": "今天即将收尾 — 再添加最后一餐吧 🌙",
+    "nudgeTitle": "今天还没有记录餐食",
+    "nudgeBody": "快速添加一餐，让记录保持最新 — 只需30秒！"
   },
   "settings": {
     "title": "设置",
@@ -319,6 +340,22 @@
       "title": "默认相机",
       "inApp": "应用内",
       "native": "手机相机"
+    },
+    "widgets": {
+      "title": "小组件",
+      "desc": "主屏幕小组件的外观与提醒",
+      "showMacros": "显示宏量营养素行",
+      "showWater": "显示饮水行",
+      "showWeight": "显示体重行",
+      "weeklyTitle": "每周小组件",
+      "showAvg": "显示每周平均",
+      "showOnTarget": "显示达标天数",
+      "encouragementTitle": "鼓励",
+      "encouragement": "无记录时在小组件上显示鼓励消息",
+      "nudgeTitle": "每日记录提醒",
+      "nudgeDesc": "如果在所选时间前没有任何记录，每天发送一次通知（大约时间）",
+      "nudgeTime": "提醒时间",
+      "androidOnly": "小组件设置仅在 Android 上可用"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food} 更新成功",
     "errorDelete": "删除食物时出错",
     "foodDeleted": "食物已删除",
-    "deletedSuccessfully": "记录已成功删除"
+    "deletedSuccessfully": "记录已成功删除",
+    "edit": "编辑",
+    "delete": "删除"
   },
   "about": {
     "title": "关于",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "宏量营养素追踪（目标%）",
         "subtitle": "线 = 100%目标"
+      },
+      "macroFocus": {
+        "title": "{macro}趋势"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "首次记录",
       "change": "变化",
       "last": "最近记录"
-    }
+    },
+    "goToCalories": "查看热量分析"
   },
   "chat": {
     "title": "AI 聊天",
@@ -513,5 +556,8 @@
     "checkFailed": "更新检查失败",
     "notesTitle": "更新内容",
     "openFailed": "无法打开下载页面"
+  },
+  "errors": {
+    "notFound": "页面未找到"
   }
 }

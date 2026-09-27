@@ -20,7 +20,9 @@
     "meal": "Mahlzeit",
     "searchFood": "Lebensmittel suchen",
     "searchPlaceholder": "Lebensmittel suchen...",
-    "version": "Version"
+    "version": "Version",
+    "undo": "Rückgängig",
+    "comingSoon": "Demnächst"
   },
   "header": {
     "signedOut": "Abgemeldet",
@@ -129,7 +131,10 @@
       "updated": "Eintrag aktualisiert",
       "deleted": "Eintrag gelöscht"
     },
-    "fiberG": "Ballaststoffe (g)"
+    "fiberG": "Ballaststoffe (g)",
+    "photoTooLarge": "Foto ist zu groß",
+    "flash": "Blitz",
+    "amountRequired": "Menge ist erforderlich"
   },
   "export": {
     "success": "exportiert",
@@ -219,6 +224,22 @@
     "analytics": "Analyse",
     "settings": "Einstellungen",
     "chat": "Chat"
+  },
+  "widgets": {
+    "dailyTitle": "Tagesübersicht",
+    "weeklyTitle": "Wochenchart",
+    "remaining": "übrig",
+    "kcal": "kcal",
+    "avg": "Ø",
+    "onTarget": "Tage im Ziel",
+    "quickAdd": "Hinzufügen",
+    "signedOut": "Melde dich an, um deine Übersicht zu sehen",
+    "staleHint": "Daten nicht aktuell — App öffnen",
+    "encMorning": "Starte in den Tag! Füge deine erste Mahlzeit hinzu 🌅",
+    "encAfternoon": "Halbzeit — füge eine Mahlzeit hinzu und mach weiter ☀️",
+    "encEvening": "Fast geschafft — füge die letzte Mahlzeit hinzu 🌙",
+    "nudgeTitle": "Heute noch keine Mahlzeit erfasst",
+    "nudgeBody": "Erfasse schnell eine Mahlzeit, um dein Tracking aktuell zu halten — dauert nur 30 Sekunden!"
   },
   "settings": {
     "title": "Einstellungen",
@@ -319,6 +340,22 @@
       "title": "Standardkamera",
       "inApp": "In-App",
       "native": "Handykamera"
+    },
+    "widgets": {
+      "title": "Widgets",
+      "desc": "Optik der Startbildschirm-Widgets & Erinnerungen",
+      "showMacros": "Makro-Zeile anzeigen",
+      "showWater": "Wasser-Zeile anzeigen",
+      "showWeight": "Gewicht-Zeile anzeigen",
+      "weeklyTitle": "Wochen-Widget",
+      "showAvg": "Wochendurchschnitt anzeigen",
+      "showOnTarget": "Tage im Ziel anzeigen",
+      "encouragementTitle": "Motivation",
+      "encouragement": "Motivation auf dem Widget zeigen, wenn nichts erfasst ist",
+      "nudgeTitle": "Tägliche Erfassungserinnerung",
+      "nudgeDesc": "Sendet einmal täglich eine Benachrichtigung, wenn bis zur gewählten Zeit nichts erfasst wurde (ungefähre Zeit)",
+      "nudgeTime": "Erinnerungszeit",
+      "androidOnly": "Widget-Einstellungen sind nur auf Android verfügbar"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food} erfolgreich aktualisiert",
     "errorDelete": "Fehler beim Löschen des Lebensmittels",
     "foodDeleted": "Lebensmittel gelöscht",
-    "deletedSuccessfully": "Eintrag erfolgreich gelöscht"
+    "deletedSuccessfully": "Eintrag erfolgreich gelöscht",
+    "edit": "Bearbeiten",
+    "delete": "Löschen"
   },
   "about": {
     "title": "Über",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "Makro-Tracking (% vom Ziel)",
         "subtitle": "Linie = 100% Ziel"
+      },
+      "macroFocus": {
+        "title": "{macro}-Verlauf"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "Erster Eintrag",
       "change": "Änderung",
       "last": "Letzter Eintrag"
-    }
+    },
+    "goToCalories": "Kalorienanalyse ansehen"
   },
   "chat": {
     "title": "AI-Chat",
@@ -513,5 +556,8 @@
     "checkFailed": "Update-Prüfung fehlgeschlagen",
     "notesTitle": "Neu in dieser Version",
     "openFailed": "Download-Seite konnte nicht geöffnet werden"
+  },
+  "errors": {
+    "notFound": "Seite nicht gefunden"
   }
 }

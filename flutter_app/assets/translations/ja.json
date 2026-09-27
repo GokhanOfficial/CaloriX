@@ -20,7 +20,9 @@
     "meal": "食事",
     "searchFood": "食品を検索",
     "searchPlaceholder": "食品を検索...",
-    "version": "バージョン"
+    "version": "バージョン",
+    "undo": "元に戻す",
+    "comingSoon": "近日公開"
   },
   "header": {
     "signedOut": "ログアウト済み",
@@ -129,7 +131,10 @@
       "updated": "エントリーを更新しました",
       "deleted": "エントリーを削除しました"
     },
-    "fiberG": "食物繊維 (g)"
+    "fiberG": "食物繊維 (g)",
+    "photoTooLarge": "写真が大きすぎます",
+    "flash": "フラッシュ",
+    "amountRequired": "量を入力してください"
   },
   "export": {
     "success": "エクスポート完了",
@@ -219,6 +224,22 @@
     "analytics": "分析",
     "settings": "設定",
     "chat": "チャット"
+  },
+  "widgets": {
+    "dailyTitle": "今日のサマリー",
+    "weeklyTitle": "週間チャート",
+    "remaining": "残り",
+    "kcal": "kcal",
+    "avg": "平均",
+    "onTarget": "日 目標達成",
+    "quickAdd": "追加",
+    "signedOut": "ログインしてサマリーを表示",
+    "staleHint": "データが古くなっています — アプリを開く",
+    "encMorning": "一日のスタート！最初の食事を追加しよう 🌅",
+    "encAfternoon": "一日の半分が過ぎました — 食事を追加して続けましょう ☀️",
+    "encEvening": "今日を締めくくるまであと少し — 最後の食事を追加しましょう 🌙",
+    "nudgeTitle": "今日はまだ食事を記録していません",
+    "nudgeBody": "食事をさっと追加して記録を最新の状態に保ちましょう — たった30秒です！"
   },
   "settings": {
     "title": "設定",
@@ -319,6 +340,22 @@
       "title": "デフォルトカメラ",
       "inApp": "アプリ内",
       "native": "スマホのカメラ"
+    },
+    "widgets": {
+      "title": "ウィジェット",
+      "desc": "ホーム画面ウィジェットの見た目とリマインダー",
+      "showMacros": "マクロ行を表示",
+      "showWater": "水分行を表示",
+      "showWeight": "体重行を表示",
+      "weeklyTitle": "週間ウィジェット",
+      "showAvg": "週間平均を表示",
+      "showOnTarget": "目標達成日数を表示",
+      "encouragementTitle": "はげまし",
+      "encouragement": "記録がないときウィジェットにはげましメッセージを表示",
+      "nudgeTitle": "毎日の記録リマインダー",
+      "nudgeDesc": "選択した時刻までに記録がない場合、1日1回通知を送ります（おおよその時刻）",
+      "nudgeTime": "リマインダー時刻",
+      "androidOnly": "ウィジェット設定はAndroidのみ利用できます"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food}を更新しました",
     "errorDelete": "食品の削除エラー",
     "foodDeleted": "食品を削除しました",
-    "deletedSuccessfully": "記録を削除しました"
+    "deletedSuccessfully": "記録を削除しました",
+    "edit": "編集",
+    "delete": "削除"
   },
   "about": {
     "title": "このアプリについて",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "マクロ推移（目標の%）",
         "subtitle": "線 = 100%目標"
+      },
+      "macroFocus": {
+        "title": "{macro}の推移"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "最初の記録",
       "change": "変化",
       "last": "最新の記録"
-    }
+    },
+    "goToCalories": "カロリー分析を見る"
   },
   "chat": {
     "title": "AIチャット",
@@ -513,5 +556,8 @@
     "checkFailed": "更新の確認に失敗しました",
     "notesTitle": "このバージョンの新機能",
     "openFailed": "ダウンロードページを開けませんでした"
+  },
+  "errors": {
+    "notFound": "ページが見つかりません"
   }
 }

@@ -21,7 +21,8 @@
     "searchFood": "Search Food",
     "searchPlaceholder": "Search food...",
     "version": "Version",
-    "undo": "Undo"
+    "undo": "Undo",
+    "comingSoon": "Coming soon"
   },
   "header": {
     "signedOut": "Signed Out",
@@ -130,7 +131,10 @@
       "updated": "Entry updated",
       "deleted": "Entry deleted"
     },
-    "fiberG": "Fiber (g)"
+    "fiberG": "Fiber (g)",
+    "photoTooLarge": "Photo is too large",
+    "flash": "Flash",
+    "amountRequired": "Amount is required"
   },
   "export": {
     "success": "exported",
@@ -220,6 +224,22 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "chat": "Chat"
+  },
+  "widgets": {
+    "dailyTitle": "Daily Summary",
+    "weeklyTitle": "Weekly Chart",
+    "remaining": "left",
+    "kcal": "kcal",
+    "avg": "avg",
+    "onTarget": "days on target",
+    "quickAdd": "Add",
+    "signedOut": "Sign in to see your summary",
+    "staleHint": "Data is stale — open the app",
+    "encMorning": "Start your day! Add your first meal 🌅",
+    "encAfternoon": "Half the day is gone — add a meal and keep going ☀️",
+    "encEvening": "You're close to wrapping up today — add one last meal 🌙",
+    "nudgeTitle": "No meals logged today",
+    "nudgeBody": "Quickly add a meal to keep your tracking up to date — takes 30 seconds!"
   },
   "settings": {
     "title": "Settings",
@@ -320,6 +340,22 @@
       "title": "Default Camera",
       "inApp": "In-app",
       "native": "Phone camera"
+    },
+    "widgets": {
+      "title": "Widgets",
+      "desc": "Home screen widget look & reminders",
+      "showMacros": "Show macro row",
+      "showWater": "Show water row",
+      "showWeight": "Show weight row",
+      "weeklyTitle": "Weekly widget",
+      "showAvg": "Show weekly average",
+      "showOnTarget": "Show days-on-target",
+      "encouragementTitle": "Encouragement",
+      "encouragement": "Show encouragement on widget when nothing logged",
+      "nudgeTitle": "Daily logging reminder",
+      "nudgeDesc": "If nothing is logged by the chosen time, sends one notification per day (approximate time)",
+      "nudgeTime": "Reminder time",
+      "androidOnly": "Widget settings are only available on Android"
     }
   },
   "dashboard": {
@@ -520,5 +556,8 @@
     "checkFailed": "Update check failed",
     "notesTitle": "What's new",
     "openFailed": "Could not open the download page"
+  },
+  "errors": {
+    "notFound": "Page not found"
   }
 }

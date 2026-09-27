@@ -20,7 +20,9 @@
     "meal": "Refeição",
     "searchFood": "Buscar Alimento",
     "searchPlaceholder": "Buscar alimento...",
-    "version": "Versão"
+    "version": "Versão",
+    "undo": "Desfazer",
+    "comingSoon": "Em breve"
   },
   "header": {
     "signedOut": "Desconectado",
@@ -129,7 +131,10 @@
       "updated": "Registro atualizado",
       "deleted": "Registro excluído"
     },
-    "fiberG": "Fibra (g)"
+    "fiberG": "Fibra (g)",
+    "photoTooLarge": "Foto muito grande",
+    "flash": "Flash",
+    "amountRequired": "Quantidade obrigatória"
   },
   "export": {
     "success": "exportado",
@@ -219,6 +224,22 @@
     "analytics": "Análise",
     "settings": "Configurações",
     "chat": "Chat"
+  },
+  "widgets": {
+    "dailyTitle": "Resumo diário",
+    "weeklyTitle": "Gráfico semanal",
+    "remaining": "restantes",
+    "kcal": "kcal",
+    "avg": "média",
+    "onTarget": "dias na meta",
+    "quickAdd": "Adicionar",
+    "signedOut": "Entre para ver seu resumo",
+    "staleHint": "Dados desatualizados — abra o app",
+    "encMorning": "Comece bem o dia! Adicione a primeira refeição 🌅",
+    "encAfternoon": "Metade do dia já passou — adicione uma refeição e continue ☀️",
+    "encEvening": "Está quase terminando o dia — adicione a última refeição 🌙",
+    "nudgeTitle": "Nenhuma refeição registrada hoje",
+    "nudgeBody": "Adicione uma refeição rapidamente para manter seu registro em dia — leva só 30 segundos!"
   },
   "settings": {
     "title": "Configurações",
@@ -319,6 +340,22 @@
       "title": "Câmera padrão",
       "inApp": "No app",
       "native": "Câmera do telefone"
+    },
+    "widgets": {
+      "title": "Widgets",
+      "desc": "Aparência e lembretes dos widgets da tela inicial",
+      "showMacros": "Mostrar linha de macros",
+      "showWater": "Mostrar linha de água",
+      "showWeight": "Mostrar linha de peso",
+      "weeklyTitle": "Widget semanal",
+      "showAvg": "Mostrar média semanal",
+      "showOnTarget": "Mostrar dias na meta",
+      "encouragementTitle": "Encorajamento",
+      "encouragement": "Mostrar encorajamento no widget quando nada for registrado",
+      "nudgeTitle": "Lembrete diário de registro",
+      "nudgeDesc": "Se nada for registrado até o horário escolhido, envia uma notificação por dia (horário aproximado)",
+      "nudgeTime": "Horário do lembrete",
+      "androidOnly": "As configurações de widgets estão disponíveis apenas no Android"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food} atualizado com sucesso",
     "errorDelete": "Erro ao excluir alimento",
     "foodDeleted": "Alimento excluído",
-    "deletedSuccessfully": "Registro excluído com sucesso"
+    "deletedSuccessfully": "Registro excluído com sucesso",
+    "edit": "Editar",
+    "delete": "Excluir"
   },
   "about": {
     "title": "Sobre",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "Acompanhamento de macros (% da meta)",
         "subtitle": "Linha = 100% da meta"
+      },
+      "macroFocus": {
+        "title": "Acompanhamento de {macro}"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "Primeiro registro",
       "change": "Variação",
       "last": "Último registro"
-    }
+    },
+    "goToCalories": "Ver análise de calorias"
   },
   "chat": {
     "title": "Chat de AI",
@@ -513,5 +556,8 @@
     "checkFailed": "Falha ao verificar atualização",
     "notesTitle": "Novidades",
     "openFailed": "Não foi possível abrir a página de download"
+  },
+  "errors": {
+    "notFound": "Página não encontrada"
   }
 }

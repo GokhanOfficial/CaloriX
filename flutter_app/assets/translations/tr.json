@@ -21,7 +21,8 @@
     "searchFood": "Yiyecek Ara",
     "searchPlaceholder": "Yiyecek ara...",
     "version": "Sürüm",
-    "undo": "Geri Al"
+    "undo": "Geri Al",
+    "comingSoon": "Çok yakında"
   },
   "header": {
     "signedOut": "Çıkış Yapıldı",
@@ -130,7 +131,10 @@
       "updated": "Kayıt güncellendi",
       "deleted": "Kayıt silindi"
     },
-    "fiberG": "Lif (g)"
+    "fiberG": "Lif (g)",
+    "photoTooLarge": "Fotoğraf çok büyük",
+    "flash": "Flaş",
+    "amountRequired": "Miktar gerekli"
   },
   "export": {
     "success": "dışa aktarıldı",
@@ -220,6 +224,22 @@
     "analytics": "Analiz",
     "settings": "Ayarlar",
     "chat": "Sohbet"
+  },
+  "widgets": {
+    "dailyTitle": "Günlük Özet",
+    "weeklyTitle": "Haftalık Grafik",
+    "remaining": "kalan",
+    "kcal": "kcal",
+    "avg": "ort.",
+    "onTarget": "gün hedefte",
+    "quickAdd": "Ekle",
+    "signedOut": "Özetini görmek için giriş yap",
+    "staleHint": "Veri güncel değil — uygulamayı aç",
+    "encMorning": "Güne başla! İlk öğününü ekle 🌅",
+    "encAfternoon": "Günün yarısı geçti — bir öğün ekleyip devam et ☀️",
+    "encEvening": "Bugünü tamamlamak çok yakın — son bir öğün ekle 🌙",
+    "nudgeTitle": "Bugün henüz öğün eklemedin",
+    "nudgeBody": "Hızlıca bir öğün ekleyerek takibini güncel tut — 30 saniye yeter!"
   },
   "settings": {
     "title": "Ayarlar",
@@ -320,6 +340,22 @@
       "title": "Varsayılan Kamera",
       "inApp": "Uygulama içi",
       "native": "Telefon kamerası"
+    },
+    "widgets": {
+      "title": "Widget'lar",
+      "desc": "Ana ekran widget'larının görünümü ve hatırlatıcısı",
+      "showMacros": "Makro satırını göster",
+      "showWater": "Su satırını göster",
+      "showWeight": "Kilo satırını göster",
+      "weeklyTitle": "Haftalık widget",
+      "showAvg": "Haftalık ortalamayı göster",
+      "showOnTarget": "Hedefteki gün sayısını göster",
+      "encouragementTitle": "Teşvik",
+      "encouragement": "Kayıt yokken widget'ta teşvik mesajı göster",
+      "nudgeTitle": "Günlük kayıt hatırlatıcısı",
+      "nudgeDesc": "Seçilen saatte bugün hiç öğün eklenmemişse günde bir kez bildirim gönderir (yaklaşık saat)",
+      "nudgeTime": "Hatırlatma saati",
+      "androidOnly": "Widget ayarları yalnızca Android'de görünür"
     }
   },
   "dashboard": {
@@ -520,5 +556,8 @@
     "checkFailed": "Güncelleme kontrolü yapılamadı",
     "notesTitle": "Bu sürümde",
     "openFailed": "İndirme sayfası açılamadı"
+  },
+  "errors": {
+    "notFound": "Sayfa bulunamadı"
   }
 }

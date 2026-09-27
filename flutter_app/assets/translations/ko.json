@@ -20,7 +20,9 @@
     "meal": "식사",
     "searchFood": "음식 검색",
     "searchPlaceholder": "음식 검색...",
-    "version": "버전"
+    "version": "버전",
+    "undo": "실행 취소",
+    "comingSoon": "출시 예정"
   },
   "header": {
     "signedOut": "로그아웃됨",
@@ -129,7 +131,10 @@
       "updated": "항목 업데이트됨",
       "deleted": "항목 삭제됨"
     },
-    "fiberG": "식이섬유 (g)"
+    "fiberG": "식이섬유 (g)",
+    "photoTooLarge": "사진이 너무 큽니다",
+    "flash": "플래시",
+    "amountRequired": "양을 입력하세요"
   },
   "export": {
     "success": "내보내기 완료",
@@ -219,6 +224,22 @@
     "analytics": "분석",
     "settings": "설정",
     "chat": "채팅"
+  },
+  "widgets": {
+    "dailyTitle": "일일 요약",
+    "weeklyTitle": "주간 차트",
+    "remaining": "남음",
+    "kcal": "kcal",
+    "avg": "평균",
+    "onTarget": "일 목표 달성",
+    "quickAdd": "추가",
+    "signedOut": "로그인해서 요약 보기",
+    "staleHint": "데이터가 최신이 아닙니다 — 앱을 열어주세요",
+    "encMorning": "하루를 시작하세요! 첫 식사를 추가하세요 🌅",
+    "encAfternoon": "하루의 반이 지났어요 — 식사를 추가하고 계속하세요 ☀️",
+    "encEvening": "오늘을 마무리하기까지 얼마 남지 않았어요 — 마지막 식사를 추가하세요 🌙",
+    "nudgeTitle": "오늘 기록한 식사가 없어요",
+    "nudgeBody": "식사를 빠르게 추가해 기록을 최신 상태로 유지하세요 — 30초면 충분해요!"
   },
   "settings": {
     "title": "설정",
@@ -319,6 +340,22 @@
       "title": "기본 카메라",
       "inApp": "앱 내",
       "native": "휴대폰 카메라"
+    },
+    "widgets": {
+      "title": "위젯",
+      "desc": "홈 화면 위젯 모양과 알림",
+      "showMacros": "매크로 행 표시",
+      "showWater": "수분 행 표시",
+      "showWeight": "체중 행 표시",
+      "weeklyTitle": "주간 위젯",
+      "showAvg": "주간 평균 표시",
+      "showOnTarget": "목표 달성 일수 표시",
+      "encouragementTitle": "격려",
+      "encouragement": "기록이 없을 때 위젯에 격려 메시지 표시",
+      "nudgeTitle": "일일 기록 알림",
+      "nudgeDesc": "선택한 시간까지 기록이 없으면 하루 한 번 알림을 보냅니다 (대략적인 시간)",
+      "nudgeTime": "알림 시간",
+      "androidOnly": "위젯 설정은 Android에서만 사용할 수 있습니다"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food} 업데이트 성공",
     "errorDelete": "음식 삭제 오류",
     "foodDeleted": "음식 삭제됨",
-    "deletedSuccessfully": "기록이 삭제되었습니다"
+    "deletedSuccessfully": "기록이 삭제되었습니다",
+    "edit": "편집",
+    "delete": "삭제"
   },
   "about": {
     "title": "정보",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "매크로 추적 (목표의 %)",
         "subtitle": "선 = 100% 목표"
+      },
+      "macroFocus": {
+        "title": "{macro} 추이"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "첫 번째 기록",
       "change": "변화",
       "last": "마지막 기록"
-    }
+    },
+    "goToCalories": "칼로리 분석 보기"
   },
   "chat": {
     "title": "AI 채팅",
@@ -513,5 +556,8 @@
     "checkFailed": "업데이트 확인 실패",
     "notesTitle": "새로운 기능",
     "openFailed": "다운로드 페이지를 열 수 없습니다"
+  },
+  "errors": {
+    "notFound": "페이지를 찾을 수 없습니다"
   }
 }

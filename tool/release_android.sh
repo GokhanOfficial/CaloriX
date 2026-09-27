@@ -30,16 +30,26 @@ NOTES_EN=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --min-code)  MIN_CODE="$2"; shift 2 ;;
-    --notes-tr)  NOTES_TR="$2"; shift 2 ;;
-    --notes-en)  NOTES_EN="$2"; shift 2 ;;
+    --min-code)
+      [[ $# -ge 2 ]] || { echo "HATA: --min-code bir değer gerektirir." >&2; exit 1; }
+      MIN_CODE="$2"; shift 2 ;;
+    --notes-tr)
+      [[ $# -ge 2 ]] || { echo "HATA: --notes-tr bir değer gerektirir." >&2; exit 1; }
+      NOTES_TR="$2"; shift 2 ;;
+    --notes-en)
+      [[ $# -ge 2 ]] || { echo "HATA: --notes-en bir değer gerektirir." >&2; exit 1; }
+      NOTES_EN="$2"; shift 2 ;;
     -h|--help)   sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "Bilinmeyen argüman: $1" >&2; exit 1 ;;
   esac
 done
 
-command -v flutter >/dev/null || { echo "HATA: flutter bulunamadı." >&2; exit 1; }
-command -v gh >/dev/null || { echo "HATA: gh bulunamadı (gh auth login)." >&2; exit 1; }
+# Ön koşullar — hepsi kullanılıyor, eksikse sessizce bozuk manifest
+# üretmektense baştan dur.
+for cmd in flutter gh python3 curl sha256sum; do
+  command -v "$cmd" >/dev/null \
+    || { echo "HATA: '$cmd' bulunamadı." >&2; exit 1; }
+done
 
 # --- 1) Sürüm bilgisi pubspec'ten ---
 VERSION_LINE="$(grep -m1 '^version:' "$PUBSPEC")"
@@ -79,7 +89,17 @@ echo "» APK hazır: ${APK_SIZE_MB} MB, sha256=$SHA256"
 APK_URL="https://github.com/${REPO}/releases/download/${TAG//+/%2B}/${ASSET_NAME}"
 GENERATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-python3 - "$APK_URL" "$SHA256" "$GENERATED_AT" "$VERSION" "$BUILD" "$MIN_CODE" "$NOTES_TR" "$NOTES_EN" <<'PYEOF' > "$ROOT/latest.json"
+# Not: `latest.json` geçici dosya olarak repo köküne yazılır (release'a
+# yüklenmek için) ve **her** çıkış yolunda silinir. Daha önce yalnızca
+# başarıda `rm -f` vardı; `gh release create` hata verdiğinde yayınlanmamış
+# bir manifest çalışma ağacında kalıyor ve bir sonraki run'da yanlışlıkla
+# yüklenebiliyordu.
+LATEST_JSON="$ROOT/latest.json"
+trap 'rm -f "$NOTES_FILE" "$LATEST_JSON"; rm -rf "$STAGE_DIR"' EXIT
+NOTES_FILE=""
+STAGE_DIR=""
+
+python3 - "$APK_URL" "$SHA256" "$GENERATED_AT" "$VERSION" "$BUILD" "$MIN_CODE" "$NOTES_TR" "$NOTES_EN" <<'PYEOF' > "$LATEST_JSON"
 import json, sys
 apk_url, sha256, released_at, version, code, min_code, notes_tr, notes_en = sys.argv[1:9]
 notes = {k: v for k, v in (("tr", notes_tr), ("en", notes_en)) if v}
@@ -94,11 +114,10 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 PYEOF
 echo "» latest.json üretildi:"
-cat "$ROOT/latest.json"
+cat "$LATEST_JSON"
 
 # --- 4) Release oluştur ---
 NOTES_FILE="$(mktemp)"
-trap 'rm -f "$NOTES_FILE"' EXIT
 {
   echo "CaloriX Android $VERSION (build $BUILD)"
   echo
@@ -111,18 +130,16 @@ echo "» gh release create $TAG ..."
 # gh'nin "dosya#ad" sözdizimi asset'i yeniden adlandırmıyor; APK'yı
 # kararlı "calorix.apk" adına kopyalayıp öyle yüklüyoruz (manifest URL'si
 # sürümden bağımsız sabit kalır).
-STAGED_APK="$(mktemp -d)/calorix.apk"
+STAGE_DIR="$(mktemp -d)"
+STAGED_APK="$STAGE_DIR/$ASSET_NAME"
 cp "$APK" "$STAGED_APK"
-trap 'rm -rf "$(dirname "$STAGED_APK")" "$NOTES_FILE"' EXIT
 
 gh release create "$TAG" \
   --repo "$REPO" \
   --title "CaloriX Android $VERSION" \
   --notes-file "$NOTES_FILE" \
   "$STAGED_APK" \
-  "$ROOT/latest.json"
-
-rm -f "$ROOT/latest.json"
+  "$LATEST_JSON"
 
 # --- 5) Kararlı URL'yi doğrula ---
 MANIFEST_URL="https://github.com/${REPO}/releases/latest/download/latest.json"

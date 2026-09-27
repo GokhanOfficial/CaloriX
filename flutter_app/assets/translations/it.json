@@ -20,7 +20,9 @@
     "meal": "Pasto",
     "searchFood": "Cerca alimento",
     "searchPlaceholder": "Cerca alimento...",
-    "version": "Versione"
+    "version": "Versione",
+    "undo": "Annulla",
+    "comingSoon": "Presto disponibile"
   },
   "header": {
     "signedOut": "Disconnesso",
@@ -129,7 +131,10 @@
       "updated": "Voce aggiornata",
       "deleted": "Voce eliminata"
     },
-    "fiberG": "Fibre (g)"
+    "fiberG": "Fibre (g)",
+    "photoTooLarge": "Foto troppo grande",
+    "flash": "Flash",
+    "amountRequired": "Quantità richiesta"
   },
   "export": {
     "success": "esportato",
@@ -219,6 +224,22 @@
     "analytics": "Analisi",
     "settings": "Impostazioni",
     "chat": "Chat"
+  },
+  "widgets": {
+    "dailyTitle": "Riepilogo giornaliero",
+    "weeklyTitle": "Grafico settimanale",
+    "remaining": "rimaste",
+    "kcal": "kcal",
+    "avg": "media",
+    "onTarget": "giorni in obiettivo",
+    "quickAdd": "Aggiungi",
+    "signedOut": "Accedi per vedere il tuo riepilogo",
+    "staleHint": "Dati non aggiornati — apri l'app",
+    "encMorning": "Inizia la giornata! Aggiungi il primo pasto 🌅",
+    "encAfternoon": "È passata metà giornata — aggiungi un pasto e continua ☀️",
+    "encEvening": "Ci sei quasi: manca poco per chiudere la giornata — aggiungi un ultimo pasto 🌙",
+    "nudgeTitle": "Nessun pasto registrato oggi",
+    "nudgeBody": "Aggiungi rapidamente un pasto per tenere il registro aggiornato — bastano 30 secondi!"
   },
   "settings": {
     "title": "Impostazioni",
@@ -319,6 +340,22 @@
       "title": "Fotocamera predefinita",
       "inApp": "Nell’app",
       "native": "Fotocamera del telefono"
+    },
+    "widgets": {
+      "title": "Widget",
+      "desc": "Aspetto e promemoria dei widget della schermata Home",
+      "showMacros": "Mostra riga macros",
+      "showWater": "Mostra riga dell'acqua",
+      "showWeight": "Mostra riga del peso",
+      "weeklyTitle": "Widget settimanale",
+      "showAvg": "Mostra media settimanale",
+      "showOnTarget": "Mostra giorni in obiettivo",
+      "encouragementTitle": "Incoraggiamento",
+      "encouragement": "Mostra un messaggio di incoraggiamento sul widget quando non c'è nulla di registrato",
+      "nudgeTitle": "Promemoria diario quotidiano",
+      "nudgeDesc": "Se entro l'ora scelta non è stato registrato nulla, invia una notifica al giorno (ora approssimativa)",
+      "nudgeTime": "Ora del promemoria",
+      "androidOnly": "Le impostazioni dei widget sono disponibili solo su Android"
     }
   },
   "dashboard": {
@@ -367,7 +404,9 @@
     "updatedSuccessfully": "{food} aggiornato con successo",
     "errorDelete": "Errore nell'eliminare l'alimento",
     "foodDeleted": "Alimento eliminato",
-    "deletedSuccessfully": "Record eliminato con successo"
+    "deletedSuccessfully": "Record eliminato con successo",
+    "edit": "Modifica",
+    "delete": "Elimina"
   },
   "about": {
     "title": "Info",
@@ -449,6 +488,9 @@
       "macros": {
         "title": "Monitoraggio macro (% dell'obiettivo)",
         "subtitle": "Linea = 100% obiettivo"
+      },
+      "macroFocus": {
+        "title": "Andamento {macro}"
       }
     },
     "averages": {
@@ -462,7 +504,8 @@
       "first": "Prima registrazione",
       "change": "Variazione",
       "last": "Ultima registrazione"
-    }
+    },
+    "goToCalories": "Vedi analisi calorie"
   },
   "chat": {
     "title": "Chat AI",
@@ -513,5 +556,8 @@
     "checkFailed": "Verifica aggiornamenti non riuscita",
     "notesTitle": "Novità",
     "openFailed": "Impossibile aprire la pagina di download"
+  },
+  "errors": {
+    "notFound": "Pagina non trovata"
   }
 }
