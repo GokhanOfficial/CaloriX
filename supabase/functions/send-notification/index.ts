@@ -338,7 +338,7 @@ async function processNotification(
   if (!serviceKey) return errorResponse(req, 500, "Sunucu yapılandırması eksik");
 
   // Kullanıcı bazlı kaba hız sınırı (e-posta/push israfı ve suistimal koruması).
-  const limit = checkRateLimit(rateLimitKey("send-notification", req, userId), RATE_LIMIT);
+  const limit = await checkRateLimit(rateLimitKey("send-notification", req, userId), RATE_LIMIT);
   if (!limit.allowed) {
     return jsonResponse(req, { error: "Çok fazla bildirim gönderildi" }, 429, {
       "Retry-After": String(limit.retryAfter),

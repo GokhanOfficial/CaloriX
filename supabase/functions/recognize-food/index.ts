@@ -21,7 +21,7 @@ serve(async (req) => {
     const { userId } = await requireUserContext(req, { serviceRole: false });
 
     // 2) Maliyet koruması: kullanıcı başına dakikada sınırlı AI çağrısı.
-    const limit = checkRateLimit(rateLimitKey("recognize-food", req, userId), RATE_LIMIT);
+    const limit = await checkRateLimit(rateLimitKey("recognize-food", req, userId), RATE_LIMIT);
     if (!limit.allowed) {
       return jsonResponse(req, { error: "Çok fazla istek gönderildi, lütfen biraz bekleyin" }, 429, {
         "Retry-After": String(limit.retryAfter),

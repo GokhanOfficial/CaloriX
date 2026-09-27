@@ -176,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // 2) Tekrarlı tetikleme koruması.
-    const limit = checkRateLimit(rateLimitKey("check-reminders", req, "internal"), RATE_LIMIT);
+    const limit = await checkRateLimit(rateLimitKey("check-reminders", req, "internal"), RATE_LIMIT);
     if (!limit.allowed) {
       return jsonResponse(req, { success: true, message: "Zaten çalışıyor/atlandı" }, 200, {
         "Retry-After": String(limit.retryAfter),

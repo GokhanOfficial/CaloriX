@@ -1,12 +1,10 @@
-// @ts-nocheck
-// NOT: Tip denetimi `supabase-js` generics olmadan anlamsızlaşıyor (Database şeması
-// tiplenmediği için `from(...).insert()` çağrıları `never[]` ile hatalı görünüyor).
-// Bu dosya deno check ile SEÇİCİ OLARAK denetlendi: yalnızca bu generic kaynaklı
-// hatalar kaldı, güvenlik açısından ek hata yok.
+// NOT: `supabase-js` generic'leri için `_shared/database.types.ts` kullanılır;
+// böylece `from("...")` çağrıları gerçek satır tipleriyle denetlenir.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
+import type { Database } from "../_shared/database.types.ts";
 import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 
@@ -44,6 +42,21 @@ type ChatMessage = {
 
 type RequestBody = { mode?: "chat"; threadId: string; locale?: string; language?: string; timeZone?: string; currentDate?: string };
 
+// --- Allow-list'ler (model çıktısı doğrudan DB'ye gider, bu yüzden sabit) ---
+const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
+const GOALS = ["lose", "maintain", "gain"] as const;
+const ACTIVITY_LEVELS = ["sedentary", "light", "moderate", "active", "very_active"] as const;
+
+/** `update_goals` aracının yazabileceği sayısal `profiles` alanları ve aralıkları. */
+const PROFILE_NUMERIC_FIELDS = {
+  daily_calorie_target: [0, 20000],
+  protein_target_g: [0, 2000],
+  carbs_target_g: [0, 2000],
+  fat_target_g: [0, 2000],
+  daily_water_target_ml: [0, 10000],
+  target_weight_kg: [25, 400],
+} as const satisfies Record<string, readonly [number, number]>;
+
 const openAIApiKey = Deno.env.get("OPENAI_API_KEY") || "";
 const openAIBaseUrl = Deno.env.get("OPENAI_BASE_URL") || "https://gen.pollinations.ai/v1";
 const openAIModel = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
@@ -63,6 +76,14 @@ function requireString(value: unknown, field: string) {
     throw new Error(`Invalid ${field}`);
   }
   return value.trim();
+}
+
+/** Model çıktısını sabit bir allow-list'ten seçer; dışarıdaki hiçbir değer kabul edilmez. */
+function requireEnum<T extends string>(value: unknown, field: string, allowed: readonly T[]): T {
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value as T;
 }
 
 function sanitizeDate(value: unknown) {
@@ -121,7 +142,7 @@ function validateToolDate(date: string, currentDate: string, toolName: string) {
   return date;
 }
 
-async function getSignedAttachments(serviceClient: ReturnType<typeof createClient>, attachments: ChatAttachment[]) {
+async function getSignedAttachments(serviceClient: SupabaseClient<Database>, attachments: ChatAttachment[]) {
   const result: ChatAttachment[] = [];
   for (const attachment of attachments || []) {
     if (!attachment.path) continue;
@@ -254,7 +275,7 @@ function getToolDefinitions() {
   ];
 }
 
-async function runReadTool(serviceClient: ReturnType<typeof createClient>, userId: string, name: string, args: Record<string, unknown>) {
+async function runReadTool(serviceClient: SupabaseClient<Database>, userId: string, name: string, args: Record<string, unknown>) {
   if (name === "get_profile") {
     const { data, error } = await serviceClient.from("profiles").select(publicProfileFields).eq("id", userId).single();
     if (error) throw error;
@@ -305,11 +326,10 @@ async function runReadTool(serviceClient: ReturnType<typeof createClient>, userI
   throw new Error("Tool not allowed");
 }
 
-async function executeWriteTool(serviceClient: ReturnType<typeof createClient>, userId: string, name: string, payload: Record<string, unknown>, currentDate: string) {
+async function executeWriteTool(serviceClient: SupabaseClient<Database>, userId: string, name: string, payload: Record<string, unknown>, currentDate: string) {
   if (name === "add_meal") {
-    const mealType = requireString(payload.meal_type, "meal_type");
-    if (!["breakfast", "lunch", "dinner", "snack"].includes(mealType)) throw new Error("Invalid meal_type");
-    const entry = {
+    const mealType = requireEnum(payload.meal_type, "meal_type", MEAL_TYPES);
+    const entry: Database["public"]["Tables"]["meal_entries"]["Insert"] = {
       user_id: userId,
       entry_date: validateToolDate(sanitizeDate(payload.entry_date), currentDate, name),
       meal_type: mealType,
@@ -351,27 +371,21 @@ async function executeWriteTool(serviceClient: ReturnType<typeof createClient>, 
   if (name === "update_goals") {
     // Sayısal hedefler makul aralıklara sınırlanır; enum alanları allow-list'ten seçilir.
     // (Eski kod modelin gönderdiği değeri doğrudan yazıyordu.)
-    const numericFields: Record<string, [number, number]> = {
-      daily_calorie_target: [0, 20000],
-      protein_target_g: [0, 2000],
-      carbs_target_g: [0, 2000],
-      fat_target_g: [0, 2000],
-      daily_water_target_ml: [0, 10000],
-      target_weight_kg: [25, 400],
-    };
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    for (const [key, [min, max]] of Object.entries(numericFields)) {
-      if (payload[key] !== undefined) updates[key] = requireNumber(payload[key], key, min, max);
+    // `updates` yalnızca aşağıdaki allow-list'teki alanları taşıyabildiği için
+    // tip, `Record<string, unknown>` yerine gerçek `profiles.Update` şeklidir:
+    // modelin beklenmeyen bir kolon göndermesi derleme zamanında engellenir.
+    const updates: Database["public"]["Tables"]["profiles"]["Update"] = { updated_at: new Date().toISOString() };
+    for (const key of Object.keys(PROFILE_NUMERIC_FIELDS) as Array<keyof typeof PROFILE_NUMERIC_FIELDS>) {
+      if (payload[key] === undefined) continue;
+      const [min, max] = PROFILE_NUMERIC_FIELDS[key];
+      // Her alanın adı allow-list'te olduğu için atama güvenlidir.
+      Object.assign(updates, { [key]: requireNumber(payload[key], key, min, max) });
     }
     if (payload.goal !== undefined) {
-      updates.goal = requireString(payload.goal, "goal");
-      if (!["lose", "maintain", "gain"].includes(updates.goal as string)) throw new Error("Invalid goal");
+      updates.goal = requireEnum(payload.goal, "goal", GOALS);
     }
     if (payload.activity_level !== undefined) {
-      updates.activity_level = requireString(payload.activity_level, "activity_level");
-      if (!["sedentary", "light", "moderate", "active", "very_active"].includes(updates.activity_level as string)) {
-        throw new Error("Invalid activity_level");
-      }
+      updates.activity_level = requireEnum(payload.activity_level, "activity_level", ACTIVITY_LEVELS);
     }
     if (Object.keys(updates).length === 1) throw new Error("No allowed goal updates");
     const { data, error } = await serviceClient.from("profiles").update(updates).eq("id", userId).select(publicProfileFields).single();
@@ -393,7 +407,7 @@ serve(async (req) => {
     const { userId, serviceClient } = await requireUserContext(req, { serviceRole: true });
 
     // 2) Maliyet koruması: kullanıcı başına sınırlı sohbet turu.
-    const limit = checkRateLimit(rateLimitKey("ai-chat", req, userId), RATE_LIMIT);
+    const limit = await checkRateLimit(rateLimitKey("ai-chat", req, userId), RATE_LIMIT);
     if (!limit.allowed) {
       return jsonResponse(req, { error: "Çok fazla istek gönderildi, lütfen biraz bekleyin" }, 429, {
         "Retry-After": String(limit.retryAfter),
