@@ -12,6 +12,12 @@ import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts"
 import { errorResponse, isAllowedPushEndpoint, jsonResponse, preflightResponse } from "../_shared/http.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 import { ValidationError, requireEnum, requireUuid } from "../_shared/validate.ts";
+import {
+  buildVapidAuthorization,
+  deriveVapidPublicKey,
+  importVapidPrivateKey,
+  preparePushPayload,
+} from "../_shared/vapid.ts";
 
 const NOTIFICATION_TYPES = [
   "weigh_in",
@@ -109,51 +115,112 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// Send Web Push notification
+// --- Web Push (VAPID, RFC 8292) ---------------------------------------------
+
+/**
+ * VAPID anahtar çiftini süreç ömrü boyunca önbelleğe alır. Her bildirim için
+ * PKCS#8 içe aktarma + public key türetme yapmak gereksiz CPU maliyetidir;
+ * anahtar döndürmedikçe önbellek geçerli kalır.
+ */
+let vapidKeys: { privateKey: CryptoKey; publicKey: string; subject: string } | null = null;
+
+async function loadVapidKeys(): Promise<{ privateKey: CryptoKey; publicKey: string; subject: string } | null> {
+  if (vapidKeys) return vapidKeys;
+  const privateKeyRaw = (Deno.env.get("VAPID_PRIVATE_KEY") || "").trim();
+  const subject = (Deno.env.get("VAPID_SUBJECT") || "").trim();
+  if (!privateKeyRaw || !subject) {
+    // Sessizce yutulmaz: e-posta akışı çalışmaya devam eder, ama push'un neden
+    // gitmediği logda açıkça görünür (A1 raporu P3 izlenebilirlik maddesi).
+    console.error(
+      "VAPID yapılandırması eksik (VAPID_PRIVATE_KEY/VAPID_SUBJECT) — push atlandı, e-posta akışı sürüyor",
+    );
+    return null;
+  }
+  try {
+    const privateKey = await importVapidPrivateKey(privateKeyRaw);
+    // VAPID_PUBLIC_KEY verilmemişse private key'den türet (RFC 8292 `k` = uygulama
+    // sunucusu anahtarı; istemcide kayıtlı applicationServerKey ile eşleşmelidir).
+    const configured = (Deno.env.get("VAPID_PUBLIC_KEY") || "").trim();
+    const publicKey = configured || await deriveVapidPublicKey(privateKey);
+    vapidKeys = { privateKey, publicKey, subject };
+    return vapidKeys;
+  } catch (error) {
+    console.error("VAPID anahtarı yüklenemedi:", error);
+    return null;
+  }
+}
+
+/** Push isteğinin sonucu — abonelik temizliği için ayrıntı taşır. */
+interface PushResult {
+  ok: boolean;
+  /** Push servisi abone öldü (404 Gone / 410) — kayıt silinmeli. */
+  expired: boolean;
+}
+
 async function sendPushNotification(
   subscription: PushSubscription,
   payload: { title: string; body: string; data?: Record<string, unknown> },
-): Promise<boolean> {
-  // VAPID anahtarları Web Push isteği imzalamak için gereklidir; anahtarlar yoksa
-  // imzasız istek göndermek yerine göndermemek daha doğrudur (tarayıcı reddeder).
-  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.error("VAPID anahtarları yapılandırılmamış, push atlandı");
-    return false;
-  }
-
+  keys: { privateKey: CryptoKey; publicKey: string; subject: string },
+): Promise<PushResult> {
   // Kullanıcının kaydettiği endpoint'i doğrulanmazsa saldırgan kendi sunucusuna
   // istek yaptırabilir (SSRF / uygulama içi kalıcı istek).
   if (!isAllowedPushEndpoint(subscription.endpoint)) {
     console.error("İzin verilmeyen push endpoint'i engellendi");
-    return false;
+    return { ok: false, expired: false };
+  }
+
+  let authorization: string;
+  try {
+    // `aud` = push endpoint'inin origin'i (RFC 8292 §2.1).
+    authorization = await buildVapidAuthorization({
+      subject: keys.subject,
+      audience: new URL(subscription.endpoint).origin,
+      privateKey: keys.privateKey,
+      publicKey: keys.publicKey,
+    });
+  } catch (error) {
+    console.error("VAPID yetkilendirme başlığı üretilemedi:", error);
+    return { ok: false, expired: false };
+  }
+
+  let body: string;
+  try {
+    // Şema + 4096 bayt sınırı uygulanır (aşırı uzun gövde push servisinde reddedilir).
+    body = preparePushPayload(payload).body;
+  } catch (error) {
+    console.error("Push payload reddedildi:", error);
+    return { ok: false, expired: false };
   }
 
   try {
     const response = await fetch(subscription.endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        TTL: "86400",
-        // Not: gerçek Web Push (VAPID) imzası `web-push` paketi ile üretilmelidir.
-        // Şu an yalnızca kimlik doğrulama yapılır; anahtar varsa burada imzalanır.
-        "Authorization": `vapid t=${vapidPublicKey}`,
+        "Content-Type": "application/octet-stream",
+        "TTL": "86400",
+        "Urgency": "normal",
+        "Authorization": authorization,
       },
       signal: AbortSignal.timeout(10_000),
-      body: JSON.stringify(payload),
+      body,
     });
 
-    if (!response.ok) {
-      console.error("Push gönderilemedi:", response.status, (await response.text()).slice(0, 200));
-      return false;
+    if (response.status !== 201) {
+      // Hata gövdesi yalnızca sunucu loguna, kısaltılmış ve temizlenmiş halde yazılır
+      // (base64 anahtar/JWT veya endpoint sızdırmamak için token'lar maskelenir).
+      const raw = (await response.text()).slice(0, 300);
+      const safe = raw
+        .replace(/[A-Za-z0-9_-]{40,}/g, "<redacted>")
+        .replace(/[\r\n]+/g, " ")
+        .trim();
+      console.error(`Push reddedildi: status=${response.status} body=${safe}`);
+      return { ok: false, expired: response.status === 404 || response.status === 410 };
     }
 
-    console.log("Push bildirimi gönderildi");
-    return true;
+    return { ok: true, expired: false };
   } catch (error) {
     console.error("Push gönderim hatası:", error);
-    return false;
+    return { ok: false, expired: false };
   }
 }
 
@@ -322,17 +389,41 @@ async function processNotification(
 
   // Send push notification
   if (pushEnabled) {
-    const { data: subscriptions } = await supabase
-      .from("push_subscriptions")
-      .select("*")
-      .eq("user_id", userId);
+    const keys = await loadVapidKeys();
+    if (!keys) {
+      // VAPID eksik: push atlanır ama e-posta ve DB kaydı akışı bozulmaz.
+      console.warn(`Bildirim ${userId} için push atlandı (VAPID yapılandırması eksik)`);
+    } else {
+      const { data: subscriptions } = await supabase
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .eq("user_id", userId);
 
-    for (const sub of subscriptions || []) {
-      const sent = await sendPushNotification(
-        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-        { title, body: message, data },
-      );
-      if (sent) pushSent = true;
+      // 404/410 dönen abonelikler birikir ve her bildirimde tekrar denenir;
+      // push servisi öldüğünü bildirdiğinde kayıt silinir.
+      const expiredIds: string[] = [];
+      for (const sub of subscriptions || []) {
+        const result = await sendPushNotification(
+          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+          { title, body: message, data },
+          keys,
+        );
+        if (result.ok) pushSent = true;
+        if (result.expired) expiredIds.push(sub.id as string);
+      }
+
+      if (expiredIds.length > 0) {
+        const { error: cleanupError } = await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("user_id", userId)
+          .in("id", expiredIds);
+        if (cleanupError) {
+          console.error("Ölü push aboneliği silinemedi:", cleanupError.message);
+        } else {
+          console.log(`${expiredIds.length} ölü push aboneliği temizlendi (user=${userId})`);
+        }
+      }
     }
   }
 
