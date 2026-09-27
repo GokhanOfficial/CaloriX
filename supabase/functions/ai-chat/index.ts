@@ -1,12 +1,19 @@
 // @ts-nocheck
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+// NOT: Tip denetimi `supabase-js` generics olmadan anlamsızlaşıyor (Database şeması
+// tiplenmediği için `from(...).insert()` çağrıları `never[]` ile hatalı görünüyor).
+// Bu dosya deno check ile SEÇİCİ OLARAK denetlendi: yalnızca bu generic kaynaklı
+// hatalar kaldı, güvenlik açısından ek hata yok.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
+import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.ts";
+import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+/** Dış AI çağrısı için üst süre sınırı (5 turlu tool loop'u da kapsar). */
+const AI_TIMEOUT_MS = 60_000;
+/** Kullanıcı başına dakikada 20 sohbet turu — maliyet/DoS koruması. */
+const RATE_LIMIT = { windowSeconds: 60, max: 20 };
 
 type ChatRole = "user" | "assistant" | "system" | "tool";
 type ChatAttachment = {
@@ -37,21 +44,11 @@ type ChatMessage = {
 
 type RequestBody = { mode?: "chat"; threadId: string; locale?: string; language?: string; timeZone?: string; currentDate?: string };
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const openAIApiKey = Deno.env.get("OPENAI_API_KEY") || "";
 const openAIBaseUrl = Deno.env.get("OPENAI_BASE_URL") || "https://gen.pollinations.ai/v1";
 const openAIModel = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
 
 const publicProfileFields = "id, display_name, birth_date, gender, height_cm, current_weight_kg, target_weight_kg, activity_level, goal, bmr, tdee, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, daily_water_target_ml, weigh_in_frequency_days";
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
 
 function requireNumber(value: unknown, field: string, min = 0, max = Number.MAX_SAFE_INTEGER) {
   const number = typeof value === "number" ? value : Number(value);
@@ -76,6 +73,23 @@ function sanitizeDate(value: unknown) {
 
 function isValidDateOnly(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+/** Sistem prompt'una giren serbest metinleri sınırlar (prompt enjeksiyonu yüzeyi). */
+function clampText(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxLength).replace(/[\r\n]/g, " ");
+}
+
+/** timeZone alanı gerçekten bir IANA dilimi mi? (yoksa UTC'ye düşülür) */
+function isValidTimeZone(value: unknown): value is string {
+  if (typeof value !== "string" || !value || value.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: value }).format(new Date());
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function getLocalDateInTimeZone(timeZone: string) {
@@ -335,10 +349,29 @@ async function executeWriteTool(serviceClient: ReturnType<typeof createClient>, 
   }
 
   if (name === "update_goals") {
-    const allowed = ["daily_calorie_target", "protein_target_g", "carbs_target_g", "fat_target_g", "daily_water_target_ml", "goal", "activity_level", "target_weight_kg"];
+    // Sayısal hedefler makul aralıklara sınırlanır; enum alanları allow-list'ten seçilir.
+    // (Eski kod modelin gönderdiği değeri doğrudan yazıyordu.)
+    const numericFields: Record<string, [number, number]> = {
+      daily_calorie_target: [0, 20000],
+      protein_target_g: [0, 2000],
+      carbs_target_g: [0, 2000],
+      fat_target_g: [0, 2000],
+      daily_water_target_ml: [0, 10000],
+      target_weight_kg: [25, 400],
+    };
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    for (const key of allowed) {
-      if (payload[key] !== undefined) updates[key] = payload[key];
+    for (const [key, [min, max]] of Object.entries(numericFields)) {
+      if (payload[key] !== undefined) updates[key] = requireNumber(payload[key], key, min, max);
+    }
+    if (payload.goal !== undefined) {
+      updates.goal = requireString(payload.goal, "goal");
+      if (!["lose", "maintain", "gain"].includes(updates.goal as string)) throw new Error("Invalid goal");
+    }
+    if (payload.activity_level !== undefined) {
+      updates.activity_level = requireString(payload.activity_level, "activity_level");
+      if (!["sedentary", "light", "moderate", "active", "very_active"].includes(updates.activity_level as string)) {
+        throw new Error("Invalid activity_level");
+      }
     }
     if (Object.keys(updates).length === 1) throw new Error("No allowed goal updates");
     const { data, error } = await serviceClient.from("profiles").update(updates).eq("id", userId).select(publicProfileFields).single();
@@ -350,38 +383,53 @@ async function executeWriteTool(serviceClient: ReturnType<typeof createClient>, 
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return preflightResponse(req);
+  if (req.method !== "POST") return errorResponse(req, 405, "Yalnızca POST desteklenir");
 
   try {
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) return jsonResponse({ error: "Supabase configuration missing" }, 500);
-    if (!openAIApiKey) return jsonResponse({ error: "OpenAI API key not configured" }, 500);
+    if (!openAIApiKey) return errorResponse(req, 500, "AI servisi yapılandırılmamış");
 
-    const authHeader = req.headers.get("Authorization") || "";
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
-    const serviceClient = createClient(supabaseUrl, supabaseServiceRoleKey);
-    const { data: { user }, error: userError } = await authClient.auth.getUser();
-    if (userError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
+    // 1) Sunucu tarafı JWT doğrulama (payload decode DEĞİL) + kullanıcı kapsamı.
+    const { userId, serviceClient } = await requireUserContext(req, { serviceRole: true });
 
-    const body = await req.json() as RequestBody;
-    const threadId = body.threadId || "";
-    const requestedLocale = body.locale || req.headers.get("accept-language")?.split(",")?.[0] || "en-US";
-    const requestedLanguage = body.language || requestedLocale.split("-")[0] || "en";
-    const requestedTimeZone = body.timeZone || "UTC";
-    const currentLocalDate = body.currentDate && isValidDateOnly(body.currentDate) ? body.currentDate : getLocalDateInTimeZone(requestedTimeZone);
-    if (!threadId) return jsonResponse({ error: "threadId is required" }, 400);
+    // 2) Maliyet koruması: kullanıcı başına sınırlı sohbet turu.
+    const limit = checkRateLimit(rateLimitKey("ai-chat", req, userId), RATE_LIMIT);
+    if (!limit.allowed) {
+      return jsonResponse(req, { error: "Çok fazla istek gönderildi, lütfen biraz bekleyin" }, 429, {
+        "Retry-After": String(limit.retryAfter),
+      });
+    }
 
-    const { data: thread, error: threadError } = await serviceClient.from("chat_threads").select("id, user_id").eq("id", threadId).eq("user_id", user.id).single();
-    if (threadError || !thread) return jsonResponse({ error: "Thread not found" }, 404);
+    // 3) Gövde doğrulama — threadId UUID olmalı, locale/timeZone uzunluk sınırlı.
+    const body = await readJsonBody(req) as unknown as RequestBody;
+    const threadId = typeof body.threadId === "string" ? body.threadId.trim() : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(threadId)) {
+      return errorResponse(req, 400, "threadId zorunlu ve geçerli bir UUID olmalı");
+    }
+    const requestedLocale = clampText(body.locale || req.headers.get("accept-language")?.split(",")?.[0] || "en-US", 35);
+    const requestedLanguage = clampText(body.language || requestedLocale.split("-")[0] || "en", 12);
+    // timeZone allow-list yerine biçim kontrolü: geçersizse UTC'ye düşülür.
+    const requestedTimeZone = isValidTimeZone(body.timeZone) ? body.timeZone! : "UTC";
+    const currentLocalDate = typeof body.currentDate === "string" && isValidDateOnly(body.currentDate)
+      ? body.currentDate
+      : getLocalDateInTimeZone(requestedTimeZone);
+
+    // 4) Kullanıcı kapsamı: thread sahibi doğrulanmış kullanıcı olmalı (BOLA koruması).
+    const { data: thread, error: threadError } = await serviceClient.from("chat_threads").select("id, user_id").eq("id", threadId).eq("user_id", userId).single();
+    if (threadError || !thread) return errorResponse(req, 404, "Sohbet bulunamadı");
 
     const { data: messages, error: messagesError } = await serviceClient
       .from("chat_messages")
       .select("*")
       .eq("thread_id", threadId)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50);
-    if (messagesError) throw messagesError;
+    if (messagesError) {
+      console.error("chat_messages okunamadı:", messagesError.message);
+      return errorResponse(req, 500, "Sohbet geçmişi okunamadı");
+    }
 
     const chronological = ((messages || []) as ChatMessage[]).reverse();
     for (const message of chronological) {
@@ -409,41 +457,59 @@ Only the latest 50 chat messages are provided as context; behave as if older mes
     const toolResults: Array<Record<string, unknown>> = [];
 
     for (let iteration = 0; iteration < 5; iteration++) {
+      // Zaman aşımı: sonsuza kadar asılı kalan upstream çağrısı kaynak tüketir.
       const response = await fetch(`${openAIBaseUrl}/chat/completions`, {
         method: "POST",
         headers: { Authorization: `Bearer ${openAIApiKey}`, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
         body: JSON.stringify({ model: openAIModel, messages: openAIMessages, tools: getToolDefinitions(), tool_choice: "auto", max_tokens: 900, temperature: 0.4 }),
       });
-      if (!response.ok) throw new Error(`AI service error: ${response.status}`);
+      if (!response.ok) {
+        console.error("AI servisi hata durumu:", response.status);
+        return errorResponse(req, 502, "AI servisi şu anda yanıt vermiyor");
+      }
       const data = await response.json();
       const assistantMessage = data.choices?.[0]?.message;
-      const calls = assistantMessage?.tool_calls || [];
+      const calls = Array.isArray(assistantMessage?.tool_calls) ? assistantMessage.tool_calls : [];
 
       if (!calls.length) {
-        const content = assistantMessage?.content || "Bir yanıt oluşturamadım.";
+        const content = typeof assistantMessage?.content === "string" && assistantMessage.content.trim()
+          ? assistantMessage.content
+          : "Bir yanıt oluşturamadım.";
         const { data: saved, error } = await serviceClient.from("chat_messages").insert({
           thread_id: threadId,
-          user_id: user.id,
+          user_id: userId,
           role: "assistant",
           content,
           tool_calls: toolCalls,
           tool_results: toolResults,
         }).select().single();
-        if (error) throw error;
-        return jsonResponse({ message: saved });
+        if (error) {
+          console.error("chat_messages INSERT başarısız:", error.message);
+          return errorResponse(req, 500, "Yanıt kaydedilemedi");
+        }
+        return jsonResponse(req, { message: saved });
       }
 
       openAIMessages.push(assistantMessage);
       for (const call of calls) {
         const name = call.function?.name;
-        const args = JSON.parse(call.function?.arguments || "{}");
+        // P1: Model bozuk JSON dönebilir; parse hatası tüm isteği 500'e düşürüyordu.
+        let args: Record<string, unknown> = {};
+        try {
+          const parsed = JSON.parse(call.function?.arguments || "{}");
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) args = parsed;
+        } catch (_) {
+          args = {};
+        }
         toolCalls.push({ id: call.id, name, arguments: args });
 
         const writeTools = ["add_meal", "add_water", "add_weight", "update_goals"];
         try {
+          // Yazma araçları her zaman doğrulanmış kullanıcı kapsamıyla çalışır.
           const result = writeTools.includes(name)
-            ? await executeWriteTool(serviceClient, user.id, name, args, currentLocalDate)
-            : await runReadTool(serviceClient, user.id, name, args);
+            ? await executeWriteTool(serviceClient, userId, name, args, currentLocalDate)
+            : await runReadTool(serviceClient, userId, name, args);
           toolResults.push({ id: call.id, name, result });
           openAIMessages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
         } catch (toolError) {
@@ -456,16 +522,22 @@ Only the latest 50 chat messages are provided as context; behave as if older mes
 
     const { data: saved, error } = await serviceClient.from("chat_messages").insert({
       thread_id: threadId,
-      user_id: user.id,
+      user_id: userId,
       role: "assistant",
       content: requestedLanguage === "tr" ? "Verilerinizi inceledim, ancak yanıtı tamamlayamadım. Lütfen tekrar deneyin." : "I reviewed your data, but could not complete the response. Please try again.",
       tool_calls: toolCalls,
       tool_results: toolResults,
     }).select().single();
-    if (error) throw error;
-    return jsonResponse({ message: saved });
+    if (error) {
+      console.error("chat_messages INSERT başarısız:", error.message);
+      return errorResponse(req, 500, "Yanıt kaydedilemedi");
+    }
+    return jsonResponse(req, { message: saved });
   } catch (error) {
-    console.error("ai-chat error", error);
-    return jsonResponse({ error: "An unexpected error occurred" }, 500);
+    if (error instanceof AuthError) {
+      return errorResponse(req, error.status, error.status === 401 ? "Yetkisiz" : "İstek işlenemedi");
+    }
+    console.error("ai-chat beklenmeyen hata", error);
+    return errorResponse(req, 500, "Beklenmeyen bir hata oluştu");
   }
 });

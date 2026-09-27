@@ -1,71 +1,86 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+// Makro hedefi hesaplama (AI).
+// Güvenlik: sunucu tarafı JWT doğrulama, tip/aralık doğrulaması, hız sınırı,
+// timeout, hata sızıntısı yok. Dönen şema istemciyle (MacroCalculator) uyumludur.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
+import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.ts";
+import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
+import {
+  ValidationError,
+  optionalString,
+  requireEnum,
+  requireNumber,
+  requireString,
+} from "../_shared/validate.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+/** Dış AI çağrısı için üst süre sınırı. */
+const AI_TIMEOUT_MS = 45_000;
+const RATE_LIMIT = { windowSeconds: 60, max: 10 };
 
-interface MacroRequest {
-  age: number;
-  gender: 'male' | 'female' | 'other';
-  height_cm: number;
-  current_weight_kg: number;
-  target_weight_kg: number;
-  activity_level: string;
-  goal: string;
-  previous_macros?: {
-    daily_calorie_target: number;
-    protein_target_g: number;
-    carbs_target_g: number;
-    fat_target_g: number;
-  };
-  previous_weight_kg?: number;
-}
+const GENDERS = ["male", "female", "other"] as const;
+const ACTIVITY_LEVELS = ["sedentary", "light", "moderate", "active", "very_active"] as const;
+const GOALS = ["lose", "maintain", "gain"] as const;
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // CORS preflight
+  if (req.method === "OPTIONS") return preflightResponse(req);
+  if (req.method !== "POST") return errorResponse(req, 405, "Yalnızca POST desteklenir");
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    const baseUrl = Deno.env.get('OPENAI_BASE_URL') || 'https://gen.pollinations.ai/v1';
-    const model = Deno.env.get('OPENAI_MODEL') || 'gpt-5-mini';
+    // 1) Sunucu tarafı kimlik doğrulama.
+    const { userId } = await requireUserContext(req, { serviceRole: false });
 
+    // 2) Maliyet koruması (AI çağrısı).
+    const limit = checkRateLimit(rateLimitKey("calculate-macros", req, userId), RATE_LIMIT);
+    if (!limit.allowed) {
+      return jsonResponse(req, { error: "Çok fazla istek gönderildi, lütfen biraz bekleyin" }, 429, {
+        "Retry-After": String(limit.retryAfter),
+      });
+    }
+
+    const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
-      console.error('OPENAI_API_KEY is not set');
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("OPENAI_API_KEY yapılandırılmamış");
+      return errorResponse(req, 500, "AI servisi yapılandırılmamış");
+    }
+    const baseUrl = Deno.env.get("OPENAI_BASE_URL") || "https://gen.pollinations.ai/v1";
+    const model = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
+
+    // 3) Gövde doğrulama: eksik alan, hatalı tip ve makul aralık şartı.
+    //    (Eski kod yalnızca `!age` ile kontrol ediyordu; negatif/NaN değerler
+    //     prompt'a olduğu gibi giriyordu.)
+    const body = await readJsonBody(req);
+    const age = requireNumber(body.age, "age", 10, 120);
+    const gender = requireEnum(body.gender, "gender", GENDERS);
+    const heightCm = requireNumber(body.height_cm, "height_cm", 100, 260);
+    const currentWeightKg = requireNumber(body.current_weight_kg, "current_weight_kg", 25, 400);
+    const targetWeightKg = requireNumber(body.target_weight_kg, "target_weight_kg", 25, 400);
+    const activityLevel = requireEnum(body.activity_level, "activity_level", ACTIVITY_LEVELS);
+    const goal = requireEnum(body.goal, "goal", GOALS);
+    const previousWeightKg = body.previous_weight_kg === undefined || body.previous_weight_kg === null
+      ? null
+      : requireNumber(body.previous_weight_kg, "previous_weight_kg", 25, 400);
+
+    // Önceki makrolar: yalnızca beklenen sayısal alanlar, sınırlar içinde.
+    let previousMacros: Record<string, number> | null = null;
+    if (body.previous_macros !== undefined && body.previous_macros !== null) {
+      const raw = body.previous_macros;
+      if (typeof raw !== "object" || Array.isArray(raw)) {
+        throw new ValidationError("previous_macros nesne olmalı");
+      }
+      const record = raw as Record<string, unknown>;
+      previousMacros = {
+        daily_calorie_target: requireNumber(record.daily_calorie_target, "previous_macros.daily_calorie_target", 0, 20000),
+        protein_target_g: requireNumber(record.protein_target_g, "previous_macros.protein_target_g", 0, 2000),
+        carbs_target_g: requireNumber(record.carbs_target_g, "previous_macros.carbs_target_g", 0, 2000),
+        fat_target_g: requireNumber(record.fat_target_g, "previous_macros.fat_target_g", 0, 2000),
+      };
     }
 
-    const body: MacroRequest = await req.json();
-    console.log('Received macro calculation request:', JSON.stringify(body));
+    // Kimlik/görünürlük amaçlı: değişiklik yok, yalnızca gereksiz log kaydı önlenir.
+    requireString(userId, "userId", 64);
 
-    const {
-      age,
-      gender,
-      height_cm,
-      current_weight_kg,
-      target_weight_kg,
-      activity_level,
-      goal,
-      previous_weight_kg
-    } = body;
-
-    // Input Validation
-    if (!age || !gender || !height_cm || !current_weight_kg || !target_weight_kg || !activity_level || !goal) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Build prompt for AI
-    let systemPrompt = `Sen bir beslenme ve diyet uzmanısın. Kullanıcının verilerine göre günlük kalori, makro ve su hedeflerini hesaplayacaksın.
+    const systemPrompt = `Sen bir beslenme ve diyet uzmanısın. Kullanıcının verilerine göre günlük kalori, makro ve su hedeflerini hesaplayacaksın.
 
 Mifflin-St Jeor formülünü temel al ama kişiselleştirilmiş öneriler sun:
 - Erkekler için BMR = 10 × ağırlık(kg) + 6.25 × boy(cm) − 5 × yaş + 5
@@ -76,7 +91,7 @@ Aktivite çarpanları:
 - light: 1.375
 - moderate: 1.55
 - active: 1.725
-- veryActive: 1.9
+- very_active: 1.9
 
 Hedef ayarlamaları:
 - lose: günlük 500 kalori açığı
@@ -90,7 +105,7 @@ Makro dağılımı:
 
 Su hedefi hesaplama:
 - Temel formül: vücut ağırlığı × 30-35 ml
-- Aktivite seviyesine göre artır (active ve veryActive için +500-1000ml)
+- Aktivite seviyesine göre artır (active ve very_active için +500-1000ml)
 - Kilo verme hedefi varsa +250ml ekle
 - Minimum 2000ml, maksimum 4000ml
 
@@ -106,84 +121,85 @@ JSON formatında yanıt ver:
   "explanation": "string (Türkçe kısa açıklama)"
 }`;
 
+    // Kullanıcı girdisi allow-list ile doğrulandığı için prompt enjeksiyonu yüzeyi yok.
     let userPrompt = `Kullanıcı bilgileri:
 - Yaş: ${age}
-- Cinsiyet: ${gender === 'male' ? 'Erkek' : gender === 'female' ? 'Kadın' : 'Belirtilmemiş'}
-- Boy: ${height_cm} cm
-- Mevcut Kilo: ${current_weight_kg} kg
-- Hedef Kilo: ${target_weight_kg} kg
-- Aktivite Seviyesi: ${activity_level}
-- Hedef: ${goal === 'lose' ? 'Kilo vermek' : goal === 'gain' ? 'Kilo almak' : 'Kiloyu korumak'}`;
+- Cinsiyet: ${gender === "male" ? "Erkek" : gender === "female" ? "Kadın" : "Belirtilmemiş"}
+- Boy: ${heightCm} cm
+- Mevcut Kilo: ${currentWeightKg} kg
+- Hedef Kilo: ${targetWeightKg} kg
+- Aktivite Seviyesi: ${activityLevel}
+- Hedef: ${goal === "lose" ? "Kilo vermek" : goal === "gain" ? "Kilo almak" : "Kiloyu korumak"}`;
 
-    // If there's previous data, include it for comparison
-    if (previous_macros && previous_weight_kg) {
+    if (previousMacros && previousWeightKg !== null) {
       userPrompt += `
 
 Önceki Veriler (kilo değişikliği sonrası güncelleme):
-- Önceki Kilo: ${previous_weight_kg} kg
-- Önceki Kalori Hedefi: ${previous_macros.daily_calorie_target} kcal
-- Önceki Protein: ${previous_macros.protein_target_g}g
-- Önceki Karbonhidrat: ${previous_macros.carbs_target_g}g
-- Önceki Yağ: ${previous_macros.fat_target_g}g
+- Önceki Kilo: ${previousWeightKg} kg
+- Önceki Kalori Hedefi: ${previousMacros.daily_calorie_target} kcal
+- Önceki Protein: ${previousMacros.protein_target_g}g
+- Önceki Karbonhidrat: ${previousMacros.carbs_target_g}g
+- Önceki Yağ: ${previousMacros.fat_target_g}g
 
-Kilo ${previous_weight_kg > current_weight_kg ? 'azaldı' : 'arttı'}. Yeni kiloya göre makroları güncelle ve açıklamada ilerlemeyi değerlendir.`;
+Kilo ${previousWeightKg > currentWeightKg ? "azaldı" : "arttı"}. Yeni kiloya göre makroları güncelle ve açıklamada ilerlemeyi değerlendir.`;
     }
 
-    console.log(`Sending request to OpenAI with model: ${model}...`);
-
     const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openAIApiKey}`,
+        "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({
-        model: model,
+        model,
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
         max_tokens: 500,
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate macros. Please try again later.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("OpenAI hata durumu:", response.status, (await response.text()).slice(0, 500));
+      return errorResponse(req, 502, "Makro hedefleri şu anda hesaplanamıyor");
     }
 
     const data = await response.json();
-    console.log('OpenAI response received');
-
-    const content = data.choices[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      console.error('No content in OpenAI response');
-      return new Response(
-        JSON.stringify({ error: 'No content in response' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("OpenAI yanıtında içerik yok");
+      return errorResponse(req, 502, "AI servisinden yanıt alınamadı");
     }
 
-    const result = JSON.parse(content);
-    console.log('Parsed result:', JSON.stringify(result));
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(content);
+    } catch (_) {
+      console.error("OpenAI yanıtı JSON değil");
+      return errorResponse(req, 502, "AI yanıtı işlenemedi");
+    }
 
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // İstemcinin beklediği alanları sayısal olarak normalize et (NaN/null kırılmasın).
+    const result = {
+      daily_calorie_target: Math.round(requireNumber(parsed.daily_calorie_target, "daily_calorie_target", 0, 20000)),
+      protein_target_g: Math.round(requireNumber(parsed.protein_target_g, "protein_target_g", 0, 2000)),
+      carbs_target_g: Math.round(requireNumber(parsed.carbs_target_g, "carbs_target_g", 0, 2000)),
+      fat_target_g: Math.round(requireNumber(parsed.fat_target_g, "fat_target_g", 0, 2000)),
+      daily_water_target_ml: Math.round(requireNumber(parsed.daily_water_target_ml, "daily_water_target_ml", 0, 10000)),
+      bmr: Math.round(requireNumber(parsed.bmr, "bmr", 0, 20000)),
+      tdee: Math.round(requireNumber(parsed.tdee, "tdee", 0, 20000)),
+      explanation: optionalString(parsed.explanation, "explanation", 2000) ?? undefined,
+    };
 
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in calculate-macros function:', error);
-    return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse(req, result);
+  } catch (error) {
+    if (error instanceof AuthError) return errorResponse(req, error.status, error.status === 401 ? "Yetkisiz" : "İstek işlenemedi");
+    if (error instanceof ValidationError) return errorResponse(req, error.status, error.message);
+    console.error("calculate-macros beklenmeyen hata", error);
+    return errorResponse(req, 500, "Beklenmeyen bir hata oluştu");
   }
 });

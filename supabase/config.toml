@@ -1,4 +1,23 @@
+# Supabase CLI yerel yapılandırması.
+# NOT: `project_id` kasıtlı olarak bu dosyada tutulur — bu bir SIR DEĞİLDİR,
+# yalnızca proje tanımlayıcısıdır. Gerçek anahtarlar `.env` dosyasındadır ve
+# `.gitignore` ile repoya girmez (`supabase/.env*` deseni: yalnızca `.env.example` izlenir).
+
 project_id = "oshafbahrwburzmanzzj"
+
+# ---------------------------------------------------------------------------
+# Edge Function JWT doğrulaması
+# ---------------------------------------------------------------------------
+# `verify_jwt = true` YALNIZCA JWT imzasını ve süresini doğrular; oturumun
+# iptal edilmiş/revoke edilmiş olup olmadığını kontrol etmez. Bu nedenle
+# fonksiyonların kendi içinde `supabase.auth.getUser()` ile sunucu tarafı
+# doğrulama yapması zorunludur (bkz. supabase/functions/_shared/auth.ts).
+#
+# ai-chat `config.toml` içinde BİLEREK tanımlı DEĞİL: bu dosyada listelenmeyen
+# fonksiyonlar için Supabase varsayılanı devreye girer ve `verify_jwt` default
+# olarak true'dur. Yine de açıkça yazılarak politika görünür kılınmıştır.
+[functions.ai-chat]
+verify_jwt = true
 
 [functions.calculate-macros]
 verify_jwt = true
@@ -9,8 +28,15 @@ verify_jwt = true
 [functions.recognize-food-text]
 verify_jwt = true
 
+# send-notification: hem kullanıcı JWT'si hem de dahili (cron) çağrı kabul eder.
+# Dahili çağrı `x-calorix-internal-token` başlığı ile yetkilendirilir; token
+# tanımlı değilse yalnızca service_role JWT'si geçerlidir.
+# NOT: Supabase dashboard cron'u JWT'siz çağırır — üretimde mutlaka
+# INTERNAL_FUNCTION_TOKEN secret'ı tanımlanmalıdır (bkz. .env.example).
 [functions.send-notification]
-verify_jwt = true
+verify_jwt = false
 
+# check-reminders yalnızca sunucu içi (cron) çağrılmalıdır; anon JWT ile
+# çağrılabilmesi tüm kullanıcı listesini dışarıya açardı (P0).
 [functions.check-reminders]
-verify_jwt = true
+verify_jwt = false
