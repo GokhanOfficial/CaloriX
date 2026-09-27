@@ -11,6 +11,7 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../../data/repositories/macro_calculator.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../../data/activity_level_map.dart';
 
 /// Kilo kartı — son kayıt + hızlı giriş dialogu (web `Index.tsx` +
 /// `AddWeightDialog` karşılığı).
@@ -45,6 +46,15 @@ class WeightCard extends ConsumerWidget {
             weightKg: weight,
             entryDate: formatEntryDate(date),
           );
+    } on ArgumentError catch (e, s) {
+      // A2: `addWeightEntry` NaN/Infinity/≤0 kilo için `ArgumentError`
+      // fırlatıyor (DB'ye yazmadan). "Kilo kaydedilemedi" genel mesajı
+      // kullanıcıyı yanıltıyordu — asıl sorun girdi değeri.
+      AppLog.w('Geçersiz kilo girdi reddedildi ($weight kg)', e, s);
+      messenger.showSnackBar(
+        SnackBar(content: Text('dialogs.invalidAmount'.tr())),
+      );
+      return;
     } catch (e, s) {
       AppLog.e('Kilo kaydı eklenemedi ($weight kg)', e, s);
       messenger.showSnackBar(
@@ -68,9 +78,9 @@ class WeightCard extends ConsumerWidget {
               heightCm: p.heightCm ?? 170,
               currentWeightKg: weight,
               targetWeightKg: p.targetWeightKg ?? weight,
-              activityLevel:
-                  ActivityLevel.values.asNameMap()[p.activityLevel] ??
-                      ActivityLevel.moderate,
+              // `asNameMap()['very_active']` null → TDEE `moderate`
+              // çarpanıyla (1.55) hesaplanıyordu.
+              activityLevel: activityLevelFromDb(p.activityLevel),
               goal: Goal.values.asNameMap()[p.goal] ?? Goal.maintain,
               previousMacros: p.dailyCalorieTarget != null
                   ? {

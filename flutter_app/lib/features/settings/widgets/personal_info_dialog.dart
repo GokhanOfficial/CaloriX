@@ -10,6 +10,7 @@ import '../../../data/models/profile.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/macro_calculator.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../../data/activity_level_map.dart';
 
 /// Kişisel bilgiler diyaloğu — web `SettingsPage` personalInfo diyaloğu parity.
 ///
@@ -162,9 +163,9 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
                 heightCm: heightCm,
                 currentWeightKg: newWeight,
                 targetWeightKg: targetWeightKg,
-                activityLevel:
-                    ActivityLevel.values.asNameMap()[p.activityLevel] ??
-                        ActivityLevel.moderate,
+                // `asNameMap()['very_active']` null → makro hedefleri
+                // `moderate` çarpanıyla (1.55) yeniden hesaplanıyordu.
+                activityLevel: activityLevelFromDb(p.activityLevel),
                 goal: Goal.values.asNameMap()[p.goal] ?? Goal.maintain,
                 previousMacros: p.dailyCalorieTarget != null
                     ? {

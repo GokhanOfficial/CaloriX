@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/food_item.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
@@ -110,6 +111,14 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
         ),
       );
       if (mounted) Navigator.pop(context, true);
+    } on ArgumentError catch (e, s) {
+      // A2: `addMealEntry` NaN/Infinity/≤0 miktar veya negatif makro için
+      // `ArgumentError` fırlatıyor; DB'ye hiç yazılmıyor.
+      AppLog.w('Geçersiz miktar reddedildi (${widget.food.name})', e, s);
+      messenger.showSnackBar(
+        SnackBar(content: Text('dialogs.invalidAmount'.tr())),
+      );
+      if (mounted) setState(() => _saving = false);
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('addFood.toasts.error'.tr())),

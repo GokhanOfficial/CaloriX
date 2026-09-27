@@ -16,11 +16,30 @@ class ForceUpdatePage extends ConsumerWidget {
   final UpdateManifest manifest;
 
   Future<void> _openApk(BuildContext context) async {
-    final url = Uri.parse(manifest.apkUrl);
+    final messenger = ScaffoldMessenger.of(context);
+    // `apkUrl` uzak manifestten (GitHub Releases `latest.json`) gelir ve
+    // doğrudan `url_launcher`'a verilir. Doğrulamasız hâlde `javascript:`,
+    // `intent:`, `file:`, `content:` şemaları cihazdaki başka uygulamaya
+    // açılabilir (açık yönlendirme / yerel dosya erişimi). A3'ün
+    // `UpdateManifest.isSafeApkUrl` süzgeci (https + `.apk` + userInfo yok)
+    // zorunlu kapıdır — `update_gate.dart` aynı süzgeci uygular, burada
+    // ekranın kendi çıkış yolu da aynı kapıdan geçmeli.
+    if (!manifest.isApkUrlSafe) {
+      debugPrint(
+        'ForceUpdatePage: güvensiz apkUrl reddedildi '
+        '(scheme=${manifest.apkUrl.split(':').first})',
+      );
+      messenger.showSnackBar(
+        SnackBar(content: Text('updates.unsafeUrl'.tr())),
+      );
+      return;
+    }
+
+    final url = Uri.parse(manifest.apkUrl.trim());
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    } else {
+      messenger.showSnackBar(
         SnackBar(content: Text('updates.openFailed'.tr())),
       );
     }

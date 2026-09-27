@@ -11,6 +11,7 @@ import '../../data/models/profile.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/macro_calculator.dart';
 import '../../data/repositories/profile_repository.dart';
+import '../../data/activity_level_map.dart';
 
 /// Web `OnboardingPage.tsx` karşılığı — 5 adımlı sihirbaz:
 /// 1) Kişisel bilgiler  2) Boy/kilo  3) Aktivite  4) Hedef  5) Özet + AI hesaplama
@@ -24,6 +25,16 @@ class OnboardingPage extends ConsumerStatefulWidget {
 }
 
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
+  // Kabul edilen girdi aralıkları — hem `_validateStep` hem de kullanıcıya
+  // gösterilen hata metinleri bu tek kaynaktan beslenir (sabit metinler
+  // sınırlarla uyuşmuyordu: "Boy 100-250" yazarken kontrol 50-250 idi).
+  static const int _minAge = 13;
+  static const int _maxAge = 120;
+  static const int _minHeightCm = 50;
+  static const int _maxHeightCm = 250;
+  static const int _minWeightKg = 20;
+  static const int _maxWeightKg = 400;
+
   int _step = 1;
   bool _isSaving = false;
   bool _isCalculating = false;
@@ -62,26 +73,35 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     switch (step) {
       case 1:
         if (_nameCtrl.text.trim().length < 2) {
-          _errors['name'] = 'İsim en az 2 karakter olmalı';
+          _errors['name'] = 'onboarding.errNameShort'.tr();
         }
         if (_birthDate == null) {
-          _errors['birth'] = 'Doğum tarihi gerekli';
+          _errors['birth'] = 'onboarding.errBirthRequired'.tr();
         } else {
           final age = Calculations.age(_birthDate!);
-          if (age < 13 || age > 120) {
-            _errors['birth'] = 'Yaş 13-120 arasında olmalı';
+          if (age < _minAge || age > _maxAge) {
+            _errors['birth'] =
+                'onboarding.errAgeRange'.tr(namedArgs: {'min': '$_minAge', 'max': '$_maxAge'});
           }
         }
         break;
       case 2:
-        if (_height < 50 || _height > 250) {
-          _errors['height'] = 'Boy 100-250 cm arasında olmalı';
+        // Aralıklar mesajlara da yansıtılır: eski sabit metinler
+        // ("Boy 100-250") gerçek sınırlarla (50-250) uyuşmuyordu.
+        if (_height < _minHeightCm || _height > _maxHeightCm) {
+          _errors['height'] = 'onboarding.errHeightRange'.tr(
+            namedArgs: {'min': '$_minHeightCm', 'max': '$_maxHeightCm'},
+          );
         }
-        if (_weight < 20 || _weight > 400) {
-          _errors['weight'] = 'Kilo 30-300 kg arasında olmalı';
+        if (_weight < _minWeightKg || _weight > _maxWeightKg) {
+          _errors['weight'] = 'onboarding.errWeightRange'.tr(
+            namedArgs: {'min': '$_minWeightKg', 'max': '$_maxWeightKg'},
+          );
         }
-        if (_targetWeight < 20 || _targetWeight > 400) {
-          _errors['targetWeight'] = 'Hedef kilo 30-300 kg arasında olmalı';
+        if (_targetWeight < _minWeightKg || _targetWeight > _maxWeightKg) {
+          _errors['targetWeight'] = 'onboarding.errTargetWeightRange'.tr(
+            namedArgs: {'min': '$_minWeightKg', 'max': '$_maxWeightKg'},
+          );
         }
         break;
     }
@@ -164,7 +184,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         'height_cm': _height,
         'current_weight_kg': _weight,
         'target_weight_kg': _targetWeight,
-        'activity_level': _activity.name,
+        'activity_level': activityLevelToDb(_activity),
         'goal': _goal.name,
         'bmr': goals.bmr,
         'tdee': goals.tdee,
@@ -180,7 +200,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Profil kaydedilirken bir hata oluştu')),
+        SnackBar(content: Text('onboarding.saveError'.tr())),
       );
       return;
     }
@@ -190,7 +210,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
     if (updated == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Profil kaydedilirken bir hata oluştu')),
+        SnackBar(content: Text('onboarding.saveError'.tr())),
       );
       return;
     }
@@ -226,8 +246,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Adım $_step / ${OnboardingPage.totalSteps}',
-                          style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        'onboarding.step'.tr(namedArgs: {
+                          'step': '$_step',
+                          'total': '${OnboardingPage.totalSteps}',
+                        }),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       Text('${(progress * 100).round()}%',
                           style: Theme.of(context).textTheme.bodySmall),
                     ],
@@ -269,18 +294,18 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     }
   }
 
-  Widget _stepHeader(IconData icon, String title, String subtitle) {
+  Widget _stepHeader(IconData icon, String titleKey, String subtitleKey) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
           Icon(icon, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 8),
-          Text(subtitle,
+          Text(subtitleKey.tr(),
               style: TextStyle(color: Theme.of(context).colorScheme.primary)),
         ]),
         const SizedBox(height: 8),
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Text(titleKey.tr(), style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 16),
       ],
     );
@@ -291,11 +316,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stepHeader(Icons.person_outline, 'Sizi Tanıyalım', 'Kişisel Bilgiler'),
+        _stepHeader(Icons.person_outline, 'onboarding.stepPersonalTitle',
+            'onboarding.stepPersonalSubtitle'),
         TextField(
           controller: _nameCtrl,
           decoration: InputDecoration(
-            labelText: 'İsminiz',
+            labelText: 'onboarding.fieldName'.tr(),
             errorText: _errors['name'],
           ),
         ),
@@ -310,7 +336,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             ),
             child: Text(
               _birthDate == null
-                  ? 'Seçiniz'
+                  ? 'onboarding.pick'.tr()
                   : DateFormat.yMd(context.locale.languageCode)
                       .format(_birthDate!),
             ),
@@ -348,7 +374,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stepHeader(Icons.straighten, 'Boy ve Kilo', 'Vücut Ölçüleri'),
+        _stepHeader(Icons.straighten, 'onboarding.stepBodyTitle',
+            'onboarding.stepBodySubtitle'),
         _numField(_heightCtrl, 'settings.personalInfo.height'.tr(), 'height'),
         const SizedBox(height: 16),
         _numField(_weightCtrl, 'settings.personalInfo.weight'.tr(), 'weight'),
@@ -398,8 +425,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stepHeader(Icons.directions_run, 'Ne Kadar Aktifsiniz?',
-            'settings.goals.activityLevel'.tr()),
+        _stepHeader(Icons.directions_run, 'onboarding.stepActivityTitle',
+            'onboarding.stepActivitySubtitle'),
         ...ActivityLevel.values.map((lvl) => _radioCard<ActivityLevel>(
               value: lvl,
               group: _activity,
@@ -415,8 +442,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stepHeader(Icons.flag_outlined, 'Hedefiniz Nedir?',
-            'settings.goals.goalType'.tr()),
+        _stepHeader(Icons.flag_outlined, 'onboarding.stepGoalTitle',
+            'onboarding.stepGoalSubtitle'),
         ...Goal.values.map((g) => _radioCard<Goal>(
               value: g,
               group: _goal,
@@ -474,8 +501,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     if (_isCalculating) {
       return Column(
         children: [
-          _stepHeader(Icons.auto_awesome, 'Hedefleriniz Hesaplanıyor...',
-              'settings.goals.calculating'.tr()),
+          _stepHeader(Icons.auto_awesome, 'onboarding.calculating',
+              'onboarding.calculatingSubtitle'),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
             child: CircularProgressIndicator(),
@@ -489,8 +516,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       return Column(
         children: [
           _stepHeader(
-              Icons.error_outline, 'Hesaplama Başarısız', 'common.error'.tr()),
-          Text('Lütfen geri dönüp tekrar deneyin',
+              Icons.error_outline, 'onboarding.calcError', 'common.error'),
+          Text('onboarding.calcErrorHint'.tr(),
               style: Theme.of(context).textTheme.bodyMedium),
         ],
       );
@@ -499,8 +526,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _stepHeader(Icons.auto_awesome, 'Hedefleriniz Hazır!',
-            goals.usedAi ? 'settings.goals.aiCalculate'.tr() : 'Yerel Hesaplama'),
+        _stepHeader(
+            Icons.auto_awesome,
+            'onboarding.goalsReady',
+            goals.usedAi
+                ? 'settings.goals.aiCalculate'.tr()
+                : 'onboarding.localCalculation'.tr()),
         if (goals.explanation != null) ...[
           Text(goals.explanation!,
               style: Theme.of(context).textTheme.bodyMedium),
@@ -611,7 +642,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               : FilledButton.icon(
                   onPressed: _isCalculating ? null : _handleNext,
                   icon: const Icon(Icons.chevron_right),
-                  label: const Text('İleri'),
+                  label: Text('onboarding.next'.tr()),
                 ),
         ),
       ],

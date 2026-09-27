@@ -9,6 +9,7 @@ import '../../../data/models/profile.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/macro_calculator.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../../data/activity_level_map.dart';
 
 /// Hedefler diyaloğu — web `SettingsPage` goals diyaloğu parity.
 ///
@@ -56,9 +57,10 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
       text: (widget.profile?.fatTargetG ?? AppConstants.defaultFat)
           .toStringAsFixed(0));
 
+  // `activityLevelFromDb` — `asNameMap()['very_active']` `null` dönüp
+  // aktiviteyi sessizce `moderate`'a düşürüyordu.
   late ActivityLevel _activity =
-      ActivityLevel.values.asNameMap()[widget.profile?.activityLevel] ??
-          ActivityLevel.moderate;
+      activityLevelFromDb(widget.profile?.activityLevel);
   late Goal _goal =
       Goal.values.asNameMap()[widget.profile?.goal] ?? Goal.maintain;
 
@@ -132,7 +134,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(profileRepositoryProvider).update(user.id, {
-        'activity_level': _activity.name,
+        'activity_level': activityLevelToDb(_activity),
         'goal': _goal.name,
         'daily_calorie_target':
             _parse(_calories.text, AppConstants.defaultCalories),

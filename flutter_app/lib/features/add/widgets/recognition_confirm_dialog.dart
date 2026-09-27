@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/recognized_food.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
@@ -244,6 +245,24 @@ class _RecognitionConfirmBodyState
         ),
       );
       widget.onSaved(true);
+    } on ArgumentError catch (e, s) {
+      // A2: `addMealEntry` NaN/Infinity/≤0 miktar için `ArgumentError`
+      // fırlatıyor. Kısmi kayıtta (bazı satırlar eklendi) kullanıcıya
+      // yalnızca "geçersiz miktar" demek yanıltıcı olurdu; eklenen sayı
+      // da belirtilir.
+      AppLog.w('Geçersiz miktar — tanıma kaydı reddedildi', e, s);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            added == 0
+                ? 'dialogs.invalidAmount'.tr()
+                : 'dialogs.invalidAmountPartial'.tr(
+                    namedArgs: {'count': '$added'},
+                  ),
+          ),
+        ),
+      );
+      if (mounted) setState(() => _saving = false);
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('dialogs.saveFailed'.tr())),

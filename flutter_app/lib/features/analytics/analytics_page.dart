@@ -102,8 +102,12 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
               data: (data) {
                 if (focus != null) _maybeScrollToFocus();
                 return RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.invalidate(analyticsDataProvider(locale)),
+                  // Yalnızca `invalidate` çağırmak `onRefresh`'in Future'ünü
+                  // hemen tamamlıyordu: kullanıcı parmağını çekerken veri
+                  // hâlâ yükleniyordu, spinner kaybolup eski veri gösteriliyor
+                  // ve "yenilendi" izlenimi yanıltıcı oluyordu. Yeni verinin
+                  // gelmesini bekle.
+                  onRefresh: () => ref.refresh(analyticsDataProvider(locale).future),
                   child: ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
@@ -835,7 +839,10 @@ class _MacrosChartCard extends StatelessWidget {
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipItem: (group, gi, rod, ri) {
-                        const names = ['Protein', 'Karbonhidrat', 'Yağ'];
+                        // Makro adları `analytics.macros.*` çeviri
+                        // anahtarlarından; sabit Türkçe liste EN kullanıcısında
+                        // tooltip'i Türkçe bırakıyordu.
+                        final names = MacroFocus.values[ri].labelKey.tr();
                         return BarTooltipItem(
                           '%${rod.toY.round()}',
                           theme.textTheme.bodySmall!.copyWith(

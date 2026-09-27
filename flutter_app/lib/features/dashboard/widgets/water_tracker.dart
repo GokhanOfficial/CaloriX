@@ -56,6 +56,13 @@ class WaterTracker extends ConsumerWidget {
           ),
         );
       }
+    } on ArgumentError catch (e, s) {
+      // A2: `addWaterEntry` NaN/Infinity/≤0 ml için `ArgumentError`
+      // fırlatıyor (DB'ye yazmadan). Kullanıcıya "geçersiz miktar" de.
+      AppLog.w('Geçersiz su miktarı reddedildi (${amount.round()} ml)', e, s);
+      messenger.showSnackBar(
+        SnackBar(content: Text('dialogs.invalidAmount'.tr())),
+      );
     } catch (e, s) {
       AppLog.e('Su kaydı eklenemedi (${amount.round()} ml)', e, s);
       messenger.showSnackBar(

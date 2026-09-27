@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/meal_entry.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
@@ -149,6 +150,14 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
         SnackBar(content: Text('dialogs.edit.updated'.tr())),
       );
       if (mounted) Navigator.pop(context, true);
+    } on ArgumentError catch (e, s) {
+      // A2: `updateMealEntry` 0/NaN/Infinity miktar için `ArgumentError`
+      // fırlatıyor (kısmi güncellemede `amount_g_ml` doğrulanıyor).
+      AppLog.w('Geçersiz miktar — öğün güncellemesi reddedildi', e, s);
+      messenger.showSnackBar(
+        SnackBar(content: Text('dialogs.invalidAmount'.tr())),
+      );
+      if (mounted) setState(() => _saving = false);
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('addFood.toasts.error'.tr())),

@@ -92,23 +92,23 @@ class _PasswordDialogState extends ConsumerState<PasswordDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Web: sabit Türkçe başlık ("Parola Değiştir").
-          Text('Parola Değiştir',
+          Text('auth.changePassword.title'.tr(),
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('Yeni parolanızı girin',
+          Text('auth.changePassword.subtitle'.tr(),
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           TextField(
             controller: _new,
             obscureText: _obscure,
             decoration: InputDecoration(
-              labelText: 'Yeni Parola',
-              hintText: 'En az 6 karakter',
+              labelText: 'auth.changePassword.newLabel'.tr(),
+              hintText: 'auth.validation.passwordLength'.tr(),
               suffixIcon: IconButton(
                 icon: Icon(_obscure
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined),
+                tooltip: 'auth.changePassword.toggleVisibility'.tr(),
                 onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),
@@ -118,8 +118,8 @@ class _PasswordDialogState extends ConsumerState<PasswordDialog> {
             controller: _confirm,
             obscureText: _obscure,
             decoration: InputDecoration(
-              labelText: 'Parola Tekrar',
-              hintText: 'Parolayı tekrar girin',
+              labelText: 'auth.changePassword.confirmLabel'.tr(),
+              hintText: 'auth.changePassword.confirmHint'.tr(),
             ),
           ),
           const SizedBox(height: 20),
@@ -128,7 +128,7 @@ class _PasswordDialogState extends ConsumerState<PasswordDialog> {
             children: [
               TextButton(
                 onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                child: const Text('İptal'),
+                child: Text('common.cancel'.tr()),
               ),
               const SizedBox(width: 8),
               FilledButton(
@@ -138,7 +138,7 @@ class _PasswordDialogState extends ConsumerState<PasswordDialog> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Kaydet'),
+                    : Text('common.save'.tr()),
               ),
             ],
           ),

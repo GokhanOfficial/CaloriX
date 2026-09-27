@@ -36,6 +36,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   /// yavaş yükleme yaratır.
   static const int _maxAttachmentBytes = 10 * 1024 * 1024;
 
+  /// Bellekte tutulan en fazla mesaj sayısı (pencere).
+  ///
+  /// `_messages` bir "kaçırılmaz liste" (append-only) idi: her
+  /// `loadMore` çağrısı başa 10 mesaj daha ekliyordu ve kullanıcı aşağı
+  /// kaydırdıkça liste sınırsız büyüyordu. Yüzlerce mesajlık bir sohbette
+  /// `ListView.builder` yalnızca görünen balonları kurar ama **liste, mesaj
+  /// gövdeleri ve çözülmüş Markdown** tamamen bellekte kalır (yüzlerce MB'ye
+  /// varabilir; düşük bellekli Android cihazlarda OOM).
+  ///
+  /// Bu yüzden yalnızca son [_historyWindow] mesaj bellekte tutulur; daha
+  /// eskiler "Daha eski mesajları yükle" düğmesiyle geri çağrılır. Yeni mesaj
+  /// geldiğinde pencere yine kayar, böylece görüş alanı sabit kalır.
+  static const int _historyWindow = 200;
+
   final _scrollController = ScrollController();
   final _inputController = TextEditingController();
   final _imagePicker = ImagePicker();
@@ -46,6 +60,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   bool _loadingMore = false;
   bool _hasMore = true;
   bool _sending = false;
+
+  /// Bellekte olmayan ama DB'de mevcut en eski mesajın zaman damgası.
+  /// Pencere kaydığında "daha eski" yükleme buradan devam eder.
+  String? _windowStartBefore;
 
   /// Geçmiş yüklenemediyse boş "hoş geldiniz" ekranı yerine hata durumu
   /// + retry gösterilir; aksi halde kullanıcı verinin bozuk olduğunu
@@ -87,7 +105,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       final result =
           await ref.read(chatRepositoryProvider).loadInitial(user.id, threadId);
       if (!mounted) return;
-      _messages = result.messages;
+      _messages = _trimToWindow(result.messages);
       _hasMore = result.hasMore;
       setState(() {});
       _scrollToBottom();
@@ -100,12 +118,26 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
   }
 
+  /// Bellek penceresini uygular: en fazla [_historyWindow] mesaj tutulur,
+  /// atılan en eski mesajın `createdAt`'si `_windowStartBefore` olur.
+  List<ChatMessage> _trimToWindow(List<ChatMessage> messages) {
+    if (messages.length <= _historyWindow) return messages;
+    final kept = messages.sublist(messages.length - _historyWindow);
+    _windowStartBefore = kept.first.createdAt;
+    _hasMore = true; // pencere kaydı → DB'de daha eskisi vardır
+    return kept;
+  }
+
   Future<void> _loadMore() async {
-    if (_threadId == null || _loadingMore || !_hasMore || _messages.isEmpty) {
-      return;
-    }
+    if (_threadId == null || _loadingMore || !_hasMore) return;
     final user = ref.read(currentUserProvider);
     if (user == null) return;
+    // Boş listede kaydırma tetiklenmez ama "daha eski yükle" düğmesi
+    // `_messages` dolu olmadan da çalışmalı; bu yüzden tek referans
+    // `_windowStartBefore`, liste boşsa da geçerlidir.
+    final cursor = _windowStartBefore ??
+        (_messages.isEmpty ? null : _messages.first.createdAt);
+    if (cursor == null) return;
 
     final oldHeight = _scrollController.hasClients
         ? _scrollController.position.maxScrollExtent
@@ -113,17 +145,33 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     setState(() => _loadingMore = true);
     try {
-      final oldest = _messages.first;
       final result = await ref
           .read(chatRepositoryProvider)
-          .loadMore(user.id, _threadId!, oldest.createdAt);
-      _messages = [...result.messages, ..._messages];
-      _hasMore = result.hasMore;
+          .loadMore(user.id, _threadId!, cursor);
+      if (result.messages.isEmpty) {
+        _hasMore = false;
+        _windowStartBefore = null;
+      } else {
+        _messages = _trimToWindow([...result.messages, ..._messages]);
+        _hasMore = result.hasMore;
+      }
       if (mounted) {
         setState(() {});
-        // scroll konumunu koru (web parity)
+        // Scroll konumunu koru (web parity). Pencere taşarsa baştan atılan
+        // mesajlar yüksekliği küçültür; bu durumda `maxScrollExtent` farkı
+        // yanlış olur ve kullanıcı kaydırma konumundan sıçrar — bu yüzden
+        // eklenen mesaj sayısı pencereye sığmadıysa eski uzaklık korunur.
+        final newHeight = _scrollController.hasClients
+            ? _scrollController.position.maxScrollExtent
+            : 0.0;
+        final grew = newHeight - oldHeight;
+        final anchored = grew > 0 && grew < 8;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_scrollController.hasClients) return;
+          if (!anchored) {
+            _scrollController.jumpTo(0);
+            return;
+          }
           _scrollController.jumpTo(
             _scrollController.position.maxScrollExtent - oldHeight,
           );
@@ -138,7 +186,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   void _onScroll() {
-    if (_scrollController.hasClients && _scrollController.offset < 80) {
+    if (_scrollController.hasClients &&
+        _scrollController.offset < 80 &&
+        _hasMore &&
+        !_loadingMore) {
       _loadMore();
     }
   }
@@ -179,7 +230,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       if (mounted) {
         setState(() {
-          _messages = [..._messages, saved];
+          _messages = _trimToWindow([..._messages, saved]);
           _inputController.clear();
           _pendingFiles.clear();
         });
@@ -195,10 +246,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           );
 
       if (!mounted) return;
-      if (assistant != null) {
-        setState(() => _messages = [..._messages, assistant]);
-        _scrollToBottom();
-      }
+      setState(() => _messages = _trimToWindow([..._messages, assistant!]));
+      _scrollToBottom();
+    } on ChatException catch (e, s) {
+      // A2: `invokeAssistant` artık boş gövde / `{error}` yanıtında `null`
+      // dönmüyor, `ChatException` fırlatıyor. Kullanıcı mesajı DB'ye yazıldı
+      // ama cevap gelmedi — bunu "gönderilemedi" diye göstermek yanlış;
+      // ayrı mesajla "asistan yanıt vermedi" denmeli, aksi halde kullanıcı
+      // mesajını tekrar yazarak sohbeti bozuyor.
+      AppLog.e('Asistan yanıt vermedi', e, s);
+      _showError('chat.errors.assistant'.tr());
     } catch (e, s) {
       AppLog.e('Sohbet mesajı gönderilemedi', e, s);
       _showError('chat.errors.send'.tr());
@@ -214,6 +271,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       setState(() {
         _messages = [];
         _threadId = null;
+        _windowStartBefore = null;
+        _hasMore = true;
       });
       ref.read(activeChatThreadIdProvider.notifier).state = null;
       await _loadInitial();
@@ -321,10 +380,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         controller: _scrollController,
                         padding: const EdgeInsets.all(12),
                         itemCount: visible.length + (_loadingMore ? 1 : 0) +
-                            (_sending ? 1 : 0),
+                            (_sending ? 1 : 0) +
+                            (_hasMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          // En üstte "daha fazla yükleniyor" göstergesi.
-                          if (_loadingMore && index == 0) {
+                          // En üstte "daha eski mesajları yükle" düğmesi
+                          // (bellek penceresi) veya yükleme göstergesi.
+                          if (_hasMore && index == 0) {
+                            return _LoadEarlierHeader(
+                              loading: _loadingMore,
+                              onTap: _loadingMore ? null : _loadMore,
+                            );
+                          }
+                          if (_loadingMore && index == (_hasMore ? 1 : 0)) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Center(
@@ -336,7 +403,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               ),
                             );
                           }
-                          final i = index - (_loadingMore ? 1 : 0);
+                          final i = index -
+                              (_loadingMore ? 1 : 0) +
+                              (_hasMore ? 1 : 0);
                           // En altta "düşünüyor" göstergesi.
                           if (_sending && i == visible.length) {
                             return Padding(
@@ -451,6 +520,48 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         userId: ref.read(currentUserProvider)?.id ?? 'system',
         content: 'chat.welcomeMessage'.tr(),
       );
+}
+
+/// Sohbet geçmişi başlangıcı — bellek penceresinin dışında kalan eski
+/// mesajları geri çağırmak için düğme. `_loadMore` ayrıca yukarı kaydırma
+/// ile de tetiklenir; düğme, kaydırmayan (klavye/dokunmatik yardımcı) kullanıcı
+/// için erişilebilir yedektir.
+class _LoadEarlierHeader extends StatelessWidget {
+  const _LoadEarlierHeader({required this.loading, required this.onTap});
+
+  final bool loading;
+  final Future<void> Function()? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Center(
+        child: TextButton.icon(
+          onPressed: onTap,
+          icon: const Icon(Icons.history, size: 18),
+          label: Text('chat.loadEarlier'.tr()),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+            textStyle: theme.textTheme.bodySmall,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Sohbet geçmişi yüklenemedi — boş sohbet yerine hata + retry gösterilir.
