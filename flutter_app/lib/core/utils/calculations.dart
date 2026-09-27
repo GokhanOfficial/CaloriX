@@ -13,7 +13,8 @@ abstract final class Calculations {
   }) {
     final base = 10 * weightKg + 6.25 * heightCm - 5 * age;
     final effective = gender == Gender.female ? base - 161 : base + 5;
-    return effective.round();
+    if (!effective.isFinite) return minBmr;
+    return effective.round().clamp(minBmr, 1 << 31);
   }
 
   /// Günlük toplam enerji harcaması.
@@ -27,7 +28,12 @@ abstract final class Calculations {
   }
 
   /// Varsayılan makro dağılımı: %30 protein / %40 karb / %30 yağ.
+  ///
+  /// Negatif (veya 0) kalori hedefi üç makroda negatif değer üretirdi; hedef
+  /// zaten `targetCalories` ile ≥1200'e çekildiği için burada da alt sınır
+  /// uygulanır. Web parity'si nominal pozitif girdilerde bozulmaz.
   static ({int protein, int carbs, int fat}) macros(int targetCalories) {
+    if (targetCalories <= 0) return (protein: 0, carbs: 0, fat: 0);
     return (
       protein: ((targetCalories * 0.30) / 4).round(),
       carbs: ((targetCalories * 0.40) / 4).round(),
@@ -36,10 +42,17 @@ abstract final class Calculations {
   }
 
   /// Vücut kitle indeksi (1 ondalık).
+  ///
+  /// Boy 0 (veya NaN) ise bölme tanımsız; `UnsupportedError` fırlatmak yerine
+  /// `0` döner — çağıran taraf (`MacroCalculator.calculate`) bu değeri
+  /// `try` bloğu DIŞINDA kullandığı için istisna akışı kırıp ekranı düşürüyordu.
+  /// Böyle bir kayıt fiziksel olarak da geçersizdir; 0.0 = "hesaplanamadı".
   static double bmi(double weightKg, double heightCm) {
+    if (!heightCm.isFinite || heightCm == 0) return 0;
     final hM = heightCm / 100;
     final raw = weightKg / (hM * hM);
-    return (raw * 10).round() / 10;
+    if (!raw.isFinite) return 0;
+    return (raw * 10).roundToDouble() / 10;
   }
 
   /// BMI kategorisi — çeviri anahtarı + renk adı döner (web ile aynı eşikler).
@@ -54,6 +67,9 @@ abstract final class Calculations {
   static int waterTargetMl(double weightKg) => (weightKg * 33).round();
 
   /// Yaş hesaplama (doğum günü geçmemişse 1 eksik).
+  ///
+  /// Gelecek bir doğum tarihi veya 120 yaş üstü kayıt geçersizdir; negatif
+  /// yaş BMR'ı çarpık değerlere sürükler. Sonuç `0..120` aralığına kırpılır.
   static int age(DateTime birthDate) {
     final today = DateTime.now();
     var years = today.year - birthDate.year;
@@ -61,13 +77,26 @@ abstract final class Calculations {
     if (monthDiff < 0 || (monthDiff == 0 && today.day < birthDate.day)) {
       years--;
     }
+    if (years < 0) return 0;
+    if (years > maxAge) return maxAge;
     return years;
   }
 
+  /// BMR/target hesaplarında kabul edilen üst yaş sınırı.
+  static const int maxAge = 120;
+
+  /// BMR için alt sınır: 0'ın altındaki BMR fiziksel olarak anlamsızdır ve
+  /// TDEE/hedef hesaplarını yanlış yönde çeker.
+  static const int minBmr = 0;
+
   /// İlerleme yüzdesi (0-100).
+  ///
+  /// Hem sıfır/negatif hedef (bölme) hem negatif tüketim alt sınırı 0'a
+  /// çekilir — ilerleme çubuğunda eksi yüzde gösterilmez.
   static int progress(num current, num target) {
     if (target == 0) return 0;
     final pct = ((current / target) * 100).round();
+    if (pct < 0) return 0;
     return pct > 100 ? 100 : pct;
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/observability/app_logger.dart';
 import '../../core/updates/update_checker.dart';
 import '../../core/updates/update_manifest.dart';
 import '../../features/updates/force_update_page.dart';
@@ -28,6 +29,13 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   bool _optionalDialogShown = false;
   bool _unknownWarningShown = false;
 
+  /// `_maybeShowPrompts` yalnızca post-frame'de ve durum **değiştiğinde**
+  /// çalışsın. Önceki sürüm `build()` içinde her frame'de
+  /// `addPostFrameCallback` kaydediyordu: durum değişmese bile kuyruk
+  /// büyüyor, uygulama arka plana alınınca biriken callback'ler çalışıp
+  /// SnackBar/dialog göstermeye çalışıyordu.
+  UpdateStatus? _lastHandledStatus;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +43,8 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   }
 
   Future<void> _maybeShowPrompts(UpdateStatus status) async {
+    if (identical(status, _lastHandledStatus)) return;
+    _lastHandledStatus = status;
     switch (status) {
       case UpdateOptional(:final manifest):
         if (_optionalDialogShown) return;
@@ -79,10 +89,7 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
           FilledButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final url = Uri.parse(manifest.apkUrl);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
+              await _launchApk(manifest);
             },
             child: Text('updates.updateNow'.tr()),
           ),
@@ -91,12 +98,41 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
     );
   }
 
+  /// APK adresini açar.
+  ///
+  /// Manifest uzak sunucudan (GitHub Releases) geldiği için şema/uzantı
+  /// doğrulanmadan `url_launcher`'a verilirse `javascript:` / `intent:` /
+  /// `file:` gibi şemalar dış uygulamada açılabilir (açık yönlendirme /
+  /// yerel dosya erişimi). `isApkUrlSafe` bu yüzden **zorunlu** kapıdır.
+  ///
+  /// `canLaunchUrl` **kullanılmaz**: Android'de tarayıcı/mağaza gibi bazı
+  /// yönlendiriciler için yanlış negatif üretiyordu ve kullanıcı "Güncelle"
+  /// dediğinde hiçbir şey olmuyordu. Doğrulama `launchUrl`'un kendi
+  /// dönüş değeridir.
+  Future<void> _launchApk(UpdateManifest manifest) async {
+    if (!manifest.isApkUrlSafe) {
+      AppLog.w('Güvensiz APK adresi reddedildi: ${manifest.apkUrl}');
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    final launched = await launchUrl(
+      Uri.parse(manifest.apkUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (launched || !mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text('updates.openFailed'.tr())),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(updateCheckerProvider);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowPrompts(status),
-    );
+    if (!identical(status, _lastHandledStatus)) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _maybeShowPrompts(status),
+      );
+    }
 
     return switch (status) {
       UpdateRequired(:final manifest) => ForceUpdatePage(manifest: manifest),

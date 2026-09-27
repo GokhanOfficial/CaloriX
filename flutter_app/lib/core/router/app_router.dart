@@ -76,9 +76,16 @@ final _routeDecisionProvider = Provider<_RouteDecision>((ref) {
   return profileAsync.when(
     loading: () => const _RouteLoading(),
     error: (_, _) {
-      // Profil okunamadı (ör. tablo henüz yok) → onboarding'e gönder,
-      // kullanıcı akışı tamamlayarak profili oluşturur.
-      return const _RouteReady(AppRoutes.onboarding);
+      // Profil okunamadı. İki farklı kök neden var:
+      //  - profil **yok** (yeni kullanıcı) → onboarding akışı,
+      //  - profil var ama okuma başarısız (ağ kesintisi, tablo yok) →
+      //    onboarding'e zorlamak kullanıcıyı tamamlanmış akışa geri
+      //    atıp verisini ezme riskine sokar.
+      // Belirsizlikte **hiçbir yöne zorlamayız**: mevcut route'ta kalıp
+      // yeniden denemeye izin ver (PASSWORD_RECOVERY / auth zaten yukarıda
+      // ele alınıyor). Kullanıcı /onboarding'e gitmek isterse yönlendirme
+      // engellenmez — `target: null` yalnızca otomatik çekmeyi kapatır.
+      return const _RouteReady(null);
     },
     data: (profile) {
       final done = profile?.isOnboardingComplete ?? false;
@@ -89,7 +96,7 @@ final _routeDecisionProvider = Provider<_RouteDecision>((ref) {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // redirect içinde provider'ı okumak için ref'i yakala.
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: AppRoutes.dashboard,
     refreshListenable: _RouterRefresh(ref),
     redirect: (context, state) {
@@ -175,9 +182,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
     errorBuilder: (context, state) => const NotFoundPage(),
   );
+  // GoRouter dinleyici/abonelik kayıtları tutar; provider iptal edilirse
+  // (container dispose, test) kapatılmalı — aksi halde sızıntı.
+  ref.onDispose(router.dispose);
+  return router;
 });
 
 /// Riverpod dinlemesini go_router `refreshListenable`'a bağlayan köprü.
+///
+/// `ref.listen` zaten provider ömrüne bağlıdır (kendi kendine iptal edilir),
+/// bu yüzden ek bir kapatma gerekmez; sınıf yalnızca `notifyListeners`
+/// adaptörüdür.
 class _RouterRefresh extends ChangeNotifier {
   _RouterRefresh(Ref ref) {
     ref.listen(_routeDecisionProvider, (_, _) => notifyListeners());

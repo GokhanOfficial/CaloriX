@@ -2,7 +2,11 @@ import 'package:flutter/foundation.dart';
 
 /// CaloriX sabitleri — web `src/lib/constants.ts` karşılığı.
 abstract final class AppConstants {
-  static const String appVersion = '1.2.0';
+  /// Kullanıcıya gösterilen sürüm (About ekranı, veri dışa aktarım damgası).
+  ///
+  /// `pubspec.yaml`'daki `version: X.Y.Z+build` ile eşleşmek zorundadır;
+  /// sapma `tool/check_versions.cjs` CI gate'i ile denetlenir.
+  static const String appVersion = '1.3.0';
 
   /// GitHub Releases — en son Android sürümünün manifesti (APK + min sürüm
   /// bilgisi). `tool/release_android.sh` her release'de günceller.

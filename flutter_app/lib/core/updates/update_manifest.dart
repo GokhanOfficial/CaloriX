@@ -43,6 +43,28 @@ class UpdateManifest {
         releasedAt: json['releasedAt'] as String?,
       );
 
+  /// APK adresi **güvenli mi**? (https + APK dosya uzantısı)
+  ///
+  /// Manifest, uzak bir sunucudan (GitHub Releases) gelen veridir ve
+  /// `apkUrl` doğrudan `url_launcher`'a verilir. Doğrulama olmadan
+  /// `javascript:`, `intent:`, `file:` gibi şemalar `canLaunchUrl`
+  /// üzerinden dış uygulamaya açılabilir (açık yönlendirme / yerel dosya
+  /// erişimi). `tool/release_android.sh` yalnızca
+  /// `https://github.com/<repo>/releases/download/.../calorix.apk`
+  /// ürettiği için bu süzgeç meşru dağıtımı engellemez.
+  bool get isApkUrlSafe => isSafeApkUrl(apkUrl);
+
+  /// [UpdateManifest.isApkUrlSafe] için saf sürüm — test edilebilir.
+  static bool isSafeApkUrl(String raw) {
+    final url = Uri.tryParse(raw.trim());
+    if (url == null) return false;
+    if (url.scheme != 'https') return false;
+    if (url.host.isEmpty) return false;
+    // Kullanıcı/parola gömülü URL'ler (https://user:pass@host) reddedilir.
+    if (url.userInfo.isNotEmpty) return false;
+    return url.path.toLowerCase().endsWith('.apk');
+  }
+
   /// Aktif dile uygun sürüm notu (yoksa null).
   String? notesFor(String languageCode) =>
       languageCode.startsWith('tr') ? (notesTr ?? notesEn) : (notesEn ?? notesTr);

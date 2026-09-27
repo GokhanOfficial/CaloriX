@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';
+import '../observability/app_logger.dart';
 import 'update_manifest.dart';
 
 /// Güncelleme kontrolünün UI'a yansıyan durumu.
@@ -65,6 +66,11 @@ class UpdateChecker extends StateNotifier<UpdateStatus> {
 
   static const cacheKey = 'update_manifest_cache';
 
+  /// Manifest gövdesi için üst sınır (bayt). Gerçek `latest.json` ~1 KB'tır;
+  /// 64 KB'ı aşan yanıt (yönlendirme yakalama, hatalı sunucu, MITM) reddedilir
+  /// — `response.bodyBytes` sınırsız olarak belleğe alınıyordu.
+  static const int maxManifestBytes = 64 * 1024;
+
   final http.Client _client;
 
   /// Test edilebilirlik için enjekte edilebilir cihaz build numarası.
@@ -83,13 +89,20 @@ class UpdateChecker extends StateNotifier<UpdateStatus> {
       if (response.statusCode != 200) {
         throw http.ClientException('HTTP ${response.statusCode}');
       }
+      if (response.bodyBytes.length > maxManifestBytes) {
+        throw http.ClientException(
+          'Manifest çok büyük (${response.bodyBytes.length} bayt)',
+        );
+      }
       final manifest = UpdateManifest.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(cacheKey, response.body);
       state = await _decide(manifest);
-    } catch (_) {
+    } catch (e, s) {
+      // Ağ hatası beklenen bir durum; yine de tanılama için kaydedilir.
+      AppLog.w('Güncelleme manifesti alınamadı, cache\'e dönülüyor', e, s);
       state = await _decideFromCache();
     }
   }
@@ -103,7 +116,8 @@ class UpdateChecker extends StateNotifier<UpdateStatus> {
         jsonDecode(cached) as Map<String, dynamic>,
       );
       return await _decide(manifest);
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.w('Cache\'li güncelleme manifesti bozuk', e, s);
       return const UpdateStatus.unknown();
     }
   }

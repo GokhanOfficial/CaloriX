@@ -9,7 +9,11 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../constants/app_constants.dart';
+import '../observability/app_logger.dart';
 import 'meal_reminder.dart';
+import 'timezone_resolver.dart';
+
+export 'timezone_resolver.dart' show resolveTimeZone;
 
 /// Öğün hatırlatıcı bildirimlerini yöneten servis (Android).
 ///
@@ -43,18 +47,39 @@ class NotificationService {
   bool _initialized = false;
   bool get isReady => _initialized;
 
+  /// Uygulama ön planlaması — `init()` tamamlanmadan önce gelen
+  /// [reschedule] istekleri biriktirilir ve `init` sonunda uygulanır.
+  ///
+  /// Önceki davranış `!_initialized` koşulunda isteği sessizce düşürüyordu.
+  /// `ReminderSettingsNotifier.build()` uygulama açılışında, `app.dart`'deki
+  /// asenkron `_initNotifications()`'tan **önce** çalıştığı için kalıcı
+  /// hatırlatıcı ayarları ilk açılışta hiç planlanmıyordu; kullanıcı ancak
+  /// ayarlardan bir kere dokunduğunda hatırlatıcılar çalışıyordu.
+  Map<MealType, MealReminder>? _pendingSchedule;
+
+  /// Son uygulanan yerel saat dilimi adı — cihaz dilimi değiştiğinde
+  /// hatırlatıcıların yeniden planlanması için saklanır.
+  String? _tzName;
+
+  /// Başarıyla çözülen cihaz saat dilimi (`null` = UTC'ye düşüldü).
+  String? get localTimeZoneName => _tzName;
+
+  /// Saat dilimi değiştiğinde çağrılacak geri çağrılar. Uygulama ön planı
+  /// (arkada reschedule) tarafından doldurulur.
+  final List<void Function()> _timezoneWatchers = [];
+
+  /// `tz` veritabanı başlatıldı mı — `reschedule` erken çağrıldığında
+  /// `tz.local`'in UTC olmasını önler.
+  bool _tzReady = false;
+
   /// Android 12+ exact alarm izni yoksa inexact planlamaya düşer.
   bool _exactAllowed = true;
 
   Future<void> init() async {
     if (kIsWeb || _initialized) return;
-    try {
-      tzdata.initializeTimeZones();
-      final localTz = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(localTz));
-    } catch (_) {
-      // timezone alınamazsa UTC fallback ile devam edilir.
-    }
+    tzdata.initializeTimeZones();
+    _tzReady = true;
+    await applyLocalTimeZone();
 
     const androidInit = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -64,12 +89,77 @@ class NotificationService {
         const InitializationSettings(android: androidInit),
         onDidReceiveNotificationResponse: _onNotificationResponse,
       );
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Bildirim plugini başlatılamadı', e, s);
       return;
     }
 
     await _ensurePermission();
     _initialized = true;
+
+    // init öncesinde gelen planlama isteğini şimdi uygula.
+    final pending = _pendingSchedule;
+    _pendingSchedule = null;
+    if (pending != null) await reschedule(pending);
+  }
+
+  /// Cihaz saat dilimini `tz.local` olarak ayarlar.
+  ///
+  /// Önceki davranış `catch (_)` ile yutuyordu: `timezone` paketinde local
+  /// konum **UTC** olduğu için `FlutterTimezone` herhangi bir nedenle hata
+  /// verdiğinde tüm hatırlatıcılar UTC'de planlanıyordu (TR için 3 saatlik
+  /// sessiz kayma). Artık hata loglanır, sabit ofset biçimleri (`GMT+03:00`)
+  /// çözülür ve başarısızlık sessizce yutulmaz.
+  Future<void> applyLocalTimeZone() async {
+    if (kIsWeb) return;
+    if (!_tzReady) {
+      tzdata.initializeTimeZones();
+      _tzReady = true;
+    }
+    String platformZone;
+    try {
+      platformZone = await FlutterTimezone.getLocalTimezone();
+    } catch (e, s) {
+      AppLog.w('Cihaz saat dilimi okunamadı, UTC planlamaya düşülüyor', e, s);
+      _tzName = null;
+      return;
+    }
+    final resolved = resolveTimeZone(platformZone);
+    if (resolved == null) {
+      AppLog.w(
+        'Bilinmeyen cihaz saat dilimi "$platformZone" — UTC planlamaya düşülüyor',
+      );
+      _tzName = null;
+      return;
+    }
+    tz.setLocalLocation(resolved);
+    _tzName = resolved.name;
+  }
+
+  /// Cihaz saat dilimi değiştiğinde `tz.local` tazelenir ve kayıtlı
+  /// hatırlatıcılar yeni dilimde yeniden planlanır (DST kayması böyle
+  /// giderilir). Uygulama arka plandayken dilim değişirse yeniden açılışta
+  /// [init] üzerinden zaten uygulanır.
+  Future<void> refreshTimeZone() async {
+    final before = _tzName;
+    await applyLocalTimeZone();
+    if (_tzName == before) return;
+    AppLog.i(
+      'Saat dilimi değişti ($before → $_tzName); hatırlatıcılar yeniden planlanıyor',
+    );
+    for (final watcher in List.of(_timezoneWatchers)) {
+      watcher();
+    }
+  }
+
+  /// Saat dilimi değişiminde "hatırlatıcıları yeniden planla" geri çağrısı
+  /// ekler. [ReminderSettingsNotifier] bunu `build()` sırasında bağlar.
+  void addTimezoneWatcher(void Function() onChanged) {
+    _timezoneWatchers.add(onChanged);
+  }
+
+  void removeTimezoneWatcher(void Function() onChanged) {
+    _timezoneWatchers.remove(onChanged);
   }
 
   Future<void> _ensurePermission() async {
@@ -77,13 +167,15 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
     await android.requestNotificationsPermission();
-    _exactAllowed = await android.requestExactAlarmsPermission() ?? true;
+    _exactAllowed =
+        await android.requestExactAlarmsPermission() ?? true;
   }
 
   void _onNotificationResponse(NotificationResponse response) {
     final meal = _mealForId(response.id);
     if (meal == null) return;
-    if (response.actionId == actionSkip || response.actionId == actionSnooze) {
+    if (response.actionId == actionSkip ||
+        response.actionId == actionSnooze) {
       _actions.add('${response.actionId}:${meal.name}');
     } else {
       // Gövdeye tıklama — aksiyon yok, sadece akış.
@@ -102,8 +194,16 @@ class NotificationService {
   }
 
   /// Öğün hatırlatıcılarını (yeniden) planlar; kapalı öğünler iptal edilir.
+  ///
+  /// Servis henüz `init()` edilmediyse istek biriktirilir; `init` bitince
+  /// uygulanır. Böylece uygulama açılışındaki kalıcı ayarlar sessizce
+  /// kaybolmaz.
   Future<void> reschedule(Map<MealType, MealReminder> meals) async {
-    if (kIsWeb || !_initialized) return;
+    if (kIsWeb) return;
+    if (!_initialized) {
+      _pendingSchedule = Map.of(meals);
+      return;
+    }
     for (final meal in MealType.values) {
       await _plugin.cancel(mealReminderId(meal));
       await _plugin.cancel(snoozeReminderId(meal));
@@ -121,6 +221,11 @@ class NotificationService {
     }
   }
 
+  /// Bir sonraki `reschedule`'ın tetiklenip tetiklenmeyeceğini bilmeden
+  /// "ön plan" alınmış mı diye bakmak için (test/teşhis amaçlı).
+  @visibleForTesting
+  bool get hasPendingSchedule => _pendingSchedule != null;
+
   Future<void> _scheduleDaily(
     int id,
     MealType meal,
@@ -129,8 +234,11 @@ class NotificationService {
     required String payload,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
-    var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
+    var when = nextDailyOccurrence(
+      now: now,
+      hour: hour,
+      minute: minute,
+    );
 
     await _plugin.zonedSchedule(
       id,
@@ -196,5 +304,8 @@ class NotificationService {
     );
   }
 
-  void dispose() => _actions.close();
+  void dispose() {
+    _timezoneWatchers.clear();
+    unawaited(_actions.close());
+  }
 }

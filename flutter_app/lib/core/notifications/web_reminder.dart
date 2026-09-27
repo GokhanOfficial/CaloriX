@@ -22,6 +22,12 @@ class WebReminder {
   final Set<String> _shown = {};
   final Map<MealType, DateTime> _snoozedUntil = {};
 
+  /// Web'de "1 saat ertele" gerçekten erteleme yapmalı: gösterim [MealType]
+  /// için günlük `_shown` işareti **kaldırılır** ve tekrar denenecek saat
+  /// [_retryAt] içine yazılır. Önceki kod `_shown`'a önce eklediği için
+  /// buton hiçbir etki göstermiyordu (sessiz ölü özellik).
+  final Map<MealType, DateTime> _retryAt = {};
+
   void start() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 30), (_) => _check());
@@ -30,20 +36,30 @@ class WebReminder {
   void dispose() {
     _timer?.cancel();
     _timer = null;
+    _shown.clear();
+    _snoozedUntil.clear();
+    _retryAt.clear();
   }
 
   void _check() {
     final settings = _ref.read(reminderSettingsProvider);
     final now = DateTime.now();
-    final today = '${now.year}-${now.month}-${now.day}';
+    final today = _dayKey(now);
+
+    // Bellek sınırı: yalnızca bugünün anahtarları tutulur.
     _shown.removeWhere((key) => !key.startsWith('$today|'));
+    // Süresi dolmuş erteleme/tekrar deneme kayıtları temizlenir.
+    _retryAt.removeWhere((_, at) => !now.isBefore(at));
+    _snoozedUntil.removeWhere((_, at) => !now.isBefore(at));
 
     for (final meal in reminderMeals) {
       final reminder = settings.meals[meal];
       if (reminder == null || !reminder.enabled) continue;
       if (_shown.contains('$today|${meal.name}')) continue;
-      final snoozedUntil = _snoozedUntil[meal];
-      if (snoozedUntil != null && now.isBefore(snoozedUntil)) continue;
+
+      // "1 saat ertele": tekrar deneme saati gelene kadar bekle.
+      final retryAt = _retryAt[meal];
+      if (retryAt != null && now.isBefore(retryAt)) continue;
 
       final target = DateTime(
           now.year, now.month, now.day, reminder.hour, reminder.minute);
@@ -52,6 +68,14 @@ class WebReminder {
       _shown.add('$today|${meal.name}');
       _show(meal);
     }
+  }
+
+  /// Gün anahtarı — `widget_snapshot.dart`'taki `formatEntryDate` ile aynı
+  /// `yyyy-MM-dd` biçimini (sıfır dolgulu) üretir.
+  static String _dayKey(DateTime d) {
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '${d.year}-$m-$day';
   }
 
   void _show(MealType meal) {
@@ -65,8 +89,11 @@ class WebReminder {
         actions: [
           TextButton(
             onPressed: () {
-              _snoozedUntil[meal] =
-                  DateTime.now().add(const Duration(hours: 1));
+              final now = DateTime.now();
+              _snoozedUntil[meal] = now.add(const Duration(hours: 1));
+              _retryAt[meal] = _snoozedUntil[meal]!;
+              // Günlük işareti kaldırılır ki 1 saat sonra tekrar gösterilsin.
+              _shown.remove('${_dayKey(now)}|${meal.name}');
               messenger.hideCurrentMaterialBanner();
             },
             child: Text('notifications.snoozeHour'.tr()),
