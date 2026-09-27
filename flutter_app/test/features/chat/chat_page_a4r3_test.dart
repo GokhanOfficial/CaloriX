@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,8 +48,9 @@ void main() {
     WidgetTester tester, {
     required List<ChatMessage> messages,
     required bool hasMore,
+    _MockChatRepository? repository,
   }) async {
-    final repo = _MockChatRepository();
+    final repo = repository ?? _MockChatRepository();
     when(() => repo.ensureThread(any())).thenAnswer((_) async => 't1');
     when(() => repo.loadInitial(any(), any())).thenAnswer(
       (_) async => (messages: messages, hasMore: hasMore),
@@ -116,6 +119,75 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Daha eski mesajları yükle'), findsNothing);
     expect(find.text('mesaj 1'), findsOneWidget);
+  });
+
+  testWidgets('sohbeti temizle çalışır ve liste yeniden yüklenir',
+      (tester) async {
+    final repo = _MockChatRepository();
+    when(() => repo.archiveThread(any(), any())).thenAnswer((_) async {});
+    await pumpChat(
+      tester,
+      messages: [_msg(1)],
+      hasMore: false,
+      repository: repo,
+    );
+
+    await tester.tap(find.byTooltip('Görünen sohbeti temizle'));
+    await tester.pumpAndSettle();
+
+    // Thread kullanıcıya bağlı arşivlenir (A2) ve liste yeniden yüklenir.
+    verify(() => repo.archiveThread('u1', 't1')).called(1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('temizleme sırasında ekran kapanırsa setState çökmesi olmaz',
+      (tester) async {
+    // `archiveThread` future'ı, ekran dispose olana kadar **bitmez**.
+    // `_clearVisibleChat` içindeki `setState` `await` sonrası `mounted`
+    // kontrolü olmadan çalışırsa "setState() called after dispose()"
+    // fırlatır. Hata `catch` bloğuna düşüp "Sohbet temizlenemedi"
+    // snackbar'ına dönüştüğü için, `takeException()` yerine **kullanıcıya
+    // görünen sonucu** assert ediyoruz: dispose olmuş ekranda hata
+    // mesajı gösterilmemeli (gösterilmesi = çökme vardı).
+    final repo = _MockChatRepository();
+    final completer = Completer<void>();
+    when(() => repo.archiveThread(any(), any()))
+        .thenAnswer((_) => completer.future);
+
+    await pumpChat(
+      tester,
+      messages: [_msg(1)],
+      hasMore: false,
+      repository: repo,
+    );
+
+    // "Temizle" butonuna bas, sonra uygulamayı başka bir ekranla değiştir
+    // (ChatPage dispose olur) ve arşivlemeyi tamamla.
+    await tester.tap(find.byTooltip('Görünen sohbeti temizle'));
+    await tester.pump();
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(_testUser()),
+            chatRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: const MaterialApp(home: Scaffold(body: SizedBox())),
+        ),
+      );
+    });
+
+    await tester.runAsync(() async {
+      if (!completer.isCompleted) completer.complete();
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    // `mounted` koruması varsa `setState` hiç çalışmaz → hata yolu
+    // tetiklenmez → "Sohbet temizlenemedi" görünmez.
+    expect(find.textContaining('Sohbet temizlenemedi'), findsNothing);
   });
 
   group('ChatAttachmentLimits', () {

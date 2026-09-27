@@ -108,6 +108,9 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
             activityLevel: _activity,
             goal: _goal,
           );
+      // `await` sırasında dialog kapanmış olabilir; `setState` dispose
+      // edilmiş State'de "setState() called after dispose()" fırlatır.
+      if (!mounted) return;
       setState(() {
         _calories.text = goals.calories.toString();
         _water.text = goals.waterTarget.toString();

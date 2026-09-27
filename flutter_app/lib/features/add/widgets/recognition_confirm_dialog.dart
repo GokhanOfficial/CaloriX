@@ -195,18 +195,25 @@ class _RecognitionConfirmBodyState
 
   Future<void> _save() async {
     final user = ref.read(currentUserProvider);
-    if (user == null || _saving || _selectedCount == 0) return;
+    if (user == null || _saving) return;
+
+    // Miktarı 0 (veya geçersiz) satırlar kaydedilmez — 0 gamlık kayıt günlüğü
+    // bozar.
+    //
+    // **Önce** seçim kontrolü, **sonra** `_saving = true`: önce `setState`
+    // yapılırsa bu erken dönüş `_saving`'i `true` bırakıyor ve Kaydet butonu
+    // (`onPressed: _selectedCount > 0 && !_saving`) kalıcı olarak kilitleniyor
+    // — kullanıcı butona tekrar basamıyor, ekran kilitleniyor.
+    final selected =
+        _rows.where((r) => r.selected && r.amount > 0).toList();
+    if (selected.isEmpty) return;
+
     setState(() => _saving = true);
 
     final messenger = ScaffoldMessenger.of(context);
     final date = ref.read(selectedDateProvider);
     final entryDate = formatEntryDate(date);
 
-    // Miktarı 0 (veya geçersiz) satırlar kaydedilmez — 0amlık kayıt günlüğü
-    // bozar. Kullanıcı satırı seçmeyi bırakmadıysa uyarı gösterilir.
-    final selected =
-        _rows.where((r) => r.selected && r.amount > 0).toList();
-    if (selected.isEmpty) return;
     var added = 0;
 
     try {

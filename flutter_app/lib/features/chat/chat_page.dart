@@ -291,6 +291,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       // `userId` de veriliyor: thread arşivlemesi kullanıcıya bağlı
       // olmalı (A2 — başka birinin thread'i arşivlenemez).
       await ref.read(chatRepositoryProvider).archiveThread(user.id, _threadId!);
+      // `await` sırasında ekran kapanmış olabilir; `setState` dispose
+      // edilmiş State'de "setState() called after dispose()" fırlatır ve
+      // uygulama çöker.
+      if (!mounted) return;
       setState(() {
         _messages = [];
         _threadId = null;
