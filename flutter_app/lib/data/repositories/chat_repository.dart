@@ -1,9 +1,9 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/utils/num_parsing.dart';
 import '../models/chat_message.dart';
 import '../supabase/supabase_client_provider.dart';
 
@@ -31,14 +31,32 @@ class ChatRepository {
   String _nowIso() => DateTime.now().toUtc().toIso8601String();
 
   /// `new Date().toLocaleDateString("en-CA")` → `yyyy-MM-dd` (web parity).
-  static String localDateOnly(DateTime now) {
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+  ///
+  /// Ortak uygulama `core/utils/num_parsing.dart` → `formatDateOnly`
+  /// (aynı mantık `DiaryRepository.formatEntryDate` içinde de vardı).
+  static String localDateOnly(DateTime now) => formatDateOnly(now);
+
+  /// `chat_threads` insert gövdesi (saf, test edilebilir).
+  ///
+  /// [title] verilmezse (ya da boşsa) kolon **NULL** bırakılır: thread
+  /// başlığı kullanıcının diline göre değişen bir metindir ve veri
+  /// katmanında üretilemez. Daha önce buraya sabit bir çeviri **anahtarı**
+  /// (`'chat.newThread'`) yazılıyor, hiç güncellenmediği için veri dışa
+  /// aktarımında kalıcılaşıyordu.
+  static Map<String, dynamic> threadInsertPayload(
+    String userId, {
+    String? title,
+  }) {
+    final trimmed = title?.trim();
+    return {
+      'user_id': userId,
+      'title': (trimmed != null && trimmed.isNotEmpty) ? trimmed : null,
+    };
   }
 
   /// En yeni arşivlenmemiş thread'i bulur, yoksa oluşturur (web `ensureThread`).
+  ///
+  /// **Başlık veri katmanında üretilmez** — bkz. [threadInsertPayload].
   Future<String> ensureThread(String userId, {String? title}) async {
     final existing = await _client
         .from('chat_threads')
@@ -54,10 +72,7 @@ class ChatRepository {
 
     final created = await _client
         .from('chat_threads')
-        .insert({
-          'user_id': userId,
-          'title': title ?? 'chat.newThread',
-        })
+        .insert(threadInsertPayload(userId, title: title))
         .select('id')
         .single();
 
@@ -257,20 +272,10 @@ class ChatRepository {
     return out;
   }
 
-  /// Crypto.randomUUID benzeri UUID v4 — JS interop kullanmadan saf Dart.
-  String _randomUuid() {
-    final r = Random();
-    final hex = List.generate(
-      32,
-      (_) => r.nextInt(16).toRadixString(16),
-    ).join();
-    // version + variant baytları
-    final withVersion =
-        '${hex.substring(0, 12)}4${hex.substring(13, 16)}${(8 + r.nextInt(4)).toRadixString(16)}${hex.substring(17)}';
-    return '${withVersion.substring(0, 8)}-${withVersion.substring(8, 12)}-'
-        '${withVersion.substring(12, 16)}-${withVersion.substring(16, 20)}-'
-        '${withVersion.substring(20, 32)}';
-  }
+  /// Ek dosya adı için UUID v4 — ortak uygulama
+  /// `core/utils/num_parsing.dart` → `randomUuidV4` (`Random.secure()` tabanlı,
+  /// RFC 4122 v4 + variant bitleri doğru).
+  String _randomUuid() => randomUuidV4();
 }
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {

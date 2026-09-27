@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/observability/app_logger.dart';
+import '../../core/utils/num_parsing.dart';
 import '../supabase/supabase_client_provider.dart';
 import 'auth_repository.dart';
 import 'diary_repository.dart';
@@ -195,16 +197,16 @@ class AnalyticsRepository {
       // analitik ekranını patlatıyordu (tek kötü satır → tüm seri boş).
       if (date is! String) continue;
       final acc = mealsByDate.putIfAbsent(date, () => [0, 0, 0, 0]);
-      acc[0] += _num(m['calculated_kcal']);
-      acc[1] += _num(m['calculated_protein']);
-      acc[2] += _num(m['calculated_carbs']);
-      acc[3] += _num(m['calculated_fat']);
+      acc[0] += numOr(m['calculated_kcal']);
+      acc[1] += numOr(m['calculated_protein']);
+      acc[2] += numOr(m['calculated_carbs']);
+      acc[3] += numOr(m['calculated_fat']);
     }
     final waterByDate = <String, double>{};
     for (final w in waterRows) {
       final date = w['entry_date'];
       if (date is! String) continue;
-      waterByDate[date] = (waterByDate[date] ?? 0) + _num(w['amount_ml']);
+      waterByDate[date] = (waterByDate[date] ?? 0) + numOr(w['amount_ml']);
     }
 
     double round1(num v) => (v * 10).roundToDouble() / 10;
@@ -273,15 +275,6 @@ class AnalyticsRepository {
     } catch (_) {
       return dateOnly;
     }
-  }
-
-  /// `num` alanı güvenli okuma — null/NaN/Infinity 0 sayılır.
-  static double _num(Object? v) {
-    if (v is num) {
-      final d = v.toDouble();
-      return d.isFinite ? d : 0;
-    }
-    return 0;
   }
 
   // ------------------------------------------------------------------
@@ -373,15 +366,40 @@ final analyticsPeriodProvider =
 
 /// Web `useAnalyticsData(period)` karşılığı.
 ///
+/// Oturum yoksa **sorguya gitmeden** `AnalyticsAuthRequired` hatası fırlatır;
+/// eskiden `AnalyticsData.empty` dönüyordu ve bu yüzden "bu hafta kayıt yok"
+/// ile "giriş yapmamış" ayırt edilemiyordu — giriş yapmamış kullanıcıya tüm
+/// grafikler "0 veri" gibi görünüyordu. UI bu hatanı yakalayıp "giriş yap"
+/// mesajı göstermelidir (`AnalyticsAuthRequired` tipine bakarak).
+///
 /// `locale` (ör. `context.locale.languageCode`) DateFormat etiketleri
 /// (`EEE` / `d MMM`) için family parametresi — dil değişince provider
 /// otomatik yeniden sorgular.
 final analyticsDataProvider =
     FutureProvider.family<AnalyticsData, String>((ref, locale) {
   final user = ref.watch(currentUserProvider);
-  if (user == null) return AnalyticsData.empty;
+  if (user == null) {
+    AppLog.i('analytics: oturum yok, veri sorgulanmıyor');
+    throw const AnalyticsAuthRequired();
+  }
   final period = ref.watch(analyticsPeriodProvider);
   return ref
       .watch(analyticsRepositoryProvider)
       .fetch(user.id, period, locale: locale);
 });
+
+/// Analitik veri istenirken oturum bulunamadı.
+///
+/// Repository katmanında **bilinçli** bir durum: "veri yok" ile
+/// "oturum yok" farklıdır. UI (`features/analytics`) bu tipi yakalayıp
+/// kullanıcıya giriş yapma çağrısı göstermelidir.
+class AnalyticsAuthRequired implements Exception {
+  const AnalyticsAuthRequired([
+    this.message = 'Analitik verisi için oturum gerekli',
+  ]);
+
+  final String message;
+
+  @override
+  String toString() => 'AnalyticsAuthRequired: $message';
+}

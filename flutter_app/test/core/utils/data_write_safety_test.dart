@@ -1,9 +1,13 @@
 import 'package:calorix/core/constants/app_constants.dart';
+import 'package:http/http.dart' as http;
 import 'package:calorix/core/utils/calculations.dart';
+import 'package:calorix/data/activity_level_map.dart';
 import 'package:calorix/data/repositories/analytics_repository.dart';
+import 'package:calorix/data/repositories/auth_repository.dart';
 import 'package:calorix/data/repositories/diary_repository.dart';
 import 'package:calorix/data/repositories/food_repository.dart';
 import 'package:calorix/data/repositories/macro_calculator.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
@@ -474,4 +478,154 @@ void main() {
       expect(avg.daysWithData, 0);
     });
   });
+
+  group('5) MacroCalculator.calculate — savunmasız hesap yolu (try dışı)', () {
+    late _MockSupabaseClient client;
+    late MacroCalculator calc;
+
+    setUp(() {
+      client = _MockSupabaseClient();
+      calc = MacroCalculator(client);
+    });
+
+    Future<CalculatedGoals> run({
+      double height = 175,
+      double weight = 80,
+      int age = 30,
+    }) =>
+        calc.calculate(
+          age: age,
+          gender: Gender.male,
+          heightCm: height,
+          currentWeightKg: weight,
+          targetWeightKg: 75,
+          activityLevel: ActivityLevel.moderate,
+          goal: Goal.lose,
+        );
+
+    test('AI edge function patlasa bile hedefler üretilir', () async {
+      // `functions.invoke` zincirine ulaşılırsa mock `TypeError` fırlatır;
+      // `MacroCalculator` bunu yakalayıp yerel formüle düşmelidir.
+      final goals = await run();
+      expect(goals.calories, greaterThanOrEqualTo(1200));
+      expect(goals.bmi, closeTo(26.1, 0.2));
+      expect(goals.usedAi, isFalse);
+    });
+
+    test('boy 0 → bmi istisna fırlatmaz, hedefler yine üretilir', () async {
+      // `Calculations.bmi` bölme tanımsızlığında 0 döner; `roundToDouble()`
+      // çağrısı `try` DIŞINDA olduğu için bu değer istisna üretirse
+      // onboarding ekranı düşüyordu.
+      final goals = await run(height: 0);
+      expect(goals.bmi, 0);
+      expect(goals.calories, greaterThanOrEqualTo(1200));
+    });
+
+    test('boy negatif → bmi sonlu kalır, hedefler üretilir', () async {
+      // Negatif boy fiziksel olarak geçersizdir ama `roundToDouble()` istisnası
+      // fırlatmamalı; sonuç negatif BMI olarak dönebilir, **düşmemeli**.
+      final goals = await run(height: -175, weight: 80);
+      expect(goals.bmi.isFinite, isTrue);
+      expect(goals.calories, greaterThanOrEqualTo(1200));
+    });
+
+    test('ağırlık 0 / negatif → çökmez', () async {
+      for (final w in <double>[-80, 0]) {
+        final goals = await run(weight: w);
+        // Negatif kilo fiziksel olarak geçersizdir: BMI sonlu kalmalı,
+        // hedefler üretilmeli (ekran düşmemeli).
+        expect(goals.bmi.isFinite, isTrue, reason: 'kilo=$w');
+        expect(goals.calories, greaterThanOrEqualTo(1200));
+      }
+    });
+
+    test('NaN / Infinity girdide tüm hedefler sonlu ve güvenli', () async {
+      final nanGoals = await run(height: double.nan, weight: double.nan);
+      expect(nanGoals.bmi, 0);
+      expect(nanGoals.bmi.isFinite, isTrue);
+      expect(nanGoals.calories, greaterThanOrEqualTo(1200));
+      expect(nanGoals.protein, greaterThanOrEqualTo(0));
+      expect(nanGoals.waterTarget, greaterThanOrEqualTo(0));
+
+      final infGoals = await run(height: double.infinity);
+      expect(infGoals.bmi, 0);
+      expect(infGoals.calories, greaterThanOrEqualTo(1200));
+    });
+
+    test('activity_level edge function gövdesinde snake_case gönderilir', () async {
+      // `veryActive` gönderilirse edge function 400 döner (AI yolu hep
+      // başarısız olur) ve `profiles` UPDATE'i CHECK ihlaliyle reddedilir.
+      // Gövdeyi yakalamak için `functions` zinciri uçtan uca kurulur.
+      final body = <String, dynamic>{};
+      // `_FakeFunctions.invoke` gövdeyi yazıp hata fırlatır (edge function
+      // `veryActive`'ı 400 ile reddederdi).
+      when(() => client.functions).thenReturn(_capturingFunctions(body));
+
+      await calc.calculate(
+        age: 30,
+        gender: Gender.female,
+        heightCm: 180,
+        currentWeightKg: 80,
+        targetWeightKg: 75,
+        activityLevel: ActivityLevel.veryActive,
+        goal: Goal.maintain,
+      );
+
+      expect(body, isNotEmpty);
+      expect(body['activity_level'], 'very_active');
+      expect(body['activity_level'], isNot('veryActive'));
+      expect(
+        ActivityLevelMap.dbValueSet.contains(body['activity_level']),
+        isTrue,
+      );
+    });
+  });
+
+  group('6) analytics oturum durumu — veri yok ile oturum yok ayrışır', () {
+    test('oturum yokken provider AnalyticsAuthRequired fırlatır', () async {
+      // ESKİ davranış: `AnalyticsData.empty` dönüyordu → giriş yapmamış
+      // kullanıcıya "0 veri" görünüyordu. `_MockSupabaseClient.currentUser`
+      // stub'lanmadığı için `null` döner.
+      final container = ProviderContainer(
+        overrides: [currentUserProvider.overrideWithValue(null)],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(analyticsDataProvider('tr').future),
+        throwsA(isA<AnalyticsAuthRequired>()),
+      );
+    });
+
+    test('AuthRequired mesajı kullanıcıya gosterilebilir bir metindir', () {
+      const e = AnalyticsAuthRequired();
+      expect(e.toString(), contains('oturum'));
+    });
+  });
+}
+
+/// `SupabaseClient.functions` zincirini uçtan uca kurar ve `invoke`
+/// gövdesini [sink]'e yazar (edge function çağrısını testte yakalamak için).
+_FakeFunctions _capturingFunctions(Map<String, dynamic> sink) =>
+    _FakeFunctions(sink);
+
+class _FakeFunctions extends Fake implements FunctionsClient {
+  _FakeFunctions(this._sink);
+
+  final Map<String, dynamic> _sink;
+
+  @override
+  Future<FunctionResponse> invoke(
+    String functionName, {
+    Map<String, String>? headers,
+    Object? body,
+    Iterable<http.MultipartFile>? files,
+    Map<String, dynamic>? queryParameters,
+    HttpMethod method = HttpMethod.post,
+    String? region,
+    Future<void>? abortSignal,
+  }) async {
+    if (body is Map<String, dynamic>) _sink.addAll(body);
+    throw Exception('edge function 400 (test)');
+  }
 }

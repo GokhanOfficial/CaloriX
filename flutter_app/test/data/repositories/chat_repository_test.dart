@@ -160,14 +160,29 @@ void main() {
       final t = ChatThread.fromJson({
         'id': 'th-1',
         'user_id': 'u-1',
-        'title': 'chat.newThread',
+        'title': 'Kalori hedefim',
         'archived_at': null,
         'created_at': '2026-08-15T09:00:00Z',
         'updated_at': '2026-08-15T10:00:00Z',
       });
       expect(t.id, 'th-1');
       expect(t.userId, 'u-1');
-      expect(t.title, 'chat.newThread');
+      expect(t.title, 'Kalori hedefim');
+      expect(t.archivedAt, isNull);
+    });
+
+    test('fromJson → başlıksız (NULL) thread yeni kayıtta beklenen durum', () {
+      // Yeni thread'lerde `title` NULL bırakılır (veri katmanı çeviri
+      // anahtarı yazmaz); UI ilk mesajdan başlığı türetir.
+      final t = ChatThread.fromJson({
+        'id': 'th-3',
+        'user_id': 'u-1',
+        'title': null,
+        'archived_at': null,
+        'created_at': '2026-08-15T09:00:00Z',
+        'updated_at': '2026-08-15T10:00:00Z',
+      });
+      expect(t.title, isNull);
       expect(t.archivedAt, isNull);
     });
 
@@ -182,6 +197,36 @@ void main() {
       });
       expect(t.archivedAt, '2026-08-14T09:00:00Z');
       expect(t.title, isNull);
+    });
+  });
+
+  group('ensureThread — title kolonuna çeviri anahtarı yazılmaz', () {
+    test('title verilmediğinde kolon NULL kalır', () {
+      final payload = ChatRepository.threadInsertPayload('u1');
+      expect(payload['user_id'], 'u1');
+      expect(payload.containsKey('title'), isTrue);
+      expect(payload['title'], isNull);
+    });
+
+    test('başlıkta çeviri anahtarı biçimi yazılmaz', () {
+      // Eski hata: DB'ye 'chat.newThread' gibi bir anahtar kalıcılaşıyordu.
+      for (final t in <String?>[null, '', '   ']) {
+        final title = ChatRepository.threadInsertPayload('u1', title: t)['title'];
+        expect(title, isNull, reason: 'title=$t');
+      }
+    });
+
+    test('verilen başlık kırpılarak yazılır', () {
+      final payload =
+          ChatRepository.threadInsertPayload('u1', title: '  Haftalık hedef  ');
+      expect(payload['title'], 'Haftalık hedef');
+    });
+
+    test('başlık kolonu asla boş string değil', () {
+      for (final t in <String?>[null, '', '  ', 'x']) {
+        final title = ChatRepository.threadInsertPayload('u1', title: t)['title'];
+        expect(title, isNot(''), reason: 'title=$t');
+      }
     });
   });
 }

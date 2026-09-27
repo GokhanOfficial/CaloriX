@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/observability/app_logger.dart';
 import '../../core/utils/calculations.dart';
+import '../../core/utils/num_parsing.dart';
+import '../activity_level_map.dart';
 import '../supabase/supabase_client_provider.dart';
 
 /// Onboarding / ayarlar için hesaplanmış günlük hedefler.
@@ -53,7 +55,13 @@ class MacroCalculator {
     Map<String, dynamic>? previousMacros,
     double? previousWeightKg,
   }) async {
-    final bmi = Calculations.bmi(currentWeightKg, heightCm);
+    // Boy 0 / negatif / NaN girdide BMI hesaplanamaz; `CalculatedGoals.bmi`
+    // `double` (nullable değil) ve UI'da kategori rengi olarak okunduğu için
+    // hesaplanamaz durum 0.0 olarak normalize edilir. Bu değer yalnızca
+    // hedef hesabına girmez, fakat `CalculatedGoals` içine yazıldığı için
+    // istisna yolu onboarding ekranını düşürürdü. A3 `Calculations.bmi`'yi
+    // bölmeyi 0.0'a çevirdi; burada çağrı yeri de kendi payına savunuldu.
+    final bmi = _safeBmi(currentWeightKg, heightCm);
 
     // 1) AI Edge Function dene
     try {
@@ -65,7 +73,14 @@ class MacroCalculator {
           'height_cm': heightCm,
           'current_weight_kg': currentWeightKg,
           'target_weight_kg': targetWeightKg,
-          'activity_level': activityLevel.name,
+          // Enum `.name` camelCase (`veryActive`); edge function yalnızca
+          // snake_case kabul ediyor → `veryActive` 400 döner ve AI yolu
+          // her zaman başarısız olurdu. DB CHECK ile aynı eşleyici.
+          'activity_level': activityLevelToDb(activityLevel),
+          // `Goal` değerleri (`lose`/`maintain`/`gain`) DB ile birebir aynı;
+          // ayrı bir eşleyici gerekmiyor ama sözleşme açık olsun diye
+          // `name` yerine açık yazıldı (enum'a yeni değer eklenirse
+          // edge function 400 döner ve yerel formüle düşer).
           'goal': goal.name,
           // Kilo güncellemesi akışı (web `Index.tsx` handleWeightSubmit parity).
           // Null değerler JSON'da `null` olarak gider; Edge function bunları
@@ -99,14 +114,19 @@ class MacroCalculator {
     }
 
     // 2) Yerel fallback (web ile aynı formüller)
-    final bmr = Calculations.bmr(
-      weightKg: currentWeightKg,
-      heightCm: heightCm,
+    //    `_safe*` sarmalayıcıları: A3 `Calculations.*` içine sayısal koruma
+    //    koydu ama `round()`/`roundToDouble()` çağrıları `NaN`/`Infinity`
+    //    girdide hâlâ `UnsupportedError` fırlatabiliyor. Kullanıcı boyu
+    //    elle girip `NaN` bırakırsa (boş metin → parse hatası) onboarding
+    //    ekranı düşmemeli, hedefler üretilmeli.
+    final bmr = _safeBmr(
+      weightKg: currentWeightKg.isFinite ? currentWeightKg : 0,
+      heightCm: heightCm.isFinite ? heightCm : 0,
       age: age,
       gender: gender,
     );
-    final tdee = Calculations.tdee(bmr, activityLevel);
-    final calories = Calculations.targetCalories(tdee, goal);
+    final tdee = _safeInt(() => Calculations.tdee(bmr, activityLevel));
+    final calories = _safeInt(() => Calculations.targetCalories(tdee, goal));
     final m = Calculations.macros(calories);
 
     return CalculatedGoals(
@@ -117,7 +137,9 @@ class MacroCalculator {
       carbs: m.carbs,
       fat: m.fat,
       bmi: bmi,
-      waterTarget: Calculations.waterTargetMl(currentWeightKg),
+      waterTarget: _safeInt(
+        () => Calculations.waterTargetMl(currentWeightKg),
+      ),
     );
   }
 
@@ -131,13 +153,13 @@ class MacroCalculator {
     required double bmi,
     required double weightKg,
   }) {
-    final bmr = _numOrNull(data['bmr']);
-    final tdee = _numOrNull(data['tdee']);
-    final calories = _numOrNull(data['daily_calorie_target']);
-    final protein = _numOrNull(data['protein_target_g']);
-    final carbs = _numOrNull(data['carbs_target_g']);
-    final fat = _numOrNull(data['fat_target_g']);
-    final water = _numOrNull(data['daily_water_target_ml']);
+    final bmr = numOrNull(data['bmr']);
+    final tdee = numOrNull(data['tdee']);
+    final calories = numOrNull(data['daily_calorie_target']);
+    final protein = numOrNull(data['protein_target_g']);
+    final carbs = numOrNull(data['carbs_target_g']);
+    final fat = numOrNull(data['fat_target_g']);
+    final water = numOrNull(data['daily_water_target_ml']);
 
     if (bmr == null ||
         tdee == null ||
@@ -162,16 +184,61 @@ class MacroCalculator {
       usedAi: true,
     );
   }
+}
 
-  /// JSON değerini güvenli `double`'a çevirir.
-  ///
-  /// Edge function JSON'u `double`/`int` dönebilir ama bozuk/eksik alan
-  /// `null` veya string olabilir. `NaN`/`Infinity` de hesap zincirini
-  /// (`round()` istisnası) bozduğu için geçersiz sayılır.
-  static double? _numOrNull(Object? v) {
-    if (v is! num) return null;
-    final d = v.toDouble();
-    return d.isFinite ? d : null;
+/// BMI hesabını iki taraftan savunur: `Calculations.bmi` zaten bölme
+/// tanımsızlığında 0 döndürüyor, ancak girdiler `NaN`/`Infinity` ise
+/// `roundToDouble()` istisnası fırlatabilir. Hedefler hesaplanabilir
+/// kalmalı; BMI yalnızca ekranda kategori olarak okunuyor.
+double _safeBmi(double weightKg, double heightCm) {
+  if (!weightKg.isFinite || !heightCm.isFinite) {
+    AppLog.w(
+      'BMI girdisi sonlu değil, 0 kullanılıyor',
+      {'weight': weightKg, 'height': heightCm},
+    );
+    return 0;
+  }
+  try {
+    final bmi = Calculations.bmi(weightKg, heightCm);
+    return bmi.isFinite ? bmi : 0;
+  } catch (e, s) {
+    AppLog.w('BMI hesaplanamadı, 0 kullanılıyor', e, s);
+    return 0;
+  }
+}
+
+/// BMR hesabı — `round()` `NaN`/`Infinity` girdide `UnsupportedError` fırlatır.
+int _safeBmr({
+  required double weightKg,
+  required double heightCm,
+  required int age,
+  required Gender gender,
+}) {
+  if (!weightKg.isFinite || !heightCm.isFinite) {
+    AppLog.w(
+      'BMR girdisi sonlu değil, minimum kullanılıyor',
+      {'weight': weightKg, 'height': heightCm},
+    );
+    return Calculations.minBmr;
+  }
+  return _safeInt(
+    () => Calculations.bmr(
+      weightKg: weightKg,
+      heightCm: heightCm,
+      age: age,
+      gender: gender,
+    ),
+  );
+}
+
+/// `int` üreten hesabı istisna/NaN'dan korur; düşerse mantıklı bir taban
+/// değere döner ve **sessizce yutmaz** (Sentry'ye gider).
+int _safeInt(int Function() compute, {int fallback = 0}) {
+  try {
+    return compute();
+  } catch (e, s) {
+    AppLog.w('Makro hesabı başarısız, taban değer kullanılıyor', e, s);
+    return fallback;
   }
 }
 

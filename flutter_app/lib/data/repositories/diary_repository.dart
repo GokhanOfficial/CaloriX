@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/num_parsing.dart';
 import '../models/meal_entry.dart';
 import '../models/water_entry.dart';
 import '../models/weight_entry.dart';
@@ -9,12 +10,10 @@ import '../supabase/supabase_client_provider.dart';
 import 'auth_repository.dart';
 
 /// Tarihi web `format(date, 'yyyy-MM-dd')` ile aynı biçimde yazar.
-String formatEntryDate(DateTime date) {
-  final y = date.year.toString().padLeft(4, '0');
-  final m = date.month.toString().padLeft(2, '0');
-  final d = date.day.toString().padLeft(2, '0');
-  return '$y-$m-$d';
-}
+///
+/// Uygulama artık `core/utils/num_parsing.dart` → `formatDateOnly` içinde
+/// (aynı mantık `ChatRepository.localDateOnly` içinde de vardı).
+String formatEntryDate(DateTime date) => formatDateOnly(date);
 
 /// Günün yemek toplamları — web `useDailyData.totals` karşılığı.
 typedef DailyTotals = ({
