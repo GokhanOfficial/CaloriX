@@ -15,6 +15,10 @@ import '../../../data/repositories/data_transfer_repository.dart';
 /// DB kapalıyken dosya seçimi/paylaşımı altyapısı çalışır; Supabase
 /// sorguları tüm fazlar bitince canlı testte doğrulanır.
 abstract final class TransferDialogs {
+  /// İçe aktarılacak yedek dosyasının üst boyut sınırı (25 MB). `withData: true`
+  /// ile dosya belleğe alındığı için sınırsız dosya OOM riski taşır.
+  static const int _maxImportBytes = 25 * 1024 * 1024;
+
   /// Tüm veriyi JSON dosyasına yazip paylaşır (web `exportData`).
   static Future<void> export(BuildContext context, WidgetRef ref) async {
     final user = ref.read(currentUserProvider);
@@ -58,14 +62,23 @@ abstract final class TransferDialogs {
       allowedExtensions: ['json'],
       withData: true,
     );
-    if (result == null || result.files.single.bytes == null) return;
+    if (result == null || result.files.isEmpty) return;
+    // `files.single` boş/çoklu sonuçta `StateError` fırlatıyordu.
+    final picked = result.files.first;
+    if (picked.bytes == null) return;
+    if (picked.size > _maxImportBytes) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('settings.messages.error'.tr())),
+      );
+      return;
+    }
 
     messenger.showSnackBar(
       SnackBar(content: Text('settings.items.importing'.tr())),
     );
 
     try {
-      final bytes = result.files.single.bytes!;
+      final bytes = picked.bytes!;
       final jsonString = String.fromCharCodes(bytes);
       final counts = await ref
           .read(dataTransferRepositoryProvider)

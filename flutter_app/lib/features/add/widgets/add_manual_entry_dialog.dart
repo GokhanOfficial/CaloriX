@@ -57,7 +57,11 @@ class _AddManualEntryDialogState extends ConsumerState<AddManualEntryDialog> {
   static double _parse(String text) =>
       double.tryParse(text.trim().replaceAll(',', '.')) ?? 0;
 
-  bool get _valid => _nameController.text.trim().isNotEmpty;
+  /// Ad dolu **ve** miktar > 0. Miktar 0/boş bırakılırsa tüm besin
+  /// değerleri 0 olarak kaydediliyordu (günlükte 0amlık öğün girdisi).
+  bool get _valid =>
+      _nameController.text.trim().isNotEmpty &&
+      _parse(_amountController.text) > 0;
 
   Future<void> _save() async {
     final user = ref.read(currentUserProvider);
@@ -146,6 +150,7 @@ class _AddManualEntryDialogState extends ConsumerState<AddManualEntryDialog> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d*')),
               ],
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: '${'dialogs.amount'.tr()} (g/ml)',
                 hintText: '100',

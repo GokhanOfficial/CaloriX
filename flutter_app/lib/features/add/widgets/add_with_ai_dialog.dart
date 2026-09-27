@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/camera_preference.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/recognized_food.dart';
 import '../../../data/repositories/recognition_repository.dart';
 import 'in_app_camera_screen.dart';
@@ -56,6 +57,11 @@ class AddWithAiDialog extends ConsumerStatefulWidget {
 enum _Step { input, loading, results }
 
 class _AddWithAiDialogState extends ConsumerState<AddWithAiDialog> {
+  /// Görsel, base64'e çevrilip edge function gövdesine gönderiliyor —
+  /// `maxWidth` yalnızca uzun kenarı sınırlar, dosya boyutu kontrol edilmezse
+  /// istek gövde limitini aşar. 10 MB üstü görsel reddedilir.
+  static const int _maxPhotoBytes = 10 * 1024 * 1024;
+
   final _textController = TextEditingController();
   final _imagePicker = ImagePicker();
   XFile? _photo;
@@ -83,8 +89,9 @@ class _AddWithAiDialogState extends ConsumerState<AddWithAiDialog> {
     } else {
       file = await _imagePicker.pickImage(source: ImageSource.camera, maxWidth: 1600, imageQuality: 85);
     }
+    if (!mounted) return;
 
-    if (file != null) setState(() => _photo = file);
+    if (file != null) await _setPhoto(file);
   }
 
   Future<void> _pickFromGallery() async {
@@ -93,7 +100,24 @@ class _AddWithAiDialogState extends ConsumerState<AddWithAiDialog> {
       maxWidth: 1600,
       imageQuality: 85,
     );
-    if (file != null) setState(() => _photo = file);
+    if (!mounted) return;
+    if (file != null) await _setPhoto(file);
+  }
+
+  /// Seçilen görseli boyut kontrolünden geçirip duruma alır.
+  Future<void> _setPhoto(XFile file) async {
+    if (await file.length() > _maxPhotoBytes) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'dialogs.photoTooLarge'.tr();
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _photo = file;
+      _error = null;
+    });
   }
 
   Future<void> _analyze() async {
@@ -127,7 +151,12 @@ class _AddWithAiDialogState extends ConsumerState<AddWithAiDialog> {
         _step = _Step.results;
         _analyzing = false;
       });
-    } catch (e) {
+    } catch (e, s) {
+      AppLog.e(
+        hasPhoto ? 'AI fotoğraf analizi başarısız' : 'AI metin analizi başarısız',
+        e,
+        s,
+      );
       if (!mounted) return;
       setState(() {
         _step = _Step.input;

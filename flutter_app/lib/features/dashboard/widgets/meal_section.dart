@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/meal_entry.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../add/widgets/add_with_ai_dialog.dart';
 import '../../add/widgets/edit_meal_entry_dialog.dart';
@@ -26,8 +28,12 @@ class MealSections extends ConsumerWidget {
     MealEntry entry,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(diaryRepositoryProvider);
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
     try {
-      await ref.read(diaryRepositoryProvider).deleteMealEntry(entry.id);
+      await repo.deleteMealEntry(user.id, entry.id);
+      if (!context.mounted) return;
       ref.invalidate(dailyDataProvider);
       messenger
         ..hideCurrentSnackBar()
@@ -38,11 +44,13 @@ class MealSections extends ConsumerWidget {
               label: 'common.undo'.tr(),
               onPressed: () async {
                 try {
-                  await ref
-                      .read(diaryRepositoryProvider)
-                      .restoreMealEntry(entry.id);
+                  // `ref` dispose sonrası kullanılamaz; repository'yi önceden
+                  // yakaladık, invalidate'i yalnızca widget yaşarken yap.
+                  await repo.restoreMealEntry(user.id, entry.id);
+                  if (!context.mounted) return;
                   ref.invalidate(dailyDataProvider);
-                } catch (_) {
+                } catch (e, s) {
+                  AppLog.e('Öğün girdisi geri alınamadı: ${entry.id}', e, s);
                   messenger.hideCurrentSnackBar();
                   messenger.showSnackBar(
                     SnackBar(content: Text('dashboard.errorDelete'.tr())),
@@ -52,7 +60,8 @@ class MealSections extends ConsumerWidget {
             ),
           ),
         );
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Öğün girdisi silinemedi: ${entry.id}', e, s);
       messenger.showSnackBar(
         SnackBar(content: Text('dashboard.errorDelete'.tr())),
       );
@@ -65,7 +74,7 @@ class MealSections extends ConsumerWidget {
     MealEntry entry,
   ) async {
     final saved = await EditMealEntryDialog.show(context, entry: entry);
-    if (saved) ref.invalidate(dailyDataProvider);
+    if (saved && context.mounted) ref.invalidate(dailyDataProvider);
   }
 
   @override

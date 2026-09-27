@@ -96,8 +96,8 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
           Expanded(
             child: dataAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text('${'common.error'.tr()}: $e'),
+              error: (e, _) => _ErrorView(
+                onRetry: () => ref.invalidate(analyticsDataProvider(locale)),
               ),
               data: (data) {
                 if (focus != null) _maybeScrollToFocus();
@@ -172,6 +172,38 @@ class _Targets {
 }
 
 // ---------------------------------------------------------------------------
+// Hata durumu — retry butonu (dashboard `_ErrorBody` ile aynı davranış).
+// ---------------------------------------------------------------------------
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('common.error'.tr(), textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          FilledButton.tonal(
+            onPressed: onRetry,
+            child: Text('common.resend'.tr()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hedef yüzdesi — hedef 0/NaN/negatifse 0 (sıfıra bölme koruması).
+int _percent(num value, num target) {
+  if (target <= 0 || target.isNaN) return 0;
+  return (value / target * 100).round();
+}
+
+// ---------------------------------------------------------------------------
 // 4 istatistik kartı (web renk kuralları parity)
 // ---------------------------------------------------------------------------
 class _StatGrid extends StatelessWidget {
@@ -184,10 +216,10 @@ class _StatGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final avg = data.averages;
 
-    final calPercent =
-        (avg.avgCalories / targets.calories * 100).round();
-    final waterPercent = (avg.avgWater / targets.water * 100).round();
-    final proteinPercent = (avg.avgProtein / targets.protein * 100).round();
+    // Hedef 0/NaN olabilir (bozuk profil satırı) → bölmeden 0 döndür.
+    final calPercent = _percent(avg.avgCalories, targets.calories);
+    final waterPercent = _percent(avg.avgWater, targets.water);
+    final proteinPercent = _percent(avg.avgProtein, targets.protein);
 
     final trend = data.weightTrend;
     final first = trend.isNotEmpty ? trend.first.weight : null;
@@ -483,12 +515,13 @@ class _FocusedMacroChartCard extends StatelessWidget {
                     touchTooltipData: LineTouchTooltipData(
                       getTooltipItems: (touched) => [
                         for (final t in touched)
-                          LineTooltipItem(
-                            '%${t.y.round()} '
-                            '(${_pick(stats[t.x.toInt()]).value.toStringAsFixed(1)}g)',
-                            theme.textTheme.bodySmall!
-                                .copyWith(color: theme.colorScheme.onSurface),
-                          ),
+                          if (t.x.toInt() >= 0 && t.x.toInt() < stats.length)
+                            LineTooltipItem(
+                              '%${t.y.round()} '
+                              '(${_pick(stats[t.x.toInt()]).value.toStringAsFixed(1)}g)',
+                              theme.textTheme.bodySmall!
+                                  .copyWith(color: theme.colorScheme.onSurface),
+                            ),
                       ],
                     ),
                   ),
@@ -544,7 +577,8 @@ class _CaloriesChartCard extends StatelessWidget {
       for (var i = 0; i < stats.length; i++)
         FlSpot(
           i.toDouble(),
-          (stats[i].calories / targets.calories * 100).roundToDouble(),
+          (stats[i].calories / (targets.calories > 0 ? targets.calories : 1) * 100)
+              .roundToDouble(),
         ),
     ];
     final maxY = spots.isEmpty
@@ -636,11 +670,12 @@ class _CaloriesChartCard extends StatelessWidget {
                     touchTooltipData: LineTouchTooltipData(
                       getTooltipItems: (touched) => [
                         for (final t in touched)
-                          LineTooltipItem(
-                            '%${t.y.round()} (${stats[t.x.toInt()].calories} kcal)',
-                            theme.textTheme.bodySmall!
-                                .copyWith(color: theme.colorScheme.onSurface),
-                          ),
+                          if (t.x.toInt() >= 0 && t.x.toInt() < stats.length)
+                            LineTooltipItem(
+                              '%${t.y.round()} (${stats[t.x.toInt()].calories} kcal)',
+                              theme.textTheme.bodySmall!
+                                  .copyWith(color: theme.colorScheme.onSurface),
+                            ),
                       ],
                     ),
                   ),
@@ -693,17 +728,22 @@ class _MacrosChartCard extends StatelessWidget {
     final theme = Theme.of(context);
     final stats = data.dailyStats;
 
+    // Hedef 0/negatifse grafik yüzdeleri 0 (sıfıra bölme koruması).
+    final pTarget = targets.protein > 0 ? targets.protein : 1.0;
+    final cTarget = targets.carbs > 0 ? targets.carbs : 1.0;
+    final fTarget = targets.fat > 0 ? targets.fat : 1.0;
+
     final groups = <BarChartGroupData>[
       for (var i = 0; i < stats.length; i++)
         BarChartGroupData(
           x: i,
           barsSpace: 2,
           barRods: [
-            _rod((stats[i].protein / targets.protein * 100).roundToDouble(),
+            _rod((stats[i].protein / pTarget * 100).roundToDouble(),
                 AppColors.macroProtein),
-            _rod((stats[i].carbs / targets.carbs * 100).roundToDouble(),
+            _rod((stats[i].carbs / cTarget * 100).roundToDouble(),
                 AppColors.macroCarbs),
-            _rod((stats[i].fat / targets.fat * 100).roundToDouble(),
+            _rod((stats[i].fat / fTarget * 100).roundToDouble(),
                 AppColors.macroFat),
           ],
         ),
@@ -713,9 +753,9 @@ class _MacrosChartCard extends StatelessWidget {
         : <double>[
             150.0,
             ...stats.expand((s) => [
-                  (s.protein / targets.protein * 100).roundToDouble(),
-                  (s.carbs / targets.carbs * 100).roundToDouble(),
-                  (s.fat / targets.fat * 100).roundToDouble(),
+                  (s.protein / pTarget * 100).roundToDouble(),
+                  (s.carbs / cTarget * 100).roundToDouble(),
+                  (s.fat / fTarget * 100).roundToDouble(),
                   20.0,
                 ])
           ].reduce((a, b) => a > b ? a : b);

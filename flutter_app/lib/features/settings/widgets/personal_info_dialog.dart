@@ -59,6 +59,38 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
   static double _parse(String t, double fallback) =>
       double.tryParse(t.trim().replaceAll(',', '.')) ?? fallback;
 
+  /// Fiziksel olarak anlamlı aralıklar — 0/negatif boy kilo BMR, VKİ ve
+  /// makro hedeflerini bozuyordu (kilo 0 → BMR negatif, hedef 1200'e düşer).
+  static const double _minHeightCm = 50;
+  static const double _maxHeightCm = 250;
+  static const double _minWeightKg = 20;
+  static const double _maxWeightKg = 400;
+
+  static double _clamp(double v, double min, double max) =>
+      v.isNaN ? min : v.clamp(min, max);
+
+  double _heightCm() =>
+      _clamp(_parse(_height.text, 170), _minHeightCm, _maxHeightCm);
+
+  double _weightKg() =>
+      _clamp(_parse(_weight.text, 70), _minWeightKg, _maxWeightKg);
+
+  double _targetWeightKg() =>
+      _clamp(_parse(_target.text, 70), _minWeightKg, _maxWeightKg);
+
+  /// Kaydet butonu için aralık kontrolü (sınırsız değer DB'ye yazılmasın).
+  bool get _valid {
+    final h = _parse(_height.text, double.nan);
+    final w = _parse(_weight.text, double.nan);
+    final t = _parse(_target.text, double.nan);
+    return h >= _minHeightCm &&
+        h <= _maxHeightCm &&
+        w >= _minWeightKg &&
+        w <= _maxWeightKg &&
+        t >= _minWeightKg &&
+        t <= _maxWeightKg;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -75,10 +107,7 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
     super.dispose();
   }
 
-  double get _bmi => Calculations.bmi(
-        _parse(_weight.text, 70),
-        _parse(_height.text, 170),
-      );
+  double get _bmi => Calculations.bmi(_weightKg(), _heightCm());
 
   Color _bmiColor(String color) => switch (color) {
         'success' => AppColors.success,
@@ -102,7 +131,10 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
     final p = widget.profile;
-    final newWeight = _parse(_weight.text, p?.currentWeightKg ?? 70);
+    if (!_valid) return;
+    final newWeight = _weightKg();
+    final heightCm = _heightCm();
+    final targetWeightKg = _targetWeightKg();
 
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -113,9 +145,9 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
             ? null
             : DateFormat('yyyy-MM-dd').format(_birthDate!),
         'gender': _gender.name,
-        'height_cm': _parse(_height.text, p?.heightCm ?? 170),
+        'height_cm': heightCm,
         'current_weight_kg': newWeight,
-        'target_weight_kg': _parse(_target.text, p?.targetWeightKg ?? 70),
+        'target_weight_kg': targetWeightKg,
       };
 
       // Otomatik makro yeniden hesaplama (web savePersonalInfo parity).
@@ -127,9 +159,9 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
           final goals = await ref.read(macroCalculatorProvider).calculate(
                 age: Calculations.age(_birthDate!),
                 gender: _gender,
-                heightCm: _parse(_height.text, p.heightCm ?? 170),
+                heightCm: heightCm,
                 currentWeightKg: newWeight,
-                targetWeightKg: _parse(_target.text, p.targetWeightKg ?? 70),
+                targetWeightKg: targetWeightKg,
                 activityLevel:
                     ActivityLevel.values.asNameMap()[p.activityLevel] ??
                         ActivityLevel.moderate,
@@ -272,6 +304,7 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
             ],
             decoration: InputDecoration(
                 labelText: 'settings.personalInfo.targetWeight'.tr()),
+            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
           // Canlı VKİ göstergesi (web parity).
@@ -306,7 +339,7 @@ class _PersonalInfoDialogState extends ConsumerState<PersonalInfoDialog> {
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed: _saving ? null : _save,
+                onPressed: _saving || !_valid ? null : _save,
                 child: _saving
                     ? const SizedBox(
                         width: 18,

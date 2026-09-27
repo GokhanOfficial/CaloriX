@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,7 @@ import 'widgets/notifications_dialog.dart';
 import 'widgets/password_dialog.dart';
 import 'widgets/personal_info_dialog.dart';
 import 'widgets/transfer_dialogs.dart';
+import 'widgets/widget_settings_dialog.dart';
 
 /// Ayarlar — web `SettingsPage.tsx` karşılığı.
 ///
@@ -84,6 +86,17 @@ class SettingsPage extends ConsumerWidget {
                 const _LanguageTile(),
                 const Divider(height: 1),
                 const _CameraTile(),
+                // Widget'lar — yalnızca Android (native ana ekran widget'ı).
+                if (!kIsWeb &&
+                    Theme.of(context).platform == TargetPlatform.android) ...[
+                  const Divider(height: 1),
+                  _Tile(
+                    icon: Icons.widgets_outlined,
+                    title: 'settings.widgets.title'.tr(),
+                    subtitle: 'settings.widgets.desc'.tr(),
+                    onTap: () => WidgetSettingsDialog.show(context),
+                  ),
+                ],
               ],
             ),
           ),
@@ -205,8 +218,16 @@ class SettingsPage extends ConsumerWidget {
   }
 
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    await ref.read(authRepositoryProvider).signOut();
-    // Router redirect (authState) /auth'a yönlendirir.
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+      // Router redirect (authState) /auth'a yönlendirir.
+    } catch (_) {
+      // Sessizce yutuluyordu — kullanıcı hiçbir geri bildirim almıyordu.
+      messenger.showSnackBar(
+        SnackBar(content: Text('settings.messages.error'.tr())),
+      );
+    }
   }
 }
 

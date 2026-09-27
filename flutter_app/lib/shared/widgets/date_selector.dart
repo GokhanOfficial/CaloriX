@@ -15,7 +15,7 @@ class DateSelector extends ConsumerWidget {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  String _label(DateTime date) {
+  String _label(BuildContext context, DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     if (_isSameDay(date, today)) return 'common.today'.tr();
@@ -25,7 +25,8 @@ class DateSelector extends ConsumerWidget {
     if (_isSameDay(date, today.add(const Duration(days: 1)))) {
       return 'common.tomorrow'.tr();
     }
-    return DateFormat('d MMMM').format(date);
+    // Ay adı aktif dile göre çevrilir (sabit 'd MMMM' → her dilde İngilizce).
+    return DateFormat.yMMMMd(context.locale.languageCode).format(date);
   }
 
   Future<void> _pickDate(BuildContext context, WidgetRef ref) async {
@@ -73,7 +74,7 @@ class DateSelector extends ConsumerWidget {
                 const Icon(Icons.calendar_today, size: 16),
                 const SizedBox(width: 8),
                 Text(
-                  _label(date),
+                  _label(context, date),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 if (!isToday) ...[

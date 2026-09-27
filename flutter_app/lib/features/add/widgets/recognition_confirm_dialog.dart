@@ -164,7 +164,8 @@ class _RecognitionConfirmBodyState
     _rows = widget.foods.map(_FoodRow.new).toList();
   }
 
-  int get _selectedCount => _rows.where((r) => r.selected).length;
+  int get _selectedCount =>
+      _rows.where((r) => r.selected && r.amount > 0).length;
 
   ({int kcal, double protein, double carbs, double fat}) _rowCalc(_FoodRow r) {
     final kcal = (r.calories * r.amount / 100).round();
@@ -179,7 +180,7 @@ class _RecognitionConfirmBodyState
   ({int kcal, double protein, double carbs, double fat}) get _total {
     var kcal = 0, p = 0.0, c = 0.0, f = 0.0;
     for (final r in _rows) {
-      if (!r.selected) continue;
+      if (!r.selected || r.amount <= 0) continue;
       final v = _rowCalc(r);
       kcal += v.kcal;
       p += v.protein;
@@ -200,7 +201,11 @@ class _RecognitionConfirmBodyState
     final date = ref.read(selectedDateProvider);
     final entryDate = formatEntryDate(date);
 
-    final selected = _rows.where((r) => r.selected).toList();
+    // Miktarı 0 (veya geçersiz) satırlar kaydedilmez — 0amlık kayıt günlüğü
+    // bozar. Kullanıcı satırı seçmeyi bırakmadıysa uyarı gösterilir.
+    final selected =
+        _rows.where((r) => r.selected && r.amount > 0).toList();
+    if (selected.isEmpty) return;
     var added = 0;
 
     try {
@@ -502,12 +507,22 @@ class _FoodRowTileState extends State<_FoodRowTile> {
                 ],
               ),
               const SizedBox(height: 10),
-              // Miktar — belirgin, tam genişlik.
+              // Miktar — belirgin, tam genişlik. 0 girilirse kayıt 0amlık
+              // olurdu; bu yüzden hem uyarı hem de satırı kayıttan çıkarma.
               NumField(
                 controller: _amountController,
                 label: 'dialogs.amount'.tr(),
                 suffix: 'g/ml',
               ),
+              if (r.amount <= 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'dialogs.amountRequired'.tr(),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ),
               const SizedBox(height: 8),
               // 100g başına makrolar — tek satırda 4 eşit kompakt alan
               // (eski Wrap/2×2 yerine, daha düzenli).

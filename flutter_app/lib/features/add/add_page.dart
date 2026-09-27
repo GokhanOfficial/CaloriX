@@ -43,6 +43,12 @@ class _AddPageState extends ConsumerState<AddPage> {
   void initState() {
     super.initState();
     _selectedMeal = widget.initialMealType ?? MealType.defaultForNow();
+    // `_debouncedQueryProvider` sayfa ömrü boyunca yaşar; önceki ziyaretteki
+    // arama kalıntısı "son eklenenler" listesini gizliyordu.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(_debouncedQueryProvider.notifier).state = '';
+    });
   }
 
   @override
@@ -55,6 +61,7 @@ class _AddPageState extends ConsumerState<AddPage> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
       ref.read(_debouncedQueryProvider.notifier).state = value.trim();
     });
   }

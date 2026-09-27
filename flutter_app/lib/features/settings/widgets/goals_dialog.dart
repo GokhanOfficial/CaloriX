@@ -70,7 +70,13 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
   // integer: "2500.0"` → 400. Bu yüzden int (round) döndür.
   static int _parse(String t, num fallback) =>
       (double.tryParse(t.trim().replaceAll(',', '.')) ?? fallback.toDouble())
-          .round();
+          .round()
+          .clamp(_min, _max);
+
+  /// Hedef alanlarının kabul edilen aralığı — DB'ye absurd değer yazmayı
+  /// (0 kalori, 10^9 protein) ve UI'ın yanıltıcı yüzde göstermesini engeller.
+  static const int _min = 0;
+  static const int _max = 100000;
 
   @override
   void dispose() {
@@ -265,6 +271,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
     return TextField(
       controller: c,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      // `double.tryParse` geçersiz girdide `null` döndürüp alanı sessizce
+      // varsayılan değere yazıyordu; burada yalnızca rakut/tek ayraç girilir.
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
       decoration: InputDecoration(labelText: label),
     );

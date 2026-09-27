@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 
@@ -55,7 +56,8 @@ class WaterTracker extends ConsumerWidget {
           ),
         );
       }
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Su kaydı eklenemedi (${amount.round()} ml)', e, s);
       messenger.showSnackBar(
         SnackBar(content: Text('common.error'.tr())),
       );
@@ -63,32 +65,13 @@ class WaterTracker extends ConsumerWidget {
   }
 
   Future<void> _addCustom(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController();
+    // Controller dialogun kendi State'inde — dışarıda yaratılıp bırakılan
+    // controller bellek sızdırıyordu.
     final amount = await showDialog<double>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('dashboard.custom'.tr()),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(suffixText: 'ml'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('common.cancel'.tr()),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, double.tryParse(controller.text)),
-            child: Text('common.save'.tr()),
-          ),
-        ],
-      ),
+      builder: (context) => const _WaterInputDialog(),
     );
-    if (amount != null && amount > 0 && context.mounted) {
+    if (amount != null && amount > 0 && amount <= 5000 && context.mounted) {
       await _addWater(context, ref, amount);
     }
   }
@@ -165,6 +148,49 @@ class WaterTracker extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Özel su miktarı giriş dialogu — controller'ı kendi State'inde tutar.
+class _WaterInputDialog extends StatefulWidget {
+  const _WaterInputDialog();
+
+  @override
+  State<_WaterInputDialog> createState() => _WaterInputDialogState();
+}
+
+class _WaterInputDialogState extends State<_WaterInputDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('dashboard.custom'.tr()),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(suffixText: 'ml'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('common.cancel'.tr()),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.pop(context, double.tryParse(_controller.text)),
+          child: Text('common.save'.tr()),
+        ),
+      ],
     );
   }
 }

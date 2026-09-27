@@ -68,7 +68,9 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
     super.dispose();
   }
 
-  double get _amount => double.tryParse(_amountController.text) ?? 0;
+  /// Virgül girişini de kabul et (`add_manual_entry_dialog` parity).
+  double get _amount =>
+      double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
 
   Future<void> _save() async {
     final user = ref.read(currentUserProvider);
@@ -144,8 +146,13 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
             const SizedBox(height: 16),
             TextField(
               controller: _amountController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              // Ondalık giriş mümkündü (`food.forAmount` double bekliyor) ama
+              // `digitsOnly` noktayı filtreleyip 12.5 → 125'e dönüştürüyordu.
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d*')),
+              ],
               decoration: InputDecoration(
                 labelText: 'dialogs.amount'.tr(),
                 suffixText: 'g/ml',

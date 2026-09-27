@@ -86,11 +86,15 @@ class _AuthPageState extends ConsumerState<AuthPage>
     return null;
   }
 
-  void _setLoading(bool v) => setState(() => _isLoading = v);
+  void _setLoading(bool v) {
+    if (!mounted) return;
+    setState(() => _isLoading = v);
+  }
 
   // ---- aksiyonlar --------------------------------------------------------
 
   Future<void> _handleSignIn() async {
+    if (_isLoading) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _setLoading(true);
     final err = await _auth.signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
@@ -118,6 +122,7 @@ class _AuthPageState extends ConsumerState<AuthPage>
   }
 
   Future<void> _handleSignUp() async {
+    if (_isLoading) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _setLoading(true);
     final err = await _auth.signUp(
@@ -152,6 +157,7 @@ class _AuthPageState extends ConsumerState<AuthPage>
   }
 
   Future<void> _handleForgotPassword() async {
+    if (_isLoading) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     _setLoading(true);
     final err = await _auth.resetPassword(_emailCtrl.text.trim());
@@ -167,6 +173,7 @@ class _AuthPageState extends ConsumerState<AuthPage>
   }
 
   Future<void> _handleResetPassword() async {
+    if (_isLoading) return;
     final newPw = _newPasswordCtrl.text;
     if (newPw.length < 6) {
       _toast('auth.validation.passwordLength'.tr(), isError: true);

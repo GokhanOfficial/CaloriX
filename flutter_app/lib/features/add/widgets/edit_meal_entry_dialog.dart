@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/meal_entry.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../../data/repositories/food_repository.dart';
 import '../../../shared/widgets/number_fields.dart';
@@ -96,10 +97,15 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
     super.dispose();
   }
 
-  bool get _valid => _nameController.text.trim().isNotEmpty;
+  /// Kaydet için: ad dolu **ve** miktar > 0. Miktar 0 iken tüm makrolar 0'a
+  /// düşüyor ve kayıt sessizce bozuluyordu.
+  bool get _valid =>
+      _nameController.text.trim().isNotEmpty && _amount > 0;
+
+  double get _amount => _parse(_amountController.text);
 
   ({double kcal, double protein, double carbs, double fat}) get _calc {
-    final amount = _parse(_amountController.text);
+    final amount = _amount;
     final k = (_parse(_kcalController.text) * amount / 100);
     final p = (_parse(_proteinController.text) * amount / 100);
     final c = (_parse(_carbsController.text) * amount / 100);
@@ -113,15 +119,17 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
   }
 
   Future<void> _save() async {
-    if (!_valid || _saving) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null || !_valid || _saving) return;
     setState(() => _saving = true);
 
     final messenger = ScaffoldMessenger.of(context);
-    final amount = _parse(_amountController.text);
+    final amount = _amount;
     final calc = _calc;
 
     try {
       await ref.read(diaryRepositoryProvider).updateMealEntry(
+            user.id,
             widget.entry.id,
             {
               'custom_name': _nameController.text.trim(),
@@ -190,6 +198,7 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d*')),
               ],
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: '${'dialogs.amount'.tr()} (g/ml)',
                 border: const OutlineInputBorder(),

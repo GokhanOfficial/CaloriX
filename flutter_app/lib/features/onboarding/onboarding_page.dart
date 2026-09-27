@@ -1,11 +1,13 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/calculations.dart';
+import '../../data/models/profile.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/macro_calculator.dart';
 import '../../data/repositories/profile_repository.dart';
@@ -72,13 +74,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         }
         break;
       case 2:
-        if (_height < 100 || _height > 250) {
+        if (_height < 50 || _height > 250) {
           _errors['height'] = 'Boy 100-250 cm arasında olmalı';
         }
-        if (_weight < 30 || _weight > 300) {
+        if (_weight < 20 || _weight > 400) {
           _errors['weight'] = 'Kilo 30-300 kg arasında olmalı';
         }
-        if (_targetWeight < 30 || _targetWeight > 300) {
+        if (_targetWeight < 20 || _targetWeight > 400) {
           _errors['targetWeight'] = 'Hedef kilo 30-300 kg arasında olmalı';
         }
         break;
@@ -115,55 +117,79 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     });
 
     final calc = ref.read(macroCalculatorProvider);
-    final result = await calc.calculate(
-      age: Calculations.age(_birthDate!),
-      gender: _gender,
-      heightCm: _height,
-      currentWeightKg: _weight,
-      targetWeightKg: _targetWeight,
-      activityLevel: _activity,
-      goal: _goal,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _goals = result;
-      _hasCalculated = true;
-      _isCalculating = false;
-    });
+    try {
+      final result = await calc.calculate(
+        age: Calculations.age(_birthDate!),
+        gender: _gender,
+        heightCm: _height,
+        currentWeightKg: _weight,
+        targetWeightKg: _targetWeight,
+        activityLevel: _activity,
+        goal: _goal,
+      );
+      if (!mounted) return;
+      setState(() {
+        _goals = result;
+        _hasCalculated = true;
+        _isCalculating = false;
+      });
+    } catch (_) {
+      // Hesaplama başarısız: spinner sonsuza dek sürmesin, özet adımı
+      // "Hesaplama Başarısız" durumunu göstersin ve kullanıcı geri
+      // dönüp tekrar deneyebilsin.
+      if (!mounted) return;
+      setState(() {
+        _goals = null;
+        _hasCalculated = false;
+        _isCalculating = false;
+      });
+    }
   }
 
   Future<void> _handleComplete() async {
     final user = ref.read(currentUserProvider);
     final goals = _goals;
-    if (user == null || goals == null) return;
+    final birthDate = _birthDate;
+    if (user == null || goals == null || birthDate == null) return;
 
     setState(() => _isSaving = true);
     final repo = ref.read(profileRepositoryProvider);
-    final updated = await repo.update(user.id, {
-      'display_name': _nameCtrl.text.trim(),
-      'birth_date': _birthDate!.toIso8601String().split('T').first,
-      'gender': _gender.name,
-      'height_cm': _height,
-      'current_weight_kg': _weight,
-      'target_weight_kg': _targetWeight,
-      'activity_level': _activity.name,
-      'goal': _goal.name,
-      'bmr': goals.bmr,
-      'tdee': goals.tdee,
-      'daily_calorie_target': goals.calories,
-      'protein_target_g': goals.protein,
-      'carbs_target_g': goals.carbs,
-      'fat_target_g': goals.fat,
-      'daily_water_target_ml': goals.waterTarget,
-      'onboarding_completed': true,
-    });
+    final messenger = ScaffoldMessenger.of(context);
+    Profile? updated;
+    try {
+      updated = await repo.update(user.id, {
+        'display_name': _nameCtrl.text.trim(),
+        'birth_date': birthDate.toIso8601String().split('T').first,
+        'gender': _gender.name,
+        'height_cm': _height,
+        'current_weight_kg': _weight,
+        'target_weight_kg': _targetWeight,
+        'activity_level': _activity.name,
+        'goal': _goal.name,
+        'bmr': goals.bmr,
+        'tdee': goals.tdee,
+        'daily_calorie_target': goals.calories,
+        'protein_target_g': goals.protein,
+        'carbs_target_g': goals.carbs,
+        'fat_target_g': goals.fat,
+        'daily_water_target_ml': goals.waterTarget,
+        'onboarding_completed': true,
+      });
+    } catch (_) {
+      // Ağ/DB hatası: `_isSaving` sonsuza dek true kalıp butonu kilitlerdi.
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Profil kaydedilirken bir hata oluştu')),
+      );
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
     if (updated == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Profil kaydedilirken bir hata oluştu')),
       );
       return;
@@ -341,6 +367,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     return TextField(
       controller: c,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      // `double.tryParse` "abc" ve "1e5" gibi girdilerde null döndürür ve
+      // alan `0` kabul edilirdi; filtre yalnızca rakut/tek ayraç bırakır.
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+      ],
       onChanged: (_) => setState(() {}),
       decoration: InputDecoration(labelText: label, errorText: _errors[errKey]),
     );

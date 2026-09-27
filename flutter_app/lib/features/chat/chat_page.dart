@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../data/models/chat_message.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../core/observability/app_logger.dart';
 
 /// AI sohbet sayfası — web `ChatPage.tsx` karşılığı.
 ///
@@ -30,6 +31,11 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
+  /// Gönderilebilir maksimum ek boyutu (10 MB). Storage'a yüklenen dosya
+  /// `chat-attachments` bucket'ına gider; sınırsız boyut bellek taşması ve
+  /// yavaş yükleme yaratır.
+  static const int _maxAttachmentBytes = 10 * 1024 * 1024;
+
   final _scrollController = ScrollController();
   final _inputController = TextEditingController();
   final _imagePicker = ImagePicker();
@@ -40,6 +46,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   bool _loadingMore = false;
   bool _hasMore = true;
   bool _sending = false;
+
+  /// Geçmiş yüklenemediyse boş "hoş geldiniz" ekranı yerine hata durumu
+  /// + retry gösterilir; aksi halde kullanıcı verinin bozuk olduğunu
+  /// sanar ve mesajını gönderemez (`_threadId` null → gönderim no-op).
+  bool _loadFailed = false;
 
   /// Seçili ama henüz gönderilmemiş ek dosyaları (web `selectedFiles`).
   final List<_PendingAttachment> _pendingFiles = [];
@@ -63,21 +74,26 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   Future<void> _loadInitial() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadFailed = false;
+    });
     try {
       final threadId =
           await ref.read(chatRepositoryProvider).ensureThread(user.id);
+      if (!mounted) return;
       _threadId = threadId;
       ref.read(activeChatThreadIdProvider.notifier).state = threadId;
       final result =
           await ref.read(chatRepositoryProvider).loadInitial(user.id, threadId);
+      if (!mounted) return;
       _messages = result.messages;
       _hasMore = result.hasMore;
-      if (mounted) {
-        setState(() {});
-        _scrollToBottom();
-      }
-    } catch (e) {
+      setState(() {});
+      _scrollToBottom();
+    } catch (e, s) {
+      AppLog.e('Sohbet geçmişi yüklenemedi', e, s);
+      if (mounted) setState(() => _loadFailed = true);
       _showError('chat.errors.load'.tr());
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -113,7 +129,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           );
         });
       }
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Sohbet mesajları yüklenemedi (sayfalama)', e, s);
       _showError('chat.errors.loadMore'.tr());
     } finally {
       if (mounted) setState(() => _loadingMore = false);
@@ -160,12 +177,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             files: files,
           );
 
-      setState(() {
-        _messages = [..._messages, saved];
-        _inputController.clear();
-        _pendingFiles.clear();
-      });
-      _scrollToBottom();
+      if (mounted) {
+        setState(() {
+          _messages = [..._messages, saved];
+          _inputController.clear();
+          _pendingFiles.clear();
+        });
+        _scrollToBottom();
+      }
 
       final assistant = await ref.read(chatRepositoryProvider).invokeAssistant(
             threadId: _threadId!,
@@ -175,11 +194,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             currentDate: ChatRepository.localDateOnly(DateTime.now()),
           );
 
+      if (!mounted) return;
       if (assistant != null) {
         setState(() => _messages = [..._messages, assistant]);
         _scrollToBottom();
       }
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Sohbet mesajı gönderilemedi', e, s);
       _showError('chat.errors.send'.tr());
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -196,7 +217,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       });
       ref.read(activeChatThreadIdProvider.notifier).state = null;
       await _loadInitial();
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Sohbet thread\'i arşivlenemedi', e, s);
       _showError('chat.errors.clear'.tr());
     }
   }
@@ -210,6 +232,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       );
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
+      // Boyut sınırı: base64'e çevrilip edge function gövdesine gönderilen
+      // ham byte sınırsız büyürse istek bellek/ağ limitlerini aşar. `maxWidth`
+      // yalnızca uzun kenarı sınırlar; dosya boyutu yine de kontrol edilir.
+      if (bytes.length > _maxAttachmentBytes) {
+        if (!mounted) return;
+        _showError('${'chat.errors.send'.tr()} '
+            '(max. ${_maxAttachmentBytes ~/ (1024 * 1024)} MB)');
+        return;
+      }
       final name = picked.name.split('/').last;
       final mime = _mimeTypeForPath(name);
       setState(() => _pendingFiles.add(_PendingAttachment(
@@ -217,7 +248,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             name: name,
             mimeType: mime,
           )));
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Sohbet eki seçilemedi', e, s);
       _showError('chat.errors.send'.tr());
     }
   }
@@ -283,7 +315,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 ),
                 child: _loading
                     ? const _ChatSkeleton()
-                    : ListView.builder(
+                    : _loadFailed && _messages.isEmpty
+                        ? _LoadErrorBody(onRetry: _loadInitial)
+                        : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(12),
                         itemCount: visible.length + (_loadingMore ? 1 : 0) +
@@ -417,6 +451,36 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         userId: ref.read(currentUserProvider)?.id ?? 'system',
         content: 'chat.welcomeMessage'.tr(),
       );
+}
+
+/// Sohbet geçmişi yüklenemedi — boş sohbet yerine hata + retry gösterilir.
+class _LoadErrorBody extends StatelessWidget {
+  const _LoadErrorBody({required this.onRetry});
+
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 48,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 12),
+          Text('chat.errors.load'.tr(), textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          FilledButton.tonal(
+            onPressed: onRetry,
+            child: Text('common.resend'.tr()),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Asistan mesajı için hoş geldiniz metni (boş liste durumunda).

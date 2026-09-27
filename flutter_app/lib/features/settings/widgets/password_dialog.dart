@@ -62,16 +62,19 @@ class _PasswordDialogState extends ConsumerState<PasswordDialog> {
       final err = await ref
           .read(authRepositoryProvider)
           .updatePassword(_new.text);
+      if (!mounted) return;
       if (err != null) {
         messenger.showSnackBar(
           SnackBar(content: Text('settings.messages.error'.tr())),
         );
         return;
       }
-      if (mounted) Navigator.of(context).pop();
+      // Önce SnackBar, sonra pop: `pop` sonrasında bu dialog'un context'i
+      // kullanılamaz hale geliyordu.
       messenger.showSnackBar(
         SnackBar(content: Text('settings.messages.passwordChanged'.tr())),
       );
+      Navigator.of(context).pop();
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('settings.messages.error'.tr())),

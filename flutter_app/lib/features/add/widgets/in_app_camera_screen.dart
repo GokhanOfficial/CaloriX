@@ -5,6 +5,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/observability/app_logger.dart';
+
 /// Uygulama içi kamera ekranı — tam ekran kamera deneyimi.
 ///
 /// Akış (Faz 4 planı §1):
@@ -54,7 +56,9 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
+    final c = _controller;
+    _controller = null;
+    c?.dispose();
     super.dispose();
   }
 
@@ -63,6 +67,10 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
+      // Controller dispose edilirken `_controller` null yapılır; aksi halde
+      // `_viewfinder` dispose edilmiş bir controller'a erişip patlıyordu.
+      _controller = null;
+      _ready = false;
       c.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
@@ -70,6 +78,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
   }
 
   Future<void> _initCamera() async {
+    if (!mounted) return;
     if (widget._availableCameras.isEmpty) {
       setState(() => _error = 'chat.errors.load'.tr());
       return;
@@ -80,28 +89,34 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
       orElse: () => widget._availableCameras.first,
     );
 
-    _controller = CameraController(
+    final controller = CameraController(
       desc,
       ResolutionPreset.high,
       enableAudio: false,
     );
+    _controller = controller;
 
     try {
-      await _controller!.initialize();
-      if (mounted) setState(() => _ready = true);
-    } on CameraException catch (e) {
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() => _ready = true);
+    } on CameraException catch (e, s) {
       // İzin reddi veya donanım hatası — çağıran native'e düşer.
+      AppLog.e('Kamera başlatılamadı', e, s);
       if (mounted) setState(() => _error = e.description ?? 'common.error'.tr());
     }
   }
 
   Future<void> _toggleFlash() async {
     final c = _controller;
-    if (c == null) return;
+    if (c == null || !c.value.isInitialized) return;
     final next = _flash == FlashMode.off ? FlashMode.auto : FlashMode.off;
     try {
       await c.setFlashMode(next);
-      setState(() => _flash = next);
+      if (mounted) setState(() => _flash = next);
     } on CameraException {
       // Cihaz desteklemiyorsa sessizce yok say.
     }
@@ -114,7 +129,8 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
     try {
       final file = await c.takePicture();
       if (mounted) setState(() => _captured = file);
-    } on CameraException catch (e) {
+    } on CameraException catch (e, s) {
+      AppLog.e('Fotoğraf çekilemedi', e, s);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.description ?? 'common.error'.tr())),
@@ -158,7 +174,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
         retryLabel: 'common.close'.tr(),
       );
     }
-    if (!_ready || _controller == null) {
+    if (!_ready || _controller == null || !_controller!.value.isInitialized) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
       );
@@ -179,12 +195,14 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
               children: [
                 _CircleButton(
                   icon: Icons.close,
+                  tooltip: 'common.close'.tr(),
                   onTap: () => Navigator.of(context).pop(null),
                 ),
                 _CircleButton(
                   icon: _flash == FlashMode.off
                       ? Icons.flash_off
                       : Icons.flash_auto,
+                  tooltip: 'dialogs.flash'.tr(),
                   onTap: _toggleFlash,
                 ),
               ],
@@ -258,9 +276,12 @@ class _ShutterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: capturing ? null : onTap,
-      child: Container(
+    return Semantics(
+      button: true,
+      label: 'dialogs.takePhoto'.tr(),
+      child: GestureDetector(
+        onTap: capturing ? null : onTap,
+        child: Container(
         width: 72,
         height: 72,
         decoration: BoxDecoration(
@@ -283,28 +304,44 @@ class _ShutterButton extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
+        ),
       ),
     );
   }
 }
 
 class _CircleButton extends StatelessWidget {
-  const _CircleButton({required this.icon, required this.onTap});
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
 
+  /// İkon-only buton — ekran okuyucu/tooltip etiketi (`dialogs.flash`
+  /// anahtarı JSON'da yok, bkz. RAPOR-A4 AKTARIM).
+  final String tooltip;
+
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.4),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: Colors.white),
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.4),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Icon(icon, color: Colors.white),
+            ),
+          ),
         ),
       ),
     );

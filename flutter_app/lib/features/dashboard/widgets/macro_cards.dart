@@ -144,9 +144,13 @@ class _MacroCard extends StatelessWidget {
     );
 
     if (onTap == null) return Card(child: content);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(onTap: onTap, child: content),
+    return Semantics(
+      button: true,
+      label: '$labelKey.tr() ${value.round()} / ${target.round()} g',
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(onTap: onTap, child: content),
+      ),
     );
   }
 }

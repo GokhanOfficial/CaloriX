@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 /// Faz 0 iskeleti için geçici sayfa gövdesi.
@@ -23,7 +24,10 @@ class PlaceholderPage extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
-              'Yakında (iskelet)',
+              // Sabit Türkçe metin diğer 11 dilde çeviriye rağmen Türkçe
+              // kalıyordu; anahtar eksikse `.tr()` anahtarı döndürür (test
+              // `widget_test.dart` bu davranışı doğruluyor).
+              'common.comingSoon'.tr(),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
                   ),

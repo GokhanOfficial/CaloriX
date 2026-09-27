@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/profile.dart';
 import '../../../data/models/weight_entry.dart';
 import '../../../data/repositories/auth_repository.dart';
@@ -23,39 +24,15 @@ class WeightCard extends ConsumerWidget {
   final Profile? profile;
 
   Future<void> _logWeight(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController(
-      text: latestWeight?.weightKg.toStringAsFixed(1),
-    );
+    // Dialog kendi `State`'i içinde controller'ı yönetir; dışarıda yaratılan
+    // controller `dispose` edilmediği için bellek sızıyordu.
     final weight = await showDialog<double>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('dashboard.logWeight'.tr()),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d*')),
-          ],
-          decoration: const InputDecoration(suffixText: 'kg'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('common.cancel'.tr()),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              double.tryParse(controller.text.replaceAll(',', '.')),
-            ),
-            child: Text('common.save'.tr()),
-          ),
-        ],
-      ),
+      builder: (context) => const _WeightInputDialog(),
     );
-    if (weight == null || weight <= 0 || !context.mounted) return;
+    if (weight == null || weight <= 0 || weight > 500 || !context.mounted) {
+      return;
+    }
 
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -68,7 +45,8 @@ class WeightCard extends ConsumerWidget {
             weightKg: weight,
             entryDate: formatEntryDate(date),
           );
-    } catch (_) {
+    } catch (e, s) {
+      AppLog.e('Kilo kaydı eklenemedi ($weight kg)', e, s);
       messenger.showSnackBar(
         SnackBar(content: Text('dashboard.errorWeight'.tr())),
       );
@@ -81,7 +59,8 @@ class WeightCard extends ConsumerWidget {
         .tr(namedArgs: {'weight': weight.toStringAsFixed(1)});
     if (p != null &&
         (p.autoRecalculateMacros ?? false) &&
-        weight != p.currentWeightKg) {
+        weight != p.currentWeightKg &&
+        context.mounted) {
       try {
         final goals = await ref.read(macroCalculatorProvider).calculate(
               age: _ageFrom(p.birthDate),
@@ -116,9 +95,10 @@ class WeightCard extends ConsumerWidget {
         if (goals.explanation != null && goals.explanation!.isNotEmpty) {
           description = goals.explanation!;
         }
-      } catch (_) {
+      } catch (e, s) {
         // Yeniden hesaplama başarısızsa kilo kaydı yine de geçerli
         // (web parity — catch'te sadece console.error var).
+        AppLog.w('Makro otomatik yeniden hesaplanamadı', e, s);
       }
     }
 
@@ -179,6 +159,54 @@ class WeightCard extends ConsumerWidget {
         ),
         onTap: () => _logWeight(context, ref),
       ),
+    );
+  }
+}
+
+/// Kilo giriş dialogu — `TextEditingController`'ı kendi `State`'inde tutar
+/// (dışarıda yaratılıp bırakılan controller bellek sızdırıyordu).
+class _WeightInputDialog extends StatefulWidget {
+  const _WeightInputDialog();
+
+  @override
+  State<_WeightInputDialog> createState() => _WeightInputDialogState();
+}
+
+class _WeightInputDialogState extends State<_WeightInputDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('dashboard.logWeight'.tr()),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d*')),
+        ],
+        decoration: const InputDecoration(suffixText: 'kg'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('common.cancel'.tr()),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            double.tryParse(_controller.text.replaceAll(',', '.')),
+          ),
+          child: Text('common.save'.tr()),
+        ),
+      ],
     );
   }
 }
