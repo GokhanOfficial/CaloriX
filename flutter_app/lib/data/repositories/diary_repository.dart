@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/observability/app_logger.dart';
 import '../../core/utils/num_parsing.dart';
 import '../models/meal_entry.dart';
 import '../models/water_entry.dart';
@@ -100,6 +101,15 @@ class DiaryRepository {
 
   /// Seçili günün tüm verisi: öğünler (created_at asc), su (entry_time asc)
   /// ve en son kilo kaydı (tarih filtresiz, entry_date desc limit 1).
+  ///
+  /// **Savunma-derinliği:** sorgular `deleted_at IS NULL` süzgecini sunucuya
+  /// gönderir, ancak dönen satırlar istemcide de elenir
+  /// ([_withoutDeleted]). RLS/süzgeç bir gün gevşerse ya da bir edge function
+  /// filtresiz veri döndürürse, silinmiş bir öğün **gün toplamına girip**
+  /// kullanıcıyı yanlış beslenme kararına yönlendiremezdi. Yumuşak silme
+  /// üç tabloda da geçerli (`deleted_at` kolonu `supabase/migrations/…sql`
+  /// 141/159/171) ve `DiaryRepository` **fiziksel silme yapmaz**; bu yüzden
+  /// bu süzgeç kayıtların sessizce geri dönmesini de engeller.
   Future<DailyData> fetchDaily(String userId, DateTime date) async {
     final dateStr = formatEntryDate(date);
 
@@ -131,17 +141,69 @@ class DiaryRepository {
     final results =
         await Future.wait<dynamic>([mealsFuture, waterFuture, weightFuture]);
 
+    // `select()` her zaman liste döndürdüğü için alttaki zorlama pratikte
+    // güvenli; yine de tek bozuk/sürpriz yanıt tüm günlük ekranını
+    // `TypeError` ile düşürmesin diye `List<dynamic>.from(...)` ile
+    // savunuluyor (Tur 1 P3 kalıntısı).
     return DailyData(
-      mealEntries: (results[0] as List)
-          .map((r) => MealEntry.fromJson(r as Map<String, dynamic>))
-          .toList(),
-      waterEntries: (results[1] as List)
-          .map((r) => WaterEntry.fromJson(r as Map<String, dynamic>))
-          .toList(),
+      mealEntries:
+          _withoutDeleted(_mapRows(results[0], MealEntry.fromJson)),
+      waterEntries:
+          _withoutDeleted(_mapRows(results[1], WaterEntry.fromJson)),
       latestWeight: results[2] == null
           ? null
-          : WeightEntry.fromJson(results[2] as Map<String, dynamic>),
+          : _parseOrNull(WeightEntry.fromJson, results[2]),
     );
+  }
+
+  /// Yumuşak silinmiş (`deleted_at` dolu) kayıtları listeden çıkarır.
+  ///
+  /// Sorgu zaten `deleted_at IS NULL` süzgeci gönderiyor; bu ikinci katman
+  /// yalnızca sunucunun süzgeci uygulamadığı (RLS gevşemesi, hatalı edge
+  /// function sorgusu, sürpriz `null` değeri) durumlarda devreye girer.
+  /// Yanlış toplam, yumuşak silmeden daha kötü bir sonuçtur: kullanıcı
+  /// "ne yediğini" unutmuş bir kaydı hâlâ yerinde görür.
+  static List<T> _withoutDeleted<T>(List<T> rows) => rows
+      .where((e) => switch (e) {
+            MealEntry() => e.deletedAt == null,
+            WaterEntry() => e.deletedAt == null,
+            _ => true,
+          })
+      .toList();
+
+  /// Ham tek satırı modele çevirir; okunamazsa null döner (istisna yutmaz —
+  /// `AppLog`'a gider, çağıran "veri yok" gösterir).
+  static T? _parseOrNull<T>(
+    T Function(Map<String, dynamic>) parse,
+    Object? raw,
+  ) {
+    if (raw == null) return null;
+    try {
+      return parse(Map<String, dynamic>.from(raw as Map));
+    } catch (e, s) {
+      AppLog.w('Günlük satırı okunamadı, yok sayıldı', e, s);
+      return null;
+    }
+  }
+
+  /// Ham PostgREST satırlarını modele çevirir (satır başına try/catch).
+  ///
+  /// `json_serializable` `as` zorlamaları bozuk bir satırda istisna fırlatır;
+  /// tek bir satırın tüm günü düşürmesi yerine atlanır ve `AppLog` ile
+  /// raporlanır. Yine de **kısmi veri** arayüze gider — bu yüzden atlanan
+  /// satırın yokluğu gün toplamlarını eksik tutar, fazla tutmaz.
+  static List<T> _mapRows<T>(
+    Object? raw,
+    T Function(Map<String, dynamic>) parse,
+  ) {
+    if (raw is! List) return <T>[];
+    final out = <T>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final parsed = _parseOrNull(parse, row);
+      if (parsed != null) out.add(parsed);
+    }
+    return out;
   }
 
   /// Yemek girdisi ekle (web `addMealEntry` — payload alanları aynı).
@@ -246,13 +308,32 @@ class DiaryRepository {
   /// Yemek girdisini geri al — `deleted_at = null` (soft-delete undo).
   /// Dashboard kaydır-sil sonrası "Geri Al" SnackBar aksiyonu.
   ///
+  /// `.select().maybeSingle()` ile **etkilenen satır sayısı doğrulanır**:
+  /// kayıt başka bir cihazda (ya da fiziksel olarak) silinmişse önceki
+  /// sürüm sessizce hiçbir şey yapmadan "başarılı" dönüyordu — kullanıcı
+  /// "Geri Al" düğmesine bastı, kayıt listede görünmedi, veri geri gelmedi.
+  /// Artık [StateError] fırlatılır; çağıran (`meal_section.dart`) hatayı
+  /// yakalayıp "silinemedi" mesajı gösteriyor.
+  ///
   /// [userId] kapsam filtresi — bkz. [updateMealEntry].
   Future<void> restoreMealEntry(String userId, String id) async {
-    await _client
+    final row = await _client
         .from('meal_entries')
         .update({'deleted_at': null, 'updated_at': _nowIso()})
         .eq('id', id)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('id, deleted_at')
+        .maybeSingle();
+    if (row == null) {
+      throw StateError(
+        'Geri alınacak kayıt bulunamadı (id=$id) — başka cihazdan silinmiş olabilir',
+      );
+    }
+    if (row['deleted_at'] != null) {
+      throw StateError(
+        'Geri alma yazıldı ama kayıt hâlâ silinmiş görünüyor (id=$id)',
+      );
+    }
   }
 
   /// Su ekle (web `addWaterEntry` — entry_time DB default'una bırakılır).
@@ -289,6 +370,11 @@ class DiaryRepository {
   }
 
   /// Su kaydı sil — soft delete (web'de yok ama tutarlılık için aynı desen).
+  ///
+  /// Etkilenen satır doğrulanmaz (`.select()` yok): bu metodun canlı bir
+  /// geri-al yolu **yok** (dashboard'da su kaydı silme UI'ı bulunmuyor),
+  /// dolayısıyla sessiz başarısızlık kullanıcıya yanlış bir onay göstermez.
+  /// Yazıldığı zaman `deleted_at` UTC damgası alır.
   ///
   /// [userId] kapsam filtresi — bkz. [updateMealEntry].
   Future<void> deleteWaterEntry(String userId, String id) async {

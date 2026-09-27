@@ -85,22 +85,8 @@ class ChatRepository {
   Future<({List<ChatMessage> messages, bool hasMore})> loadInitial(
     String userId,
     String threadId,
-  ) async {
-    final rows = await _client
-        .from('chat_messages')
-        .select()
-        .eq('thread_id', threadId)
-        .eq('user_id', userId)
-        .isFilter('deleted_at', null)
-        .order('created_at', ascending: false)
-        .limit(_pageSize);
-
-    final messages =
-        (rows as List).map((r) => ChatMessage.fromJson(r as Map<String, dynamic>)).toList();
-    final signed = await _signAttachments(messages);
-    final reversed = signed.reversed.toList();
-    return (messages: reversed, hasMore: rows.length == _pageSize);
-  }
+  ) async =>
+      _loadPage(userId, threadId);
 
   /// Daha eski mesajları yükler (web `loadMore`). `oldestCreatedAt`'tan
   /// daha eskileri çeker. UI scroll konumunu korumalıdır.
@@ -109,18 +95,115 @@ class ChatRepository {
     String threadId,
     String oldestCreatedAt,
   ) async {
+    // `created_at` timestamptz'dir ve iki mesaj aynı mikrosaniyede yazılmış
+    // olabilir (toplu ekleme, edge function'ın araç döngüsü). Yalnızca
+    // `lt(created_at, oldest)` filtresi kullanılırsa **o mesajlar kalıcı
+    // olarak atlanır**: her "daha eski mesajlar" isteğinde aynı son sayfa
+    // döner, `hasMore` true kalır ve kullanıcı listeyi aşağı kaydıramaz.
+    // Çakışan `created_at` satırlarının `id`'leri de alınır ve
+    // `created_at`'tan **daha eski** olanlar çekilir (klasik "keyset" /
+    // "seek" pagination — `tut` engellenir, hiçbir mesaj atlanmaz).
+    final page = await _loadPage(
+      userId,
+      threadId,
+      cursor: oldestCreatedAt,
+    );
+    if (page.messages.isEmpty) {
+      return (messages: const <ChatMessage>[], hasMore: false);
+    }
+    final last = page.messages.last;
+    final tieIds = await _tieIdsAt(userId, threadId, last);
+    if (tieIds.isEmpty) {
+      return (messages: page.messages, hasMore: page.hasMore);
+    }
+    // Çakışan `created_at` satırları id kümesinde zaten olduğundan
+    // PostgREST `not.in.(...)` ile filtrelendiğinde tekrar gelmezler.
+    final older = await _loadPage(
+      userId,
+      threadId,
+      cursor: last.createdAt,
+      excludeIds: tieIds,
+    );
+    return (
+      messages: [...older.messages, ...page.messages],
+      hasMore: older.hasMore,
+    );
+  }
+
+  /// `cursor` damgasına sahip ama [pivot]'un dışında kalan mesajların
+  /// `id`leri — aynı `created_at`'lı kardeşler.
+  ///
+  /// `pivot` şu an listede **en eski** mesaj olduğu için, aynı damgaya sahip
+  /// ama listede bulunmayan satırlar önceki sayfada atlanmış olanlardır; onları
+  /// bilmemiz `loadMore`'un `tut`'a vurmasını engeller.
+  Future<List<String>> _tieIdsAt(
+    String userId,
+    String threadId,
+    ChatMessage pivot,
+  ) async {
     final rows = await _client
+        .from('chat_messages')
+        .select('id')
+        .eq('thread_id', threadId)
+        .eq('user_id', userId)
+        .isFilter('deleted_at', null)
+        .eq('created_at', pivot.createdAt);
+    return rows
+        .map((r) => r['id'])
+        .whereType<String>()
+        .where((id) => id != pivot.id)
+        .toList();
+  }
+
+  /// Sayfalarken kullanılacak en küçük `created_at` imzası (test edilebilir).
+  ///
+  /// `createdAt` boşsa (sanal "hoş geldiniz" mesajı ya da bozuk satır) null
+  /// döner; çağıran o zaman yalnızca ilk sayfayı yükler.
+  static String? oldestTimestamp(List<ChatMessage> messages) {
+    if (messages.isEmpty) return null;
+    final stamps = messages
+        .map((m) => m.createdAt)
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (stamps.isEmpty) return null;
+    stamps.sort();
+    return stamps.first;
+  }
+
+  /// Tek mesaj sayfası (web `loadMessages` — `order + limit`).
+  ///
+  /// Sıralama **her zaman** `(created_at desc, id desc)` — belirsiz sıralama
+  /// olmadan `limit` uygulanmaz. İkinci anahtar olmadan aynı `created_at`'lı
+  /// satırların hangisinin sayfaya girdiği tanımsızdır (Postgres sıralaması
+  /// kararlı değildir) ve [loadMore] imleci tutar.
+  Future<({List<ChatMessage> messages, bool hasMore})> _loadPage(
+    String userId,
+    String threadId, {
+    String? cursor,
+    List<String> excludeIds = const [],
+  }) async {
+    // `select()` `PostgrestFilterBuilder` üretir (filtre metotları burada);
+    // `order()`/`limit()` döndürdüğü `PostgrestTransformBuilder`'da filtre
+    // metotları **yoktur** — bu yüzden önce tüm filtreler, sonra sıralama ve
+    // limit uygulanır. Sıralama ikincil anahtarı (`id`) belirsiz
+    // `limit`'i ve `loadMore` imlecini güvenilir kılar.
+    var filtered = _client
         .from('chat_messages')
         .select()
         .eq('thread_id', threadId)
         .eq('user_id', userId)
-        .isFilter('deleted_at', null)
-        .lt('created_at', oldestCreatedAt)
+        .isFilter('deleted_at', null);
+    if (cursor != null) filtered = filtered.lt('created_at', cursor);
+    if (excludeIds.isNotEmpty) {
+      filtered = filtered.not('id', 'in', '(${excludeIds.join(',')})');
+    }
+    final rows = await filtered
         .order('created_at', ascending: false)
+        .order('id', ascending: false)
         .limit(_pageSize);
 
     final messages =
-        (rows as List).map((r) => ChatMessage.fromJson(r as Map<String, dynamic>)).toList();
+        rows.map((r) => ChatMessage.fromJson(Map<String, dynamic>.from(r))).toList();
     final signed = await _signAttachments(messages);
     final reversed = signed.reversed.toList();
     return (messages: reversed, hasMore: rows.length == _pageSize);
@@ -192,11 +275,17 @@ class ChatRepository {
   }
 
   /// Görünür sohbeti temizler (web `clearVisibleChat`) — thread'i arşivler.
-  Future<void> archiveThread(String threadId) async {
+  ///
+  /// [userId] kapsam filtresi, `diary_repository` yazma yollarıyla aynı
+  /// savunma-derinliği deseni için eklenmiştir: RLS zaten
+  /// `auth.uid() = user_id` ile koruyor, ama politika gevşerse başkasının
+  /// thread'i arşivlenemez.
+  Future<void> archiveThread(String userId, String threadId) async {
     await _client
         .from('chat_threads')
         .update({'archived_at': _nowIso()})
-        .eq('id', threadId);
+        .eq('id', threadId)
+        .eq('user_id', userId);
   }
 
   // --- ekler (storage) -------------------------------------------------

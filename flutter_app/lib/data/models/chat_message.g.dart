@@ -76,6 +76,13 @@ ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) => ChatMessage(
           .toList() ??
       const [],
   deletedAt: json['deleted_at'] as String?,
+  pendingAction: json['pending_action'] == null
+      ? null
+      : ChatPendingAction.fromJson(
+          json['pending_action'] as Map<String, dynamic>,
+        ),
+  actionStatus: json['action_status'] as String?,
+  metadata: json['metadata'] as Map<String, dynamic>? ?? const {},
 );
 
 Map<String, dynamic> _$ChatMessageToJson(ChatMessage instance) =>
@@ -88,6 +95,9 @@ Map<String, dynamic> _$ChatMessageToJson(ChatMessage instance) =>
       'attachments': instance.attachments.map((e) => e.toJson()).toList(),
       'tool_calls': instance.toolCalls.map((e) => e.toJson()).toList(),
       'tool_results': instance.toolResults.map((e) => e.toJson()).toList(),
+      'pending_action': instance.pendingAction?.toJson(),
+      'action_status': instance.actionStatus,
+      'metadata': instance.metadata,
       'created_at': instance.createdAt,
       'deleted_at': instance.deletedAt,
     };

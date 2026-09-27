@@ -185,6 +185,11 @@ class AnalyticsRepository {
 
   /// Ham satırlardan günlük seri (web `stats` map'i parity):
   /// kalori `round`, makrolar 1 ondalık, su ham toplam.
+  ///
+  /// **`deleted_at` dolu satırlar toplama girmez** (yumuşak silme). Satır
+  /// eksik `deleted_at` alanı içeriyorsa silinmemiş sayılır — kolon
+  /// `select()` listesinde olmayabilir (eski şema / özel sorgu) ve
+  /// tüm seriyi boşaltmak daha kötü bir hatadır.
   static List<DailyStats> aggregateDaily({
     required List<({String date, String dayLabel})> days,
     required List<Map<String, dynamic>> mealRows,
@@ -192,6 +197,7 @@ class AnalyticsRepository {
   }) {
     final mealsByDate = <String, List<double>>{}; // [kcal, p, c, f]
     for (final m in mealRows) {
+      if (m['deleted_at'] != null) continue;
       final date = m['entry_date'];
       // `as String` / `as num` zorlamaları bozuk/null satırda tüm
       // analitik ekranını patlatıyordu (tek kötü satır → tüm seri boş).
@@ -204,6 +210,7 @@ class AnalyticsRepository {
     }
     final waterByDate = <String, double>{};
     for (final w in waterRows) {
+      if (w['deleted_at'] != null) continue;
       final date = w['entry_date'];
       if (date is! String) continue;
       waterByDate[date] = (waterByDate[date] ?? 0) + numOr(w['amount_ml']);
@@ -252,6 +259,8 @@ class AnalyticsRepository {
   }
 
   /// Web `weightData` parity — tüm zamanlar, tarih sıralı; etiket `d MMM`.
+  ///
+  /// `deleted_at` dolu satırlar seriye girmez (yumuşak silme).
   static List<WeightPoint> buildWeightTrend(
     List<Map<String, dynamic>> weightRows, {
     String? locale,
@@ -259,7 +268,9 @@ class AnalyticsRepository {
     final fmt = DateFormat('d MMM', locale);
     return [
       for (final w in weightRows)
-        if (w['entry_date'] is String && w['weight_kg'] is num)
+        if (w['deleted_at'] == null &&
+            w['entry_date'] is String &&
+            w['weight_kg'] is num)
           WeightPoint(
             date: w['entry_date'] as String,
             dateLabel: _safeDateLabel(fmt, w['entry_date'] as String),
@@ -275,6 +286,24 @@ class AnalyticsRepository {
     } catch (_) {
       return dateOnly;
     }
+  }
+
+  /// Yumuşak silinmiş satırları ayıklar (istemci tarafı ikinci katman).
+  ///
+  /// Sorgular `deleted_at IS NULL` süzgeci gönderir; bu eleme yalnızca
+  /// sunucunun süzgeci uygulamadığı durumlarda devreye girer. **Eksik
+  /// `deleted_at` alanı silinmemiş sayılır** (kolon sorguda istenmiyordu /
+  /// eski şema) — aksi halde tüm seri boşalırdı.
+  static List<Map<String, dynamic>> _liveRows(Object? raw) {
+    if (raw is! List) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final deletedAt = row['deleted_at'];
+      if (deletedAt != null) continue;
+      out.add(Map<String, dynamic>.from(row));
+    }
+    return out;
   }
 
   // ------------------------------------------------------------------
@@ -294,10 +323,17 @@ class AnalyticsRepository {
     final startStr = formatEntryDate(range.start);
     final endStr = formatEntryDate(range.end);
 
+    // `deleted_at` süzgeci sunucuya gönderilir; ayrıca **istemci tarafında**
+    // da elenir. Analytics ekranı "bu hafta kaç kalori yediniz" sorusunu
+    // yanıtlar — silinmiş bir kaydın toplama girmesi yanlış beslenme kararına
+    // yol açan en kötü sınıf hatadır (P1). `deleted_at` kolonu
+    // `select()` listesinde olmazsa istemci elemesi mümkün olmaz, bu yüzden
+    // kolonlar açıkça isteniyor.
     final mealsFuture = _client
         .from('meal_entries')
         .select(
-          'entry_date, calculated_kcal, calculated_protein, calculated_carbs, calculated_fat',
+          'entry_date, calculated_kcal, calculated_protein, calculated_carbs, '
+          'calculated_fat, deleted_at',
         )
         .eq('user_id', userId)
         .gte('entry_date', startStr)
@@ -306,7 +342,7 @@ class AnalyticsRepository {
 
     final waterFuture = _client
         .from('water_entries')
-        .select('entry_date, amount_ml')
+        .select('entry_date, amount_ml, deleted_at')
         .eq('user_id', userId)
         .gte('entry_date', startStr)
         .lte('entry_date', endStr)
@@ -320,7 +356,7 @@ class AnalyticsRepository {
         formatEntryDate(today.subtract(const Duration(days: 365)));
     final weightsFuture = _client
         .from('weight_entries')
-        .select('entry_date, weight_kg')
+        .select('entry_date, weight_kg, deleted_at')
         .eq('user_id', userId)
         .isFilter('deleted_at', null)
         .gte('entry_date', weightFromStr)
@@ -331,9 +367,11 @@ class AnalyticsRepository {
       waterFuture,
       weightsFuture,
     ]);
-    final mealRows = results[0].cast<Map<String, dynamic>>();
-    final waterRows = results[1].cast<Map<String, dynamic>>();
-    final weightRows = results[2].cast<Map<String, dynamic>>();
+    // Sunucunun süzgeci uygulamadığı (RLS gevşemesi / sürpriz `null`) durumda
+    // sessizce yanlış toplam üretmemek için ikinci katman.
+    final mealRows = _liveRows(results[0]);
+    final waterRows = _liveRows(results[1]);
+    final weightRows = _liveRows(results[2]);
 
     final days = buildDays(
       start: range.start,
