@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase/supabase_client_provider.dart';
+import '../../core/observability/app_logger.dart';
 
 /// Web `AuthContext.tsx`'in Dart karşılığı.
 ///
@@ -44,10 +45,11 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
-    } catch (e) {
+    } catch (e, s) {
       // Ağ hatası / timeout gibi AuthException dışı fırlamalar — yakalanmazsa
       // auth_page.dart `await`'i patlatır, `_setLoading(false)` çalışmaz,
-      // spinner sonsuz döner. Tek tip AuthException'e sar.
+      // spinner sonsuz döner. Tek tip AuthException'e sar + Sentry'ye bildir.
+      AppLog.w('Kayıt başarısız', e, s);
       return AuthException(e.toString());
     }
   }
@@ -59,8 +61,9 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
-    } catch (e) {
+    } catch (e, s) {
       // Ağ hatası / timeout — signUp ile aynı dayanıklılık.
+      AppLog.w('Giriş başarısız', e, s);
       return AuthException(e.toString());
     }
   }
@@ -69,6 +72,10 @@ class AuthRepository {
   Future<void> signOut() => _auth.signOut();
 
   /// Şifre sıfırlama e-postası — deep link redirect.
+  ///
+  /// `AuthException` dışı fırlamalar (ağ/timeout) `signUp` ile aynı şekilde
+  /// `AuthException`'e sarılır; aksi halde çağıran ekranda spinner sonsuza
+  /// dek döner.
   Future<AuthException?> resetPassword(String email) async {
     try {
       await _auth.resetPasswordForEmail(
@@ -78,6 +85,9 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
+    } catch (e, s) {
+      AppLog.w('Şifre sıfırlama isteği başarısız', e, s);
+      return AuthException(e.toString());
     }
   }
 
@@ -96,6 +106,9 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
+    } catch (e, s) {
+      AppLog.w('Doğrulama e-postası yeniden gönderilemedi', e, s);
+      return AuthException(e.toString());
     }
   }
 
@@ -106,6 +119,9 @@ class AuthRepository {
       return null;
     } on AuthException catch (e) {
       return e;
+    } catch (e, s) {
+      AppLog.w('Şifre güncellenemedi', e, s);
+      return AuthException(e.toString());
     }
   }
 

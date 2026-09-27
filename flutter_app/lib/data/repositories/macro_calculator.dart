@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/observability/app_logger.dart';
 import '../../core/utils/calculations.dart';
 import '../supabase/supabase_client_provider.dart';
 
@@ -76,22 +77,25 @@ class MacroCalculator {
 
       final data = res.data;
       if (res.status == 200 && data is Map<String, dynamic>) {
-        return CalculatedGoals(
-          bmr: (data['bmr'] as num).round(),
-          tdee: (data['tdee'] as num).round(),
-          calories: (data['daily_calorie_target'] as num).round(),
-          protein: (data['protein_target_g'] as num).round(),
-          carbs: (data['carbs_target_g'] as num).round(),
-          fat: (data['fat_target_g'] as num).round(),
-          bmi: bmi,
-          waterTarget: (data['daily_water_target_ml'] as num).round(),
-          explanation: data['explanation'] as String?,
-          usedAi: true,
+        // Alan bazlı doğrulama: eksik/NaN bir alan `as num` ile ya istisna
+        // fırlatır (tüm onboarding çöker) ya da NaN hedefe dönüşür ve
+        // profile yazılır. Bu yüzden tek tek `as num` yerine güvenli
+        // okuyucu kullanılır; okunamayan alanlar null sayılır ve
+        // doğrulama aşağıda tamamlanır.
+        final ai = goalsFromAiBody(data, bmi: bmi, weightKg: currentWeightKg);
+        if (ai != null) return ai;
+
+        // 200 dışı, beklenmeyen gövde veya eksik alan → fallback
+        AppLog.w(
+          'calculate-macros AI yanıtı eksik/geçersiz, yerel formül kullanılıyor',
+          {'status': res.status, 'keys': data.keys.toList()},
         );
       }
-      // 200 dışı veya beklenmeyen gövde → fallback
-    } catch (_) {
-      // Ağ/fonksiyon hatası → yerel hesapla
+    } catch (e, s) {
+      // Ağ/fonksiyon hatası → yerel hesapla. Sessizce yutulmaz: AI
+      // hedeflerinin neden üretilmediği Sentry'ye gider (kullanıcıya
+      // hata gösterilmez çünkü yerel fallback her zaman çalışır).
+      AppLog.w('calculate-macros edge function hatası, yerel fallback', e, s);
     }
 
     // 2) Yerel fallback (web ile aynı formüller)
@@ -115,6 +119,59 @@ class MacroCalculator {
       bmi: bmi,
       waterTarget: Calculations.waterTargetMl(currentWeightKg),
     );
+  }
+
+  /// AI (`calculate-macros`) yanıt gövdesini doğrulanmış hedeflere çevirir.
+  ///
+  /// Zorunlu alanlardan biri eksik, yanlış tipli (`String`) veya sonlu değilse
+  /// (`NaN`/`Infinity`) **null** döner; çağıran yerel formüle düşer. Böylece
+  /// ne onboarding ekranı istisnayla düşer ne de profile `NaN` hedef yazılır.
+  static CalculatedGoals? goalsFromAiBody(
+    Map<String, dynamic> data, {
+    required double bmi,
+    required double weightKg,
+  }) {
+    final bmr = _numOrNull(data['bmr']);
+    final tdee = _numOrNull(data['tdee']);
+    final calories = _numOrNull(data['daily_calorie_target']);
+    final protein = _numOrNull(data['protein_target_g']);
+    final carbs = _numOrNull(data['carbs_target_g']);
+    final fat = _numOrNull(data['fat_target_g']);
+    final water = _numOrNull(data['daily_water_target_ml']);
+
+    if (bmr == null ||
+        tdee == null ||
+        calories == null ||
+        protein == null ||
+        carbs == null ||
+        fat == null) {
+      return null;
+    }
+
+    return CalculatedGoals(
+      bmr: bmr.round(),
+      tdee: tdee.round(),
+      calories: calories.round(),
+      protein: protein.round(),
+      carbs: carbs.round(),
+      fat: fat.round(),
+      bmi: bmi,
+      // Su hedefi AI'dan gelmezse yerel formül (kg * 33).
+      waterTarget: (water ?? Calculations.waterTargetMl(weightKg)).round(),
+      explanation: data['explanation'] as String?,
+      usedAi: true,
+    );
+  }
+
+  /// JSON değerini güvenli `double`'a çevirir.
+  ///
+  /// Edge function JSON'u `double`/`int` dönebilir ama bozuk/eksik alan
+  /// `null` veya string olabilir. `NaN`/`Infinity` de hesap zincirini
+  /// (`round()` istisnası) bozduğu için geçersiz sayılır.
+  static double? _numOrNull(Object? v) {
+    if (v is! num) return null;
+    final d = v.toDouble();
+    return d.isFinite ? d : null;
   }
 }
 

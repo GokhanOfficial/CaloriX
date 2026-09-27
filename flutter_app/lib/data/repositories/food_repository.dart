@@ -60,8 +60,8 @@ class FoodRepository {
         .select('id, custom_name, amount_g_ml, calculated_kcal, '
             'calculated_protein, calculated_carbs, calculated_fat, food_id')
         .eq('user_id', userId)
-        .filter('deleted_at', 'is', null)
-        .filter('food_id', 'is', null)
+        .isFilter('deleted_at', null)
+        .isFilter('food_id', null)
         .ilike('custom_name', '%$q%')
         .order('created_at', ascending: false)
         .limit(50);
@@ -71,7 +71,7 @@ class FoodRepository {
       if (customName == null || customName.isEmpty) continue;
       final key = customName.toLowerCase();
       if (!seenNames.add(key)) continue;
-      results.add(_customItem(row, idPrefix: 'custom_'));
+      results.add(customItem(row, idPrefix: 'custom_'));
     }
 
     // DB yemekleri önce, custom sonra (web parity — stable sort)
@@ -94,7 +94,7 @@ class FoodRepository {
             'foods(id, name, brand, serving_size_g, '
             'food_nutrition(kcal, protein_g, carbs_g, fat_g))')
         .eq('user_id', userId)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false)
         .limit(200);
 
@@ -127,7 +127,7 @@ class FoodRepository {
             'foods(id, name, brand, serving_size_g, '
             'food_nutrition(kcal, protein_g, carbs_g, fat_g))')
         .eq('user_id', userId)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false)
         .limit(50);
 
@@ -187,21 +187,33 @@ class FoodRepository {
         lastUsedAt: lastUsedAt,
       );
     }
-    return _customItem(row, useCount: useCount, lastUsedAt: lastUsedAt);
+    return customItem(row, useCount: useCount, lastUsedAt: lastUsedAt);
   }
 
   /// Custom (food_id IS NULL) girdiyi 100g başına değerlere çevirir.
   /// Web formülü: kcal round(x/amount*100), makrolar round1(x/amount*100),
   /// amount = amount_g_ml ?? 100.
-  static FoodItem _customItem(
+  ///
+  /// `amount <= 0` (null ya da bozuk/negatif satır) durumunda web'in
+  /// `x/0` davranışı `Infinity` üretir ve Dart'ta `Infinity.round()`
+  /// **istisna fırlatır** (`Unsupported operation: Infinity or NaN toInt`) →
+  /// favoriler/son-yenilenler listesi tamamen çöker. Bu yolda 100g
+  /// varsayılır (miktar bilinmiyorsa 100g'a normalize etmek web'in
+  /// `?? 100` varsayılanıyla aynı mantıktır).
+  static FoodItem customItem(
     Map<String, dynamic> row, {
     String idPrefix = '',
     int? useCount,
     String? lastUsedAt,
   }) {
-    final amount = (row['amount_g_ml'] as num?)?.toDouble() ?? 100;
-    double per100(String column) =>
-        ((row[column] as num?)?.toDouble() ?? 0) / amount * 100;
+    final rawAmount = (row['amount_g_ml'] as num?)?.toDouble() ?? 100;
+    final amount = (rawAmount.isNaN || rawAmount <= 0) ? 100.0 : rawAmount;
+    double per100(String column) {
+      final raw = (row[column] as num?)?.toDouble() ?? 0;
+      final value = raw / amount * 100;
+      // Infinity/NaN normalizasyonu yine patlatmasın.
+      return value.isFinite ? value : 0;
+    }
     double round1(double v) => (v * 10).round() / 10;
 
     return FoodItem(

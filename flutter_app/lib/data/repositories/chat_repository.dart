@@ -44,7 +44,7 @@ class ChatRepository {
         .from('chat_threads')
         .select('id')
         .eq('user_id', userId)
-        .filter('archived_at', 'is', null)
+        .isFilter('archived_at', null)
         .order('updated_at', ascending: false)
         .limit(1)
         .maybeSingle();
@@ -76,7 +76,7 @@ class ChatRepository {
         .select()
         .eq('thread_id', threadId)
         .eq('user_id', userId)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false)
         .limit(_pageSize);
 
@@ -99,7 +99,7 @@ class ChatRepository {
         .select()
         .eq('thread_id', threadId)
         .eq('user_id', userId)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .lt('created_at', oldestCreatedAt)
         .order('created_at', ascending: false)
         .limit(_pageSize);
@@ -138,7 +138,11 @@ class ChatRepository {
 
   /// Asistanı çağırır (web `invokeAssistant`). Gövde alan adları birebir:
   /// `{mode, threadId, locale, language, timeZone, currentDate}`.
-  /// Dönüş: ekleri imzalanmış asistan mesajı (boşsa null).
+  ///
+  /// Edge function hata gövdesi döndürürse (`{error: ...}`) istisna fırlatır;
+  /// aksi halde `invokeAssistant` null döner ve kullanıcı mesajı göndermiş
+  /// olmasına rağmen cevap gelmeyen bir sohbet görür (sessiz hata).
+  /// Dönüş: ekleri imzalanmış asistan mesajı.
   Future<ChatMessage?> invokeAssistant({
     required String threadId,
     required String locale,
@@ -159,7 +163,13 @@ class ChatRepository {
     );
 
     final data = response.data as Map<String, dynamic>?;
-    final message = data?['message'] as Map<String, dynamic>?;
+    if (data == null) {
+      throw ChatException('Asistan yanıtı boş (status ${response.status}).');
+    }
+    if (data['error'] != null) {
+      throw ChatException(data['error'].toString());
+    }
+    final message = data['message'] as Map<String, dynamic>?;
     if (message == null) return null;
 
     final signed = await _signAttachments([ChatMessage.fromJson(message)]);
@@ -266,6 +276,15 @@ class ChatRepository {
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return ChatRepository(ref.watch(supabaseClientProvider));
 });
+
+/// `ai-chat` edge function hata gövdesi döndürdüğünde fırlatılır.
+class ChatException implements Exception {
+  const ChatException(this.message);
+  final String message;
+
+  @override
+  String toString() => 'ChatException: $message';
+}
 
 /// Aktif thread id'si (ChatPage yerel durumu — provider'a taşındı çünkü
 /// `invokeAssistant` ve `insertUserMessage` farklı metotlarda thread'i paylaşır).

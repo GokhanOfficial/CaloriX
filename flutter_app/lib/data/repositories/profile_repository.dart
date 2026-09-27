@@ -28,7 +28,8 @@ class ProfileRepository {
   Future<Profile?> update(String userId, Map<String, dynamic> updates) async {
     final payload = {
       ...updates,
-      'updated_at': DateTime.now().toIso8601String(),
+      // `timestamptz` kolonu → UTC damga (yerel saat kaymasını önler).
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     final data = await _client
         .from(_table)

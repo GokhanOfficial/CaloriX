@@ -127,7 +127,7 @@ class RecognitionResult {
 
   factory RecognitionResult.fromJson(Map<String, dynamic> json) {
     final raw = json['foods'];
-    final list = raw is List ? raw : const [];
+    final list = raw is List ? raw : const <dynamic>[];
     return RecognitionResult(
       foods: list
           .map((e) => RecognizedFood.fromJson(e as Map<String, dynamic>))

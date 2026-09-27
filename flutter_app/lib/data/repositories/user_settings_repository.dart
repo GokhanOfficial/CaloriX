@@ -41,7 +41,8 @@ class UserSettingsRepository {
       'user_id': userId,
       'key': key,
       'value': value,
-      'updated_at': DateTime.now().toIso8601String(),
+      // `timestamptz` kolonu → UTC damga (yerel saat kaymasını önler).
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'user_id,key');
   }
 }

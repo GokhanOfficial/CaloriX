@@ -53,18 +53,38 @@ class RecognitionRepository {
     String fn,
     Map<String, dynamic> body,
   ) async {
-    final response = await _client.functions.invoke(fn, body: body);
+    FunctionResponse response;
+    try {
+      response = await _client.functions.invoke(fn, body: body);
+    } on FunctionException catch (e) {
+      // Non-2xx durumunda `functions.invoke` **istisna fırlatır**; hata
+      // gövdesi `details` alanındadır. Yakalanmazsa çağıran ekran ham
+      // `FunctionHttpException` mesajını kullanıcıya gösterirdi; burada
+      // sunucunun döndüğü `{error}` metni kullanıcıya taşınır.
+      throw RecognitionException(_errorFrom(e.details, e.status));
+    }
+
     final data = response.data as Map<String, dynamic>?;
 
     if (data == null) {
-      throw RecognitionException('Tanıma yanıtı boş.');
+      throw const RecognitionException('Tanıma yanıtı boş.');
     }
-    if (data.containsKey('error')) {
-      throw RecognitionException(
-        (data['error'] as String?) ?? 'Tanıma başarısız.',
-      );
+    if (data['error'] != null) {
+      throw RecognitionException(data['error'].toString());
     }
     return RecognitionResult.fromJson(data);
+  }
+
+  /// Hata gövdesinden okunabilir mesaj çıkarır.
+  static String _errorFrom(Object? details, int status) {
+    if (details is Map) {
+      final err = details['error'];
+      if (err != null) return err.toString();
+    }
+    if (details is String && details.trim().isNotEmpty) {
+      return details.length > 200 ? '${details.substring(0, 200)}…' : details;
+    }
+    return 'Tanıma başarısız (HTTP $status).';
   }
 
   /// `data:<mime>;base64,<b64>` biçiminde tam data URL üretir.
@@ -74,7 +94,8 @@ class RecognitionRepository {
   }
 }
 
-/// Tanıma hatası — edge fonksiyonu `error` döndürdüğünde fırlatılır.
+/// Tanıma hatası — edge fonksiyonu `error` döndürdüğünde veya non-2xx
+/// HTTP durumunda fırlatılır.
 class RecognitionException implements Exception {
   const RecognitionException(this.message);
   final String message;

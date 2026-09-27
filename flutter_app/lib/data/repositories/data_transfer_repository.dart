@@ -76,7 +76,7 @@ class DataTransferRepository {
       for (final f in foods)
         if ((f as Map)['id'] != null) f['id'].toString(),
     ];
-    List nutrition = const [];
+    List<dynamic> nutrition = const [];
     if (foodIds.isNotEmpty) {
       nutrition = await _client
           .from('food_nutrition')
@@ -124,21 +124,47 @@ class DataTransferRepository {
     };
 
     // 1) Foods — dedup: name + created_by
+    //
+    // Dedup sorgusu **tek seferde** tüm yedek isimlerini çeker (`in` filtresi
+    // ile); döngü içinde `await` ile sorgu yapmak N+1 idi. `maybeSingle()`
+    // 1'den fazla satırda `PGRST116` fırlattığı için (aynı isimli iki
+    // kullanıcı yemeği mümkün — `foods` üzerinde UNIQUE yok) liste
+    // kullanılır ve ilk eşleşme alınır.
     final foods = (data['foods'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final oldToNewFoodId = <String, String>{};
+
+    final backupNames = <String>{
+      for (final f in foods)
+        if (f['name'] is String && (f['name'] as String).trim().isNotEmpty)
+          (f['name'] as String).trim(),
+    }.toList();
+    final existingFoods = <String, String>{};
+    if (backupNames.isNotEmpty) {
+      final rows = await _client
+          .from('foods')
+          .select('id, name')
+          .eq('created_by', userId)
+          .inFilter('name', backupNames);
+      for (final row in rows as List) {
+        final name = (row as Map)['name'] as String?;
+        if (name != null) existingFoods.putIfAbsent(name, () => row['id'] as String);
+      }
+    }
+
     for (final food in foods) {
       final name = food['name'];
-      final existing = await _client
-          .from('foods')
-          .select('id')
-          .eq('created_by', userId)
-          .eq('name', name)
-          .maybeSingle();
-      if (existing != null) {
-        oldToNewFoodId[food['id'].toString()] = existing['id'].toString();
+      if (name is! String || name.trim().isEmpty) continue;
+      final key = name.trim();
+      final oldId = food['id']?.toString();
+      if (oldId == null) continue;
+
+      final existingId = existingFoods[key];
+      if (existingId != null) {
+        oldToNewFoodId[oldId] = existingId;
         continue;
       }
       final cleaned = _stripIds(food)
+        ..['name'] = key
         ..['created_by'] = userId
         ..remove('food_nutrition');
       final inserted = await _client
@@ -146,7 +172,8 @@ class DataTransferRepository {
           .insert(cleaned)
           .select('id')
           .single();
-      oldToNewFoodId[food['id'].toString()] = inserted['id'].toString();
+      oldToNewFoodId[oldId] = inserted['id'].toString();
+      existingFoods[key] = oldToNewFoodId[oldId]!;
       counts['foods'] = counts['foods']! + 1;
     }
 
@@ -161,54 +188,81 @@ class DataTransferRepository {
     }
 
     // 3) meal_entries — dedup: user_id + entry_date + custom_name + meal_type
+    //
+    // `meal_entries` üzerinde bu kombinasyona UNIQUE constraint yoktur, bu
+    // yüzden `maybeSingle()` **birden fazla eşleşmede istisna fırlatır** ve
+    // içe aktarma tamamen çöker (aynı gün/öğünde iki ayrı "Tavuk" kaydı
+    // yedeklenmiş olan kullanıcılar için 100% olası). Varlık kontrolü tek
+    // `in`-filtreli sorguyla yapılır, ekleme hâlâ satır satır (aynı
+    // `created_at` sırasını korumak için) yapılır.
     final meals =
         (data['meal_entries'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final existingMealKeys =
+        await _existingMealKeys(userId, _mealKeysOf(meals).isEmpty
+            ? null
+            : meals);
     for (final m in meals) {
-      final exists = await _client
-          .from('meal_entries')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('entry_date', m['entry_date'])
-          .eq('custom_name', m['custom_name'] ?? '')
-          .eq('meal_type', m['meal_type'])
-          .maybeSingle();
-      if (exists != null) continue;
+      final key = _mealKey(m);
+      if (key == null) continue;
+      if (existingMealKeys.contains(key)) continue;
       final cleaned = _stripIds(m)
         ..['user_id'] = userId
         ..['food_id'] = oldToNewFoodId[m['food_id']?.toString()];
       await _client.from('meal_entries').insert(cleaned);
+      existingMealKeys.add(key);
       counts['meal_entries'] = counts['meal_entries']! + 1;
     }
 
     // 4) water_entries — dedup: entry_time
+    // `entry_time` timestamptz NOT NULL UNIQUE değil → `maybeSingle()` iki
+    // kayıtta patlar. Aynı kombinasyon anahtarı ile toplu kontrol yapılır.
     final waters =
         (data['water_entries'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final existingWaterTimes = await _existingWaterTimes(
+      userId,
+      times: [
+        for (final w in waters)
+          if (w['entry_time'] is String) w['entry_time'] as String,
+      ],
+    );
     for (final w in waters) {
-      final exists = await _client
-          .from('water_entries')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('entry_time', w['entry_time'])
-          .maybeSingle();
-      if (exists != null) continue;
+      final time = w['entry_time'];
+      if (time is! String || time.isEmpty) continue;
+      if (existingWaterTimes.contains(time)) continue;
       final cleaned = _stripIds(w)..['user_id'] = userId;
       await _client.from('water_entries').insert(cleaned);
+      existingWaterTimes.add(time);
       counts['water_entries'] = counts['water_entries']! + 1;
     }
 
     // 5) weight_entries — dedup: entry_date
+    // Aynı gün iki kilo kaydı olabilir (UNIQUE constraint yok) →
+    // `maybeSingle()` yerine toplu `in` kontrolü.
     final weights =
         (data['weight_entries'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    for (final w in weights) {
-      final exists = await _client
+    final weightDates = <String>{
+      for (final w in weights)
+        if (w['entry_date'] is String) w['entry_date'] as String,
+    }.toList();
+    final existingWeightDates = <String>{};
+    if (weightDates.isNotEmpty) {
+      final rows = await _client
           .from('weight_entries')
-          .select('id')
+          .select('entry_date')
           .eq('user_id', userId)
-          .eq('entry_date', w['entry_date'])
-          .maybeSingle();
-      if (exists != null) continue;
+          .inFilter('entry_date', weightDates);
+      for (final row in rows as List) {
+        final d = (row as Map)['entry_date'] as String?;
+        if (d != null) existingWeightDates.add(d);
+      }
+    }
+    for (final w in weights) {
+      final date = w['entry_date'];
+      if (date is! String || date.isEmpty) continue;
+      if (existingWeightDates.contains(date)) continue;
       final cleaned = _stripIds(w)..['user_id'] = userId;
       await _client.from('weight_entries').insert(cleaned);
+      existingWeightDates.add(date);
       counts['weight_entries'] = counts['weight_entries']! + 1;
     }
 
@@ -223,6 +277,84 @@ class DataTransferRepository {
     copy.remove('updated_at');
     copy.remove('deleted_at');
     return copy;
+  }
+
+  /// Yedeğin `meal_entries` dedup anahtarları
+  /// (`entry_date|custom_name|meal_type`).
+  static List<String> _mealKeysOf(List<Map<String, dynamic>> rows) {
+    final out = <String>{};
+    for (final m in rows) {
+      final k = _mealKey(m);
+      if (k != null) out.add(k);
+    }
+    return out.toList();
+  }
+
+  /// `null` → anahtarsız (import'ta atlanacak satır).
+  static String? _mealKey(Map<String, dynamic> m) {
+    final date = m['entry_date'];
+    final type = m['meal_type'];
+    if (date is! String || date.isEmpty) return null;
+    if (type is! String || type.isEmpty) return null;
+    final name = (m['custom_name'] ?? '') as String;
+    return '$date|$name|$type';
+  }
+
+  /// Kullanıcının mevcut öğün kayıtlarının dedup anahtarları — tek sorgu.
+  Future<Set<String>> _existingMealKeys(
+    String userId,
+    List<Map<String, dynamic>>? backupRows,
+  ) async {
+    final keys = <String>{};
+    final dates = <String>{
+      if (backupRows != null)
+        for (final m in backupRows)
+          if (m['entry_date'] is String) m['entry_date'] as String,
+    }.toList();
+    if (dates.isEmpty) return keys;
+    final rows = await _client
+        .from('meal_entries')
+        .select('entry_date, custom_name, meal_type')
+        .eq('user_id', userId)
+        .inFilter('entry_date', dates);
+    for (final row in rows as List) {
+      final k = _mealKey(row as Map<String, dynamic>);
+      if (k != null) keys.add(k);
+    }
+    return keys;
+  }
+
+  /// Kullanıcının mevcut `entry_time` değerleri — tek sorgu.
+  Future<Set<String>> _existingWaterTimes(
+    String userId, {
+    List<String>? times,
+  }) async {
+    final out = <String>{};
+    if (times == null) {
+      // Tüm zamanlar (yedekte olmayan ama aynı anda yazılan kayıtlar).
+      final rows = await _client
+          .from('water_entries')
+          .select('entry_time')
+          .eq('user_id', userId);
+      for (final row in rows as List) {
+        final t = (row as Map)['entry_time']?.toString();
+        if (t != null) out.add(t);
+      }
+      return out;
+    }
+    final wanted = times.toSet();
+    if (wanted.isEmpty) return out;
+    // `in` filtresi timestamptz için ISO string kabul eder.
+    final rows = await _client
+        .from('water_entries')
+        .select('entry_time')
+        .eq('user_id', userId)
+        .inFilter('entry_time', wanted.toList());
+    for (final row in rows as List) {
+      final t = (row as Map)['entry_time']?.toString();
+      if (t != null) out.add(t);
+    }
+    return out;
   }
 }
 

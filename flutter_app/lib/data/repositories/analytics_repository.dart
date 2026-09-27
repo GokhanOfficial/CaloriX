@@ -125,16 +125,35 @@ class AnalyticsRepository {
     switch (period) {
       case AnalyticsPeriod.week:
         // DateTime.weekday: Pazartesi=1 … Pazar=7
-        final start = day.subtract(Duration(days: day.weekday - 1));
-        final end = start.add(const Duration(days: 6));
+        final start = _addDays(day, -(day.weekday - 1));
+        final end = _addDays(start, 6);
         return (start: start, end: end);
       case AnalyticsPeriod.month:
         final start = DateTime(day.year, day.month);
         final end = DateTime(day.year, day.month + 1, 0);
         return (start: start, end: end);
       case AnalyticsPeriod.threeMonths:
-        return (start: day.subtract(const Duration(days: 90)), end: day);
+        return (start: _addDays(day, -90), end: day);
     }
+  }
+
+  /// Takvim günü kaydırma — **DST duyarlı**.
+  ///
+  /// `DateTime.add(Duration(days: 1))` sabit 24 saat ekler; yaz saati
+  /// başlangıcında yerel saat 23:00'e düşer ve ertesi gün **atlanır**
+  /// (24 saatlik dilim 25 saatlik bir güne sığmaz), sonraki günler de
+  /// kayar. `dateRange(threeMonths)`/`buildDays` bu yüzden 30 Mart
+  /// 2026 (Berlin) çevresinde 1 gün eksik seri, 25 Ekim 2026'da ise
+  /// 2 gün fazla pencere üretiyordu. Web `subDays`/`eachDayOfInterval`
+  /// takvim günü üzerinden çalışır; `DateTime(y, m, d ± n)` da öyle.
+  static DateTime _addDays(DateTime date, int days) =>
+      DateTime(date.year, date.month, date.day + days);
+
+  /// İki takvim günü arasındaki gün farkı ([end] < [start] ise negatif).
+  static int _daysBetween(DateTime start, DateTime end) {
+    final a = DateTime.utc(start.year, start.month, start.day);
+    final b = DateTime.utc(end.year, end.month, end.day);
+    return b.difference(a).inDays;
   }
 
   /// Web `eachDayOfInterval({start, end: min(end, today)})` parity —
@@ -150,9 +169,13 @@ class AnalyticsRepository {
     final pattern = period == AnalyticsPeriod.week ? 'EEE' : 'd MMM';
     final labelFmt = DateFormat(pattern, locale);
     final days = <({String date, String dayLabel})>[];
-    for (var d = DateTime(start.year, start.month, start.day);
-        !d.isAfter(effectiveEnd);
-        d = d.add(const Duration(days: 1))) {
+    // Gün sayacı üzerinden ilerle (bkz. `_addDays` — DST'de `add(Duration)`
+    // bir günü atlayabiliyordu). `dayIndex` aynı zamanda döngüyü
+    // sonsuzlaştıran bir güvenlik sınırı.
+    final startDay = DateTime(start.year, start.month, start.day);
+    final lastIndex = _daysBetween(startDay, effectiveEnd);
+    for (var i = 0; i <= lastIndex; i++) {
+      final d = _addDays(startDay, i);
       days.add((date: formatEntryDate(d), dayLabel: labelFmt.format(d)));
     }
     return days;
@@ -167,18 +190,21 @@ class AnalyticsRepository {
   }) {
     final mealsByDate = <String, List<double>>{}; // [kcal, p, c, f]
     for (final m in mealRows) {
-      final date = m['entry_date'] as String;
+      final date = m['entry_date'];
+      // `as String` / `as num` zorlamaları bozuk/null satırda tüm
+      // analitik ekranını patlatıyordu (tek kötü satır → tüm seri boş).
+      if (date is! String) continue;
       final acc = mealsByDate.putIfAbsent(date, () => [0, 0, 0, 0]);
-      acc[0] += (m['calculated_kcal'] as num).toDouble();
-      acc[1] += (m['calculated_protein'] as num).toDouble();
-      acc[2] += (m['calculated_carbs'] as num).toDouble();
-      acc[3] += (m['calculated_fat'] as num).toDouble();
+      acc[0] += _num(m['calculated_kcal']);
+      acc[1] += _num(m['calculated_protein']);
+      acc[2] += _num(m['calculated_carbs']);
+      acc[3] += _num(m['calculated_fat']);
     }
     final waterByDate = <String, double>{};
     for (final w in waterRows) {
-      final date = w['entry_date'] as String;
-      waterByDate[date] =
-          (waterByDate[date] ?? 0) + (w['amount_ml'] as num).toDouble();
+      final date = w['entry_date'];
+      if (date is! String) continue;
+      waterByDate[date] = (waterByDate[date] ?? 0) + _num(w['amount_ml']);
     }
 
     double round1(num v) => (v * 10).roundToDouble() / 10;
@@ -231,13 +257,31 @@ class AnalyticsRepository {
     final fmt = DateFormat('d MMM', locale);
     return [
       for (final w in weightRows)
-        WeightPoint(
-          date: w['entry_date'] as String,
-          dateLabel:
-              fmt.format(DateTime.parse(w['entry_date'] as String)),
-          weight: (w['weight_kg'] as num).toDouble(),
-        ),
+        if (w['entry_date'] is String && w['weight_kg'] is num)
+          WeightPoint(
+            date: w['entry_date'] as String,
+            dateLabel: _safeDateLabel(fmt, w['entry_date'] as String),
+            weight: (w['weight_kg'] as num).toDouble(),
+          ),
     ];
+  }
+
+  /// `yyyy-MM-dd` parse edilemezse ham dize döner (tüm seriyi düşürmek yerine).
+  static String _safeDateLabel(DateFormat fmt, String dateOnly) {
+    try {
+      return fmt.format(DateTime.parse(dateOnly));
+    } catch (_) {
+      return dateOnly;
+    }
+  }
+
+  /// `num` alanı güvenli okuma — null/NaN/Infinity 0 sayılır.
+  static double _num(Object? v) {
+    if (v is num) {
+      final d = v.toDouble();
+      return d.isFinite ? d : 0;
+    }
+    return 0;
   }
 
   // ------------------------------------------------------------------
@@ -249,6 +293,9 @@ class AnalyticsRepository {
     AnalyticsPeriod period, {
     String? locale,
   }) async {
+    // `today` **kullanıcının yerel günüdür** (web `new Date()` ile aynı);
+    // tüm `entry_date` karşılaştırmaları yerel `yyyy-MM-dd` dizeleriyle
+    // yapılır. UTC'ye çevirmek gün sonu sınırında bir gün kaydırırdı.
     final today = DateTime.now();
     final range = dateRange(period, today);
     final startStr = formatEntryDate(range.start);
@@ -272,12 +319,18 @@ class AnalyticsRepository {
         .lte('entry_date', endStr)
         .isFilter('deleted_at', null);
 
-    // Kilo trendi tüm zamanları kapsar (web parity — tarih filtresi yok).
+    // Kilo trendi tüm zamanları kapsar (web parity — tarih filtresi yok)
+    // ama **sınırsız**: yıllarca günlük kilo giren kullanıcıda binlerce
+    // satır indirilir. Grafik penceresi son 1 yılla sınırlıdır; daha eski
+    // kayıtları istemciye hiç göndermiyoruz (bellek + payload).
+    final weightFromStr =
+        formatEntryDate(today.subtract(const Duration(days: 365)));
     final weightsFuture = _client
         .from('weight_entries')
         .select('entry_date, weight_kg')
         .eq('user_id', userId)
         .isFilter('deleted_at', null)
+        .gte('entry_date', weightFromStr)
         .order('entry_date', ascending: true);
 
     final results = await Future.wait([

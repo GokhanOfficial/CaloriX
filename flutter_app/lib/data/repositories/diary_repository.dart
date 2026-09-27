@@ -77,7 +77,27 @@ class DiaryRepository {
 
   final SupabaseClient _client;
 
-  String _nowIso() => DateTime.now().toIso8601String();
+  /// `timestamptz` kolonlarına yazılan damga daima **UTC** olmalı.
+  ///
+  /// `DateTime.now()` yerel saati (UTC kaydı) döndürür; `+03:00` ofseti olan
+  /// bir istemcide bu, sunucu tarafında ~3 saat ileri bir zaman damgası
+  /// olarak yorumlanır. Web `new Date().toISOString()` UTC ürettiği için
+  /// burada da `.toUtc()` zorunlu.
+  String _nowIso() => DateTime.now().toUtc().toIso8601String();
+
+  /// NaN / Infinity / negatif değerleri yazmadan reddeder.
+  static void _requireFiniteNonNegative(String name, double v) {
+    if (v.isNaN || v.isInfinite || v < 0) {
+      throw ArgumentError.value(v, name, 'NaN, Infinity veya negatif olamaz');
+    }
+  }
+
+  /// Miktar alanları için ayrıca `> 0` zorunlu (0'a bölme riski).
+  static void _requireFinitePositive(String name, double v) {
+    if (v.isNaN || v.isInfinite || v <= 0) {
+      throw ArgumentError.value(v, name, 'NaN, Infinity veya sıfırdan küçük olamaz');
+    }
+  }
 
   /// Seçili günün tüm verisi: öğünler (created_at asc), su (entry_time asc)
   /// ve en son kilo kaydı (tarih filtresiz, entry_date desc limit 1).
@@ -89,7 +109,7 @@ class DiaryRepository {
         .select()
         .eq('user_id', userId)
         .eq('entry_date', dateStr)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: true);
 
     final waterFuture = _client
@@ -97,14 +117,14 @@ class DiaryRepository {
         .select()
         .eq('user_id', userId)
         .eq('entry_date', dateStr)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .order('entry_time', ascending: true);
 
     final weightFuture = _client
         .from('weight_entries')
         .select()
         .eq('user_id', userId)
-        .filter('deleted_at', 'is', null)
+        .isFilter('deleted_at', null)
         .order('entry_date', ascending: false)
         .limit(1)
         .maybeSingle();
@@ -141,6 +161,16 @@ class DiaryRepository {
     String? note,
     String? photoUrl,
   }) async {
+    // Yazma sınırı doğrulaması: `NaN`/`Infinity` Postgres'e JSON olarak
+    // gider ve `numeric` kolonlarında hata/istisna üretir; negatif ya da
+    // sıfır miktar ise 100g normalizasyonunu (`x/amount*100`) bozar ve
+    // tüm gün toplamlarını yanlışlaştırır.
+    _requireFinitePositive('amountGMl', amountGMl);
+    _requireFiniteNonNegative('calculatedKcal', calculatedKcal);
+    _requireFiniteNonNegative('calculatedProtein', calculatedProtein);
+    _requireFiniteNonNegative('calculatedCarbs', calculatedCarbs);
+    _requireFiniteNonNegative('calculatedFat', calculatedFat);
+
     final data = await _client
         .from('meal_entries')
         .insert({
@@ -164,33 +194,66 @@ class DiaryRepository {
   }
 
   /// Yemek girdisi güncelle (web `updateMealEntry` — updated_at damgalı).
+  ///
+  /// [userId] hem `eq('id', ...)` hem de `eq('user_id', ...)` filtresine
+  /// eklenir: RLS zaten `auth.uid() = user_id` ile koruyor, ama istemci
+  /// tarafında ikinci filtre **kırık/eksik yetki** durumunda (örn. RLS
+  /// politikası yanlışlıkla gevşetilirse) başkasının kaydının sessizce
+  /// ezilmesini imkânsız kılar. Kullanıcının oturumu dışındaki bir id
+  /// geçilirse `.single()` 0 satır döner ve `PostgrestException` fırlatır —
+  /// sessiz veri kaybı yerine yüzeye çıkan hata.
   Future<MealEntry> updateMealEntry(
+    String userId,
     String id,
     Map<String, dynamic> updates,
   ) async {
+    // Kısmi güncelleme: `updates` yalnızca verilen alanları içerir, diğer
+    // alanlar (source/food_id/photo_url/entry_date) korunur. Yazılan sayısal
+    // alanlar yine de doğrulanır — UI `_parse` boş metni 0'a çevirdiği
+    // için 0 miktar buradan geçebilirdi.
+    final amount = updates['amount_g_ml'];
+    if (amount is double) _requireFinitePositive('amount_g_ml', amount);
+    for (final key in const [
+      'calculated_kcal',
+      'calculated_protein',
+      'calculated_carbs',
+      'calculated_fat',
+    ]) {
+      final v = updates[key];
+      if (v is double) _requireFiniteNonNegative(key, v);
+    }
+
     final data = await _client
         .from('meal_entries')
         .update({...updates, 'updated_at': _nowIso()})
         .eq('id', id)
+        .eq('user_id', userId)
         .select()
         .single();
     return MealEntry.fromJson(data);
   }
 
   /// Yemek girdisi sil — soft delete (web parity).
-  Future<void> deleteMealEntry(String id) async {
+  ///
+  /// [userId] kapsam filtresi — bkz. [updateMealEntry].
+  Future<void> deleteMealEntry(String userId, String id) async {
     await _client
         .from('meal_entries')
         .update({'deleted_at': _nowIso()})
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', userId);
   }
 
   /// Yemek girdisini geri al — `deleted_at = null` (soft-delete undo).
   /// Dashboard kaydır-sil sonrası "Geri Al" SnackBar aksiyonu.
-  Future<void> restoreMealEntry(String id) async {
-    await _client.from('meal_entries').update(
-      {'deleted_at': null, 'updated_at': _nowIso()},
-    ).eq('id', id);
+  ///
+  /// [userId] kapsam filtresi — bkz. [updateMealEntry].
+  Future<void> restoreMealEntry(String userId, String id) async {
+    await _client
+        .from('meal_entries')
+        .update({'deleted_at': null, 'updated_at': _nowIso()})
+        .eq('id', id)
+        .eq('user_id', userId);
   }
 
   /// Su ekle (web `addWaterEntry` — entry_time DB default'una bırakılır).
@@ -207,6 +270,13 @@ class DiaryRepository {
     required double amountMl,
     required String entryDate,
   }) async {
+    if (amountMl.isNaN || amountMl.isInfinite || amountMl <= 0) {
+      throw ArgumentError.value(
+        amountMl,
+        'amountMl',
+        'Su miktarı NaN, Infinity veya sıfırdan küçük olamaz',
+      );
+    }
     final data = await _client
         .from('water_entries')
         .insert({
@@ -220,11 +290,14 @@ class DiaryRepository {
   }
 
   /// Su kaydı sil — soft delete (web'de yok ama tutarlılık için aynı desen).
-  Future<void> deleteWaterEntry(String id) async {
+  ///
+  /// [userId] kapsam filtresi — bkz. [updateMealEntry].
+  Future<void> deleteWaterEntry(String userId, String id) async {
     await _client
         .from('water_entries')
         .update({'deleted_at': _nowIso()})
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', userId);
   }
 
   /// Kilo kaydı ekle (web `addWeightEntry`).
@@ -234,6 +307,19 @@ class DiaryRepository {
     required String entryDate,
     String? note,
   }) async {
+    if (weightKg.isNaN || weightKg.isInfinite || weightKg <= 0) {
+      // `weight_entries.weight_kg` NOT NULL + domain anlamı: 0/negatif
+      // kayıt BMI ve tüm makro hedeflerini bozacağı için DB'ye hiç
+      // gönderilmez. Çağıran (weight_card) zaten `weight <= 0` filtresi
+      // uyguluyor; buradaki kontrol o filtrenin atlandığı her yol için
+      // son savunmadır ve hatayı yüzeye taşır.
+      throw ArgumentError.value(
+        weightKg,
+        'weightKg',
+        'Kilo 0, negatif, NaN veya Infinity olamaz',
+      );
+    }
+
     final data = await _client
         .from('weight_entries')
         .insert({
