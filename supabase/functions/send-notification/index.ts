@@ -5,6 +5,9 @@
 // - Dahili (cron) çağırma, `x-calorix-internal-token` başlığı ile korunur ve
 //   yalnızca sunucu tarafındaki `INTERNAL_FUNCTION_TOKEN` değerini bilen taraf yapabilir.
 // - Push endpoint'i Web Push sağlayıcı hostları ile sınırlandırılır (SSRF/abus).
+// - Push gövdesi RFC 8291 `aes128gcm` ile **şifrelenir** (2026-09-28, A1r3);
+//   düz metin gönderilmez. VAPID imzası ile gövde şifreleme birlikte çalışır:
+//   RFC 8291 §3.3 gereği şifreli istekte `Authorization: vapid` **zorunludur**.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -18,6 +21,7 @@ import {
   importVapidPrivateKey,
   preparePushPayload,
 } from "../_shared/vapid.ts";
+import { encryptPushBody, PushEncryptionError } from "../_shared/web_push_crypto.ts";
 
 const NOTIFICATION_TYPES = [
   "weigh_in",
@@ -183,12 +187,39 @@ async function sendPushNotification(
     return { ok: false, expired: false };
   }
 
-  let body: string;
+  let plaintext: string;
   try {
     // Şema + 4096 bayt sınırı uygulanır (aşırı uzun gövde push servisinde reddedilir).
-    body = preparePushPayload(payload).body;
+    // Bu sınır **şifrelenmemiş** JSON içindir; şifreli gövde ~%3 daha büyüktür
+    // (21 bayt başlık + 16 bayt GCM etiketi), `encryptPushBody` de ayrıca
+    // 4096 baytlık push sınırını denetler.
+    plaintext = preparePushPayload(payload).body;
   } catch (error) {
     console.error("Push payload reddedildi:", error);
+    return { ok: false, expired: false };
+  }
+
+  // RFC 8291 `aes128gcm` şifrelemesi. `auth`/`p256dh` bozuksa PushEncryptionError
+  // fırlatır; burada YUTULMAZ — push bu abonelik için atlanır, e-posta akışı ve
+  // `notifications` kaydı normal devam eder (A1'in süreklilik maddesi).
+  let encrypted: { headers: Record<string, string>; body: Uint8Array };
+  try {
+    encrypted = await encryptPushBody({
+      authSecret: subscription.auth,
+      p256dh: subscription.p256dh,
+      plaintext,
+      // 24 saat: kullanıcı uygulamayı kapattıysa bildirim bir sonraki açılışta görünür.
+      ttlSeconds: 86_400,
+      urgency: "normal",
+    });
+  } catch (error) {
+    if (error instanceof PushEncryptionError) {
+      // Abonelik anahtarları bozuk/eksik — bu bir hata değil, elde edilemeyen
+      // bir abonelik demektir. Neden loglanır ama akış kırılmaz.
+      console.error(`Push şifrelenemedi (abonelik anahtarı geçersiz), atlandı: ${error.message}`);
+    } else {
+      console.error("Push şifreleme hatası:", error);
+    }
     return { ok: false, expired: false };
   }
 
@@ -196,13 +227,13 @@ async function sendPushNotification(
     const response = await fetch(subscription.endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/octet-stream",
-        "TTL": "86400",
-        "Urgency": "normal",
-        "Authorization": authorization,
+        ...encrypted.headers,
+        // RFC 8291 §3.3: `aes128gcm` içerik şifrelemesinde VAPID yetkilendirmesi
+        // zorunludur; push servisi imzasız şifreli isteği reddeder.
+        Authorization: authorization,
       },
       signal: AbortSignal.timeout(10_000),
-      body,
+      body: encrypted.body as unknown as BodyInit,
     });
 
     if (response.status !== 201) {
