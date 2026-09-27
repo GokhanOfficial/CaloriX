@@ -12,7 +12,7 @@ import { AddMealDialog } from "@/components/dialogs/AddMealDialog";
 import { EditMealDialog } from "@/components/dialogs/EditMealDialog";
 import { AddWeightDialog } from "@/components/dialogs/AddWeightDialog";
 import { UnifiedFoodDialog } from "@/components/dialogs/UnifiedFoodDialog";
-import { MEAL_TYPES, type MealType, DEFAULT_GOALS } from "@/lib/constants";
+import { MEAL_TYPES, type MealType, DEFAULT_GOALS, activityLevelToDb } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useDailyData } from "@/hooks/useDailyData";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -112,7 +112,7 @@ const Index = () => {
             height_cm: profile.height_cm || 170,
             current_weight_kg: weight,
             target_weight_kg: profile.target_weight_kg || weight,
-            activity_level: profile.activity_level || "moderate",
+            activity_level: activityLevelToDb(profile.activity_level || "moderate"),
             goal: profile.goal || "maintain",
             previous_macros: profile.daily_calorie_target
               ? {

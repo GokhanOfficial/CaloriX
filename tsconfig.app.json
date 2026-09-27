@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
+    // `ignoreDeprecations: "6.0"` burada yalnızca TS 6.x'te geçerli olan bir değer.
+    // Repo TS 5.8.3 kullanıyor ve 5.8 bu değeri kabul etmiyor:
+    //   tsconfig.app.json(3,27): error TS5103: Invalid value for '--ignoreDeprecations'.
+    // Kullanılan seçeneklerin (target ES2020, module ESNext, moduleResolution bundler)
+    // hiçbiri TS 5.8'de deprecated olmadığı için seçenek gereksiz ve kaldırıldı.
+    // TS 6'ya geçilirse buraya "6.0" geri eklenmelidir.
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],

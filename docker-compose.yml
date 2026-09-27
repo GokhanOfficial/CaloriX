@@ -18,6 +18,13 @@ services:
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules
+    healthcheck:
+      # Vite dev sunucusu hazır olduğunda HTTP 200 döner.
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
     depends_on:
       supabase:
         condition: service_started

@@ -30,7 +30,7 @@ import {
   calculateBMI,
   getBMICategory
 } from "@/lib/calculations";
-import { ACTIVITY_LEVELS, GOALS, HEALTH_DISCLAIMER, type ActivityLevel, type Goal } from "@/lib/constants";
+import { ACTIVITY_LEVELS, GOALS, HEALTH_DISCLAIMER, activityLevelToDb, activityLevelFromDb, type ActivityLevel, type Goal } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
@@ -124,7 +124,7 @@ export default function OnboardingPage() {
         if (data.height_cm) setHeightCm(Number(data.height_cm));
         if (data.current_weight_kg) setCurrentWeightKg(Number(data.current_weight_kg));
         if (data.target_weight_kg) setTargetWeightKg(Number(data.target_weight_kg));
-        if (data.activity_level) setActivityLevel(data.activity_level as ActivityLevel);
+        if (data.activity_level) setActivityLevel(activityLevelFromDb(data.activity_level));
         if (data.goal) setGoal(data.goal as Goal);
       }
       setIsLoading(false);
@@ -150,7 +150,7 @@ export default function OnboardingPage() {
           height_cm: heightCm,
           current_weight_kg: currentWeightKg,
           target_weight_kg: targetWeightKg,
-          activity_level: activityLevel,
+          activity_level: activityLevelToDb(activityLevel),
           goal,
         },
       });
@@ -300,7 +300,7 @@ export default function OnboardingPage() {
         height_cm: heightCm,
         current_weight_kg: currentWeightKg,
         target_weight_kg: targetWeightKg,
-        activity_level: activityLevel,
+        activity_level: activityLevelToDb(activityLevel),
         goal,
         bmr: calculatedGoals.bmr,
         tdee: calculatedGoals.tdee,

@@ -76,6 +76,11 @@ export function useDailyData(date: Date) {
       if (waterError) throw waterError;
       setWaterEntries((water || []) as WaterEntry[]);
 
+      // En son kilo kaydı — tüm geçmişten (seçili günle sınırlı değil).
+      // NOT: `.limit(1)` + `.single()` birlikte kullanılamaz: PostgREST 0 veya
+      // 1 satır döndüğünde `.single()` hata verir. `.maybeSingle()` tek bir
+      // nesne döndürdüğü için doğru seçim. Ayrıca RLS'e ek olarak kullanıcı
+      // kapsamı burada da filtreleniyor (savunma katmanı).
       const { data: weight, error: weightError } = await supabase
         .from("weight_entries")
         .select("*")

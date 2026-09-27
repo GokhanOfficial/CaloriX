@@ -6,23 +6,45 @@ pnpm-debug.log*
 
 .git
 .gitignore
+.gitattributes
+.github
 
+# Tüm ortam dosyaları build bağlamına girmemeli. VITE_* değişkenleri
+# Dockerfile.prod içindeki ARG'lar ile geçiriliyor.
 .env
 .env.*
 !.env.example
 
+plans
+docs
+tool
+.zcode
+
+# Flutter ana uygulama — PWA imajına gerek yok.
+flutter_app
+
+# Gizli dosyalar
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.jks
+**/*.keystore
+**/key.properties
+.npmrc
+.htpasswd
+
 .vscode
 .idea
-
-Dockerfile*
-docker-compose*.yml
-
-logs
-*.log
+.DS_Store
+Thumbs.db
 
 dist
 dist-ssr
 build
 *.tsbuildinfo
 
-.DS_Store
+# Yapılandırma dosyaları runtime'da gerekmiyor
+Dockerfile*
+docker-compose*.yml

@@ -37,6 +37,11 @@ type ChatMessage = {
 
 const PAGE_SIZE = 10;
 
+/** Ek dosya başına üst sınır (10 MB). `<input accept>` yalnızca MIME önerir. */
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+/** `<input>` accept ile uyumlu izinli görsel MIME'leri. */
+const ALLOWED_ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+
 const renderInlineMarkdown = (text: string) => {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, index) => {
@@ -246,6 +251,15 @@ const ChatPage = () => {
     if (!user || !selectedFiles.length) return [];
     const uploaded: ChatAttachment[] = [];
     for (const file of selectedFiles) {
+      // Boyut sınırı yüklemeye ÖNCE uygulanıyor: sunucu tarafı storage
+      // policy'si sınırsız olsa da gereksiz bant genişliği tüketimini ve
+      // kullanıcıyı uzun süre bekletmeyi engeller.
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        throw new Error(`File too large: ${file.name} (max ${MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB)`);
+      }
+      if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        throw new Error(`Unsupported file type: ${file.type}`);
+      }
       const extension = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/${activeThreadId}/${crypto.randomUUID()}.${extension}`;
       const { error } = await supabase.storage.from("chat-attachments").upload(path, file, { contentType: file.type, upsert: false });
@@ -309,7 +323,14 @@ const ChatPage = () => {
   const clearVisibleChat = async () => {
     if (!threadId) return;
     try {
-      await supabase.from("chat_threads" as any).update({ archived_at: new Date().toISOString() }).eq("id", threadId);
+      // Hata `error`'a alınmadan update çalıştırılıyordu: RLS/aynı kullanıcı
+      // kontrolü başarısız olsa bile UI sohbeti sildi, kullanıcı verinin
+      // arşivlenmediğini sanıyordu (sessiz veri kaybı izlenimi).
+      const { error } = await supabase
+        .from("chat_threads" as any)
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", threadId);
+      if (error) throw error;
       setMessages([]);
       setThreadId(null);
       await loadInitial();

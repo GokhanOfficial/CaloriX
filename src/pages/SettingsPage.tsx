@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useProfile } from "@/contexts/ProfileContext";
-import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, APP_VERSION, type ActivityLevel, type Goal } from "@/lib/constants";
+import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, APP_VERSION, activityLevelToDb, activityLevelFromDb, type ActivityLevel, type Goal } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -85,7 +85,7 @@ const SettingsPage = () => {
   const [targetWeightKg, setTargetWeightKg] = useState(profile?.target_weight_kg || 70);
 
   // Form states for goals
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>((profile?.activity_level as ActivityLevel) || "moderate");
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(activityLevelFromDb(profile?.activity_level));
   const [goal, setGoal] = useState<Goal>((profile?.goal as Goal) || "maintain");
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(profile?.daily_calorie_target || 2000);
   const [proteinTarget, setProteinTarget] = useState(profile?.protein_target_g || 150);
@@ -110,7 +110,7 @@ const SettingsPage = () => {
   };
 
   const openGoals = () => {
-    setActivityLevel((profile?.activity_level as ActivityLevel) || "moderate");
+    setActivityLevel(activityLevelFromDb(profile?.activity_level));
     setGoal((profile?.goal as Goal) || "maintain");
     setDailyCalorieTarget(profile?.daily_calorie_target || 2000);
     setProteinTarget(profile?.protein_target_g || 150);
@@ -204,7 +204,7 @@ const SettingsPage = () => {
             height_cm: heightCm,
             current_weight_kg: currentWeightKg,
             target_weight_kg: targetWeightKg,
-            activity_level: profile?.activity_level || "moderate",
+            activity_level: activityLevelToDb(profile?.activity_level || "moderate"),
             goal: profile?.goal || "maintain",
             previous_weight_kg: profile.current_weight_kg,
             previous_macros: {
@@ -249,7 +249,7 @@ const SettingsPage = () => {
     setIsLoading(true);
 
     const { error } = await updateProfile({
-      activity_level: activityLevel,
+      activity_level: activityLevelToDb(activityLevel),
       goal,
       daily_calorie_target: dailyCalorieTarget,
       protein_target_g: proteinTarget,

@@ -18,12 +18,28 @@ dist-ssr
 build
 *.tsbuildinfo
 
+# Agent/editor oturum araçları
+.zcode
+
 # Environmental variables - CRITICAL to ignore these
 .env
 .env.*
 !.env.example
 !supabase/.env.example
+!flutter_app/.env.example
 *.local
+
+# Secret / key material — asla commit edilmemeli
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+key.properties
+**/key.properties
+.npmrc
+.htpasswd
 
 # Editor directories and files
 .vscode/*
@@ -51,6 +67,15 @@ supabase/.env.local
 # Testing
 coverage
 .nyc_output
+
+# AI editör / ajan oturum planları (kaynak kod değil, kişiye özel notlar)
+.zcode/
+
+# Flutter Android imzalama — anahtarlar ASLA commit edilmez.
+# (flutter_app/.gitignore'da .env var; keystore koruması burada)
+**/key.properties
+**/*.jks
+**/*.keystore
 
 # OS generated files
 Thumbs.db

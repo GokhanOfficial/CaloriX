@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +58,11 @@ export function useNotifications() {
     }
   }, []);
 
+  // Subscribe to push notifications.
+  // `useRef` ile paylaşılır: hem `requestPushPermission` hem de dışarıdan
+  // tetiklenebilen yollar aynı örneği kullanmalı (fonk. referansı değil).
+  const subscribeToPushRef = useRef<() => Promise<void>>(async () => {});
+
   // Request push notification permission
   const requestPushPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -69,12 +74,12 @@ export function useNotifications() {
     setPushPermission(permission);
 
     if (permission === 'granted') {
-      await subscribeToPush();
+      await subscribeToPushRef.current();
       return true;
     }
 
     return false;
-  }, []);
+  }, [toast]);
 
   // Subscribe to push notifications
   const subscribeToPush = useCallback(async () => {
@@ -109,12 +114,16 @@ export function useNotifications() {
       });
 
       if (error) throw error;
-
-      console.log('Push subscription saved');
     } catch (error) {
       console.error('Error subscribing to push:', error);
     }
   }, [user]);
+
+  // `subscribeToPush` tanımlandıktan sonra ref'i güncelle; böylece
+  // `requestPushPermission` güncel `user`'a bağlı örneği çağırır.
+  useEffect(() => {
+    subscribeToPushRef.current = subscribeToPush;
+  }, [subscribeToPush]);
 
   // Fetch notification preferences
   const fetchPreferences = useCallback(async () => {
@@ -218,11 +227,17 @@ export function useNotifications() {
   }, [user, preferences, toast]);
 
   // Mark notification as read
+  // `.eq('user_id', user.id)` RLS'e ek savunma katmanı: bir bildirim id'si
+  // yanlışlıkla başka kullanıcınınki olsa bile istek kullanıcı kapsamı dışına
+  // çıkmaz (RLS zaten UPDATE'i `auth.uid() = user_id` ile sınırlıyor).
   const markAsRead = useCallback(async (notificationId: string) => {
+    if (!user) return;
+
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .eq('user_id', user.id);
 
     if (!error) {
       setNotifications(prev => prev.map(n =>
@@ -230,7 +245,7 @@ export function useNotifications() {
       ));
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
-  }, []);
+  }, [user]);
 
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
@@ -250,15 +265,18 @@ export function useNotifications() {
 
   // Delete notification
   const deleteNotification = useCallback(async (notificationId: string) => {
+    if (!user) return;
+
     const { error } = await supabase
       .from('notifications')
       .delete()
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .eq('user_id', user.id);
 
     if (!error) {
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
     }
-  }, []);
+  }, [user]);
 
   // Initial fetch
   useEffect(() => {

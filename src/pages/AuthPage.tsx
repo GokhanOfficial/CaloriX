@@ -53,7 +53,7 @@ export default function AuthPage() {
       });
       navigate("/", { replace: true });
     }
-  }, [searchParams, user, isEmailVerified, navigate, toast]);
+  }, [searchParams, user, isEmailVerified, navigate, toast, t]);
 
   // Redirect if already logged in and verified (but not in password recovery mode)
   useEffect(() => {

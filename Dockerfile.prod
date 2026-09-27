@@ -1,33 +1,50 @@
+# syntax=docker/dockerfile:1
+
+# ---------- 1) Build ----------
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build-time VITE_* değişkenleri bundle'a gömülür (her şey istemcide çalıştığı
+# için gizli tutulamaz). Yalnızca publishable/anon anahtar ve proje URL'si
+# verilir — service_role veya DB parolası ASLA build arg'ı olmamalıdır.
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_SUPABASE_PROJECT_ID
+ARG VITE_VAPID_PUBLIC_KEY
 
-ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-ENV VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
-ENV VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID}
+ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL} \
+    VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY} \
+    VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID} \
+    VITE_VAPID_PUBLIC_KEY=${VITE_VAPID_PUBLIC_KEY}
 
-COPY package*.json ./
+# Bağımlılıklar önce kopyalanır -> katman önbelleği (lockfile değişmedikçe npm ci cache'lenir)
+COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
+# ---------- 2) Runtime ----------
+FROM nginx:1.27-alpine AS runner
 
-WORKDIR /app
+# nginx kullanıcısı (UID 101) zaten var; imajın default root olmasına gerek yok.
+RUN rm -f /etc/nginx/conf.d/default.conf
 
-ENV NODE_ENV=production
+COPY nginx.conf /etc/nginx/conf.d/calorix.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-COPY package*.json ./
-RUN npm ci && npm cache clean --force
+# Statik dosyalar nginx worker'ı (UID 101) tarafından okunmalı.
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && touch /var/run/nginx.pid \
+    && chown -R nginx:nginx /var/run/nginx.pid \
+    && chmod -R a+rX /usr/share/nginx/html
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/vite.config.ts ./vite.config.ts
+USER nginx
 
 EXPOSE 8080
 
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "8080"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --spider -q http://127.0.0.1:8080/healthz || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

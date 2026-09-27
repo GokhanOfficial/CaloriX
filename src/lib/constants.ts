@@ -31,6 +31,40 @@ export const ACTIVITY_LEVELS = {
 
 export type ActivityLevel = keyof typeof ACTIVITY_LEVELS;
 
+/**
+ * `ActivityLevel` UI anahtarları camelCase (`veryActive`), veritabanı CHECK
+ * kısıtı ise snake_case (`very_active`) bekliyor:
+ *   supabase/migrations/20260111041204_...sql:39
+ *     activity_level TEXT CHECK (activity_level IN ('sedentary','light',
+ *       'moderate','active','very_active'))
+ * `calculate-macros` edge function da yalnızca snake_case kabul ediyor
+ * (supabase/functions/calculate-macros/index.ts:21).
+ * Bu eşleyici olmadan onboarding'de "Çok Aktif" seçilince profil UPDATE'i
+ * CHECK ihlaliyle başarısız oluyor ve hedefler kaydedilmiyordu.
+ * Flutter tarafı enum `.name` gönderdiği için (`veryActive`) aynı sürüşürü —
+ * A3 bu ayrıntıyı kendi raporunda ele almalı (bkz. AKTARIM).
+ */
+const ACTIVITY_LEVEL_TO_DB: Record<ActivityLevel, string> = {
+  sedentary: 'sedentary',
+  light: 'light',
+  moderate: 'moderate',
+  active: 'active',
+  veryActive: 'very_active',
+};
+
+/** UI anahtarı -> veritabanı değeri. Bilinmeyen değerler olduğu gibi geçer. */
+export function activityLevelToDb(level: string): string {
+  return ACTIVITY_LEVEL_TO_DB[level as ActivityLevel] ?? level;
+}
+
+/** Veritabanı değeri -> UI anahtarı. snake_case'i camelCase'e çevirir. */
+export function activityLevelFromDb(value: string | null | undefined): ActivityLevel {
+  if (!value) return 'moderate';
+  return (Object.keys(ACTIVITY_LEVEL_TO_DB) as ActivityLevel[]).find(
+    (key) => ACTIVITY_LEVEL_TO_DB[key] === value || key === value,
+  ) ?? 'moderate';
+}
+
 export const GOALS = {
   lose: { id: 'lose', label: 'Kilo Vermek', calorieModifier: -500 },
   maintain: { id: 'maintain', label: 'Kilo Korumak', calorieModifier: 0 },
