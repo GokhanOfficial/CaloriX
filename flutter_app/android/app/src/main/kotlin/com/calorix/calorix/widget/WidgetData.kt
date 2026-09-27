@@ -19,6 +19,25 @@ import kotlin.math.roundToInt
  */
 internal object WidgetData {
 
+    /**
+     * `home_widget` paketinin SharedPreferences dosya adı.
+     *
+     * Kaynak: `home_widget/android/.../HomeWidgetPlugin.kt` →
+     * `internal const val PREFERENCES = "HomeWidgetPreferences"`.
+     * **Paylaşılan_preferences paketi (`flutter_preferences`) ile aynı dosya
+     * değildir** — yanlış ad kullanılırsa widget hiç veri görmez.
+     */
+    private const val PREFS = "HomeWidgetPreferences"
+
+    /**
+     * `home_widget` sayısal `Double` değerleri `putLong(rawLongBits)` ile
+     * saklar ve `home_widget.double.<anahtar>` bayrağıyla ayırır. Bu yüzden
+     * normal `getInt`/`getFloat` **çalışmaz**; değeri `Double.fromBits` ile
+     * geri çözmek gerekir. `Float` ise `putFloat` ile düz yazılır ve bayrak
+     * `false` kalır — ikisini de doğru okumak için aşağıdaki sıralama kullanılır.
+     */
+    private const val DOUBLE_FLAG_PREFIX = "home_widget.double."
+
     // --- Anahtarlar (WidgetKeys ile aynı) --------------------------------
     private const val STATE = "widget.state"
     private const val DATE = "widget.date"
@@ -72,7 +91,7 @@ internal object WidgetData {
 
     /** Tüm anahtarları tip güvenli okuyan tek nokta. */
     private fun prefs(context: Context): SharedPreferences =
-        context.getSharedPreferences("flutter", Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun state(context: Context): String = str(context, STATE, STATE_NO_CONFIG).let {
         if (it == STATE_READY || it == STATE_SIGNED_OUT || it == STATE_NO_CONFIG) it else STATE_NO_CONFIG
@@ -138,23 +157,61 @@ internal object WidgetData {
     private fun str(context: Context, key: String, fallback: String): String =
         runCatching { prefs(context).getString(key, fallback) }.getOrNull() ?: fallback
 
-    private fun int(context: Context, key: String, fallback: Int): Int = runCatching {
-        prefs(context).getInt(key, fallback)
-    }.getOrElse {
-        // Dart tarafı bazı alanlarda double yazmış olabilir (örn. NaN sonrası
-        // yazılan değer). Type castException'ı yutulur.
-        runCatching {
-            val d = prefs(context).getFloat(key, fallback.toFloat())
-            if (d.isNaN() || d.isInfinite()) fallback else d.roundToInt()
-        }.getOrDefault(fallback)
+    /**
+     * Tam sayı okur.
+     *
+     * `home_widget` değerleri şu şekilde saklar:
+     *  - `Double` → `putLong(rawLongBits)` + `home_widget.double.<key>=true`
+     *  - `Int`    → `putInt`
+     *  - `Float`  → `putFloat`
+     *
+     * Dart tarafı tüm sayıları `double` yazdığı için önce bayrak kontrol edilir.
+     * `getInt`/`getLong` **`ClassCastException` fırlatır** (SharedPreferences
+     * tip zorlaması yapar), bu yüzden erişim `prefs.all` üzerinden yapılır.
+     */
+    private fun int(context: Context, key: String, fallback: Int): Int {
+        val p = prefs(context)
+        val raw = p.all[key] ?: return fallback
+        return when (raw) {
+            is Boolean -> if (raw) 1 else 0
+            is Int -> raw
+            is Long -> when {
+                // Long: ya gerçek bir Long, ya da double bit deseni.
+                p.getBoolean(DOUBLE_FLAG_PREFIX + key, false) ->
+                    sanitizeDouble(Double.fromBits(raw), fallback.toDouble()).roundToInt()
+                else -> raw.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
+            }
+            is Float -> if (raw.isNaN() || raw.isInfinite()) fallback else raw.roundToInt()
+            is Double -> sanitizeDouble(raw, fallback.toDouble()).roundToInt()
+            is String -> raw.toDoubleOrNull()?.let {
+                sanitizeDouble(it, fallback.toDouble()).roundToInt()
+            } ?: fallback
+            else -> fallback
+        }
     }
 
-    private fun long(context: Context, key: String, fallback: Long): Long = runCatching {
-        prefs(context).getLong(key, fallback)
-    }.getOrElse {
-        runCatching { prefs(context).getFloat(key, fallback.toFloat()).toLong() }
-            .getOrDefault(fallback)
+    private fun long(context: Context, key: String, fallback: Long): Long {
+        val p = prefs(context)
+        val raw = p.all[key] ?: return fallback
+        return when (raw) {
+            is Long -> if (p.getBoolean(DOUBLE_FLAG_PREFIX + key, false)) {
+                sanitizeDouble(Double.fromBits(raw), fallback.toDouble()).toLong()
+            } else {
+                raw
+            }
+            is Int -> raw.toLong()
+            is Float -> if (raw.isNaN() || raw.isInfinite()) fallback else raw.toLong()
+            is Double -> sanitizeDouble(raw, fallback.toDouble()).toLong()
+            is String -> raw.toDoubleOrNull()?.let {
+                sanitizeDouble(it, fallback.toDouble()).toLong()
+            } ?: fallback
+            else -> fallback
+        }
     }
+
+    /** NaN/Infinity yazılabilir değildir; 0'a düşürülür. */
+    private fun sanitizeDouble(value: Double, fallback: Double): Double =
+        if (value.isNaN() || value.isInfinite()) 0.0 else value
 
     private fun bool(context: Context, key: String, fallback: Boolean): Boolean = runCatching {
         prefs(context).getBoolean(key, fallback)

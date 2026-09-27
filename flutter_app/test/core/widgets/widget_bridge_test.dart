@@ -32,6 +32,7 @@ void main() {
       written[k] = v;
       return true;
     };
+    HomeWidgetSave.readString = (k) async => written[k] as String?;
     HomeWidgetSave.update = (name) async {
       refreshed.add(name);
       return true;
@@ -160,6 +161,49 @@ void main() {
       expect(written[WidgetKeys.dPermille], 0.0);
       // Haftalık alanlar da sıfırlanmalı (native taraf null beklemiyor).
       expect(written[WidgetKeys.wValues], '[0,0,0,0,0,0,0]');
+    });
+  });
+
+  group('refreshVisibility', () {
+    test('durum ready ise yalnızca görünürlük bayraklarını yazar', () async {
+      written[WidgetKeys.state] = 'ready';
+      await refreshVisibility(
+        settings: const WidgetSettings(
+          showMacros: false,
+          showWater: true,
+          showWeight: true,
+          weeklyShowAvg: false,
+        ),
+        localeCode: 'tr',
+      );
+      // Veri anahtarları (kalori, hedef) **yeniden yazılmaz**.
+      expect(written.containsKey(WidgetKeys.dCalories), isFalse);
+      expect(written[WidgetKeys.dShowMacros], false);
+      expect(written[WidgetKeys.dShowWater], true);
+      expect(written[WidgetKeys.dShowWeight], true);
+      expect(written[WidgetKeys.wShowAvg], false);
+      expect(written[WidgetKeys.wShowOnTarget], true);
+    });
+
+    test('hiç veri yazılmamışsa (state null) hiçbir şey yazılmaz', () async {
+      await refreshVisibility(
+        settings: const WidgetSettings(),
+        localeCode: 'tr',
+      );
+      expect(written, isEmpty);
+      expect(refreshed, isEmpty);
+    });
+
+    test('çıkış yapılmış durumda da görünürlük yazılır, veri korunur', () async {
+      written[WidgetKeys.state] = 'signedOut';
+      written[WidgetKeys.dCalories] = 1500.0;
+      await refreshVisibility(
+        settings: const WidgetSettings(showMacros: false),
+        localeCode: 'tr',
+      );
+      expect(written[WidgetKeys.dShowMacros], false);
+      // Mevcut nötr snapshot bozulmaz.
+      expect(written[WidgetKeys.dCalories], 1500.0);
     });
   });
 

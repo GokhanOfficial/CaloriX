@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/profile.dart';
 import '../../data/repositories/diary_repository.dart';
@@ -126,6 +125,8 @@ abstract final class HomeWidgetSave {
       (k, v) => HomeWidget.saveWidgetData<double>(k, v);
   static Future<bool?> Function(String, String) saveString =
       (k, v) => HomeWidget.saveWidgetData<String>(k, v);
+  static Future<String?> Function(String) readString =
+      (k) => HomeWidget.getWidgetData<String>(k);
   static Future<bool?> Function(String) update =
       (name) => HomeWidget.updateWidget(
         androidName: name,
@@ -138,6 +139,7 @@ abstract final class HomeWidgetSave {
     saveBool = (k, v) => HomeWidget.saveWidgetData<bool>(k, v);
     saveDouble = (k, v) => HomeWidget.saveWidgetData<double>(k, v);
     saveString = (k, v) => HomeWidget.saveWidgetData<String>(k, v);
+    readString = (k) => HomeWidget.getWidgetData<String>(k);
     update = (name) => HomeWidget.updateWidget(
       androidName: name,
       iOSName: name,
@@ -176,7 +178,7 @@ class WidgetBridgeScope extends ConsumerWidget {
     // Ayar değişiklikleri widget görünürlüğünü değiştirir → yeniden yayın.
     ref.listen<WidgetSettings>(widgetSettingsProvider, (previous, next) {
       if (previous == null || previous == next) return;
-      unawaited(refreshFromPrefs(localeCode: _localeCode(context)));
+      unawaited(refreshVisibility(settings: next, localeCode: _localeCode(context)));
     });
 
     return child;
@@ -188,31 +190,35 @@ class WidgetBridgeScope extends ConsumerWidget {
   }
 }
 
-/// SharedPreferences'taki mevcut veriyi yeniden yayınlar (ayar tetiklendiğinde).
+/// Ayar değiştiğinde yalnızca **görünürlük** anahtarlarını yeniden yazar.
 ///
-/// Veri katmanına yeniden sorgu atmadan, `home_widget`'ın yazdığı kanonik veri
-/// tekrar okunur; böylece aynı değerler widget'a geri yazılmış olur.
-Future<void> refreshFromPrefs({required String localeCode}) async {
+/// Snapshot'ın kendisi `publishDaily` ile yazılır; kullanıcı makro/su/kilo
+/// satırını gizlediyse veriyi silmek yerine bayrağı kapatmak doğru davranıştır
+/// (gizleme kalıcı bir tercih, yeniden açınca veri hazır olmalıdır).
+///
+/// Not: `shared_preferences` **kullanılamaz** — `home_widget` veriyi
+/// `HomeWidgetPreferences` dosyasına yazar, `shared_preferences` ise
+/// `FlutterSharedPreferences` okur. Aşağıdaki `HomeWidgetSave` sarmalayıcısı
+/// doğru kanalı kullanır.
+Future<void> refreshVisibility({
+  required WidgetSettings settings,
+  required String localeCode,
+}) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
-    final state = prefs.getString(WidgetKeys.state);
-    if (state == null || state != 'ready') {
-      // Nötr duruma al: kullanıcı çıkış yapmış ya da hiç veri yazılmamış.
-      await WidgetBridge.publishState(
-        state: state ?? 'noConfig',
-        strings: WidgetStrings.current(),
-        localeCode: localeCode,
-      );
+    final state = await HomeWidgetSave.readString(WidgetKeys.state);
+    if (state == null) {
+      // Hiç veri yazılmamış (ilk açılış / widget hiç kullanılmamış).
       return;
     }
-    final existing = <String, Object?>{};
-    for (final key in prefs.getKeys()) {
-      if (!isWidgetKey(key)) continue;
-      existing[key] = prefs.get(key);
-    }
-    await WidgetBridge.publish(existing);
+    await WidgetBridge.publish({
+      WidgetKeys.dShowMacros: settings.showMacros,
+      WidgetKeys.dShowWater: settings.showWater,
+      WidgetKeys.dShowWeight: settings.showWeight,
+      WidgetKeys.wShowAvg: settings.weeklyShowAvg,
+      WidgetKeys.wShowOnTarget: settings.weeklyShowDaysOnTarget,
+    });
   } catch (e, s) {
-    AppLog.w('refreshFromPrefs başarısız', e, s);
+    AppLog.w('WidgetBridge.refreshVisibility başarısız', e, s);
   }
 }
 
