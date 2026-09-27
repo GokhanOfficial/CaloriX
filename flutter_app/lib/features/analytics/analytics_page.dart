@@ -2,8 +2,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/analytics_repository.dart';
@@ -96,9 +98,18 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
           Expanded(
             child: dataAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _ErrorView(
-                onRetry: () => ref.invalidate(analyticsDataProvider(locale)),
-              ),
+              // `AnalyticsAuthRequired` = "oturum yok", genel hata **değil**.
+              // Repository bu durumu bilinçli olarak fırlatıyor (veri katmanı
+              // "veri yok" ile "giriş yapmamış" ayrımını kendisi koruyor);
+              // UI ayrımı yapmazsa kullanıcı giriş yapmamışken tüm grafikleri
+              // "0 veri" gibi görür ve "Tekrar Gönder" butonu hiçbir işe
+              // yaramaz (oturum yokken sorgu zaten çalışmıyor).
+              error: (e, _) => e is AnalyticsAuthRequired
+                  ? const _SignInRequiredView()
+                  : _ErrorView(
+                      onRetry: () =>
+                          ref.invalidate(analyticsDataProvider(locale)),
+                    ),
               data: (data) {
                 if (focus != null) _maybeScrollToFocus();
                 return RefreshIndicator(
@@ -205,6 +216,70 @@ class _ErrorView extends StatelessWidget {
 int _percent(num value, num target) {
   if (target <= 0 || target.isNaN) return 0;
   return (value / target * 100).round();
+}
+
+// ---------------------------------------------------------------------------
+// Oturum yok durumu — "giriş yap" çağrısı (genel hata ekranından AYRI).
+// ---------------------------------------------------------------------------
+
+/// Analitik verisi için oturum bulunamadığında gösterilir.
+///
+/// "Hata + Tekrar Gönder" yanlış olurdu: `analyticsDataProvider` oturum yoksa
+/// sorguya gitmeden `AnalyticsAuthRequired` fırlattığı için yeniden denemek
+/// aynı sonucu verir ve kullanıcı gerçek sorunu (oturum) aramak zorunda
+/// kalır. Bunun yerine oturum ekranına yönlendiren bir buton gösterilir.
+class _SignInRequiredView extends StatelessWidget {
+  const _SignInRequiredView();
+
+  /// Çeviri anahtarı eksikse ham anahtarı (`analytics.signInRequired`)
+  /// göstermemek için Türkçe metne düşer.
+  ///
+  /// `easy_localization` çeviri bulunamazsa **ham anahtarı** döndürür
+  /// (`EasyLocalization.tr` → `Translations.get` → `null` → anahtar); bu
+  /// yüzden dönen metin anahtarla karşılaştırılır.
+  static String get _signInRequiredText {
+    const key = 'analytics.signInRequired';
+    final translated = key.tr();
+    if (translated != key) return translated;
+    return 'Analitik verilerini görmek için giriş yap';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              // `analytics.signInRequired` çevirisi 12 dil dosyasına
+              // A6r3 tarafından eklenecek. Anahtar henüz yoksa
+              // easy_localization ham anahtarı (`analytics.signInRequired`)
+              // ekrana basar; `hasKey` ile bu durumda Türkçe metne
+              // düşülüyor (çeviri dosyası eksikken bile anlaşılır arayüz).
+              _signInRequiredText,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => context.go(AppRoutes.auth),
+              icon: const Icon(Icons.login),
+              label: Text('auth.signIn'.tr()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

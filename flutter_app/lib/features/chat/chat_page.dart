@@ -31,10 +31,21 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
-  /// Gönderilebilir maksimum ek boyutu (10 MB). Storage'a yüklenen dosya
-  /// `chat-attachments` bucket'ına gider; sınırsız boyut bellek taşması ve
-  /// yavaş yükleme yaratır.
-  static const int _maxAttachmentBytes = 10 * 1024 * 1024;
+  /// **Tek dosya** için gönderilebilir maksimum ek boyutu (10 MB). Storage'a
+  /// yüklenen dosya `chat-attachments` bucket'ına gider; sınırsız boyut bellek
+  /// taşması ve yavaş yükleme yaratır.
+  static const int _maxAttachmentBytes = ChatAttachmentLimits.maxFileBytes;
+
+  /// **Tüm eklere toplam** sınır (25 MB).
+  ///
+  /// [_maxAttachmentBytes] yalnızca tek dosyaya uygulandığı için sınırsız
+  /// sayıda dosya seçilebiliyordu: `_pendingFiles` her biri ayrı `Uint8List`
+  /// taşıyor (bellekte ham byte, base64'e çevrilmeden önce), hepsi tek
+  /// mesajda gönderilirken `insertUserMessage` tüm listeyi base64'e
+  /// çevirip edge function gövdesine koyuyor. 10 MB × 5 dosya = 50 MB ham
+  /// bellek + ~67 MB base64 gövde → düşük bellekli Android cihazlarda OOM ve
+  /// istek limitlerini aşan istekler.
+  static const int _maxTotalAttachmentBytes = ChatAttachmentLimits.maxTotalBytes;
 
   /// Bellekte tutulan en fazla mesaj sayısı (pencere).
   ///
@@ -72,6 +83,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   /// Seçili ama henüz gönderilmemiş ek dosyaları (web `selectedFiles`).
   final List<_PendingAttachment> _pendingFiles = [];
+
+  /// `_pendingFiles` içindeki tüm eklerin toplam ham bayt boyutu.
+  ///
+  /// Liste kısa olduğu için (`_maxTotalAttachmentBytes` sınırı nedeniyle
+  /// az dosya tutulabilir) her seçimde toplamı yeniden hesaplamak, artan
+  /// `Uint8List` referanslarının GC'yi geciktirmesinden daha güvenli.
+  int get _pendingBytes =>
+      _pendingFiles.fold<int>(0, (sum, f) => sum + f.bytes.length);
 
   @override
   void initState() {
@@ -266,8 +285,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   Future<void> _clearVisibleChat() async {
     if (_threadId == null) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
     try {
-      await ref.read(chatRepositoryProvider).archiveThread(_threadId!);
+      // `userId` de veriliyor: thread arşivlemesi kullanıcıya bağlı
+      // olmalı (A2 — başka birinin thread'i arşivlenemez).
+      await ref.read(chatRepositoryProvider).archiveThread(user.id, _threadId!);
       setState(() {
         _messages = [];
         _threadId = null;
@@ -296,8 +319,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       // yalnızca uzun kenarı sınırlar; dosya boyutu yine de kontrol edilir.
       if (bytes.length > _maxAttachmentBytes) {
         if (!mounted) return;
-        _showError('${'chat.errors.send'.tr()} '
+        _showError('${'dialogs.photoTooLarge'.tr()} '
             '(max. ${_maxAttachmentBytes ~/ (1024 * 1024)} MB)');
+        return;
+      }
+      // Toplam sınır: tek dosya sınırı olsa bile sınırsız sayıda dosya
+      // seçilebilir (her biri ≤ 10 MB) ve hepsi tek istekte base64'e
+      // çevrilir → bellek taşması. Seçili eklerin toplamı + yeni dosya
+      // sınırı aşıyorsa ek **eklenmez** (kullanıcının mevcut seçimi
+      // bozulmaz, kullanıcı önce bir dosyayı silmelidir).
+      final total = _pendingBytes + bytes.length;
+      if (total > _maxTotalAttachmentBytes) {
+        AppLog.w(
+          'Sohbet eki toplam boyut sınırı aşıldı, ek reddedildi',
+          {'total': total, 'limit': _maxTotalAttachmentBytes},
+        );
+        if (!mounted) return;
+        _showError('${'dialogs.photoTooLarge'.tr()} '
+            '(toplam max. ${_maxTotalAttachmentBytes ~/ (1024 * 1024)} MB)');
         return;
       }
       final name = picked.name.split('/').last;
@@ -383,8 +422,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             (_sending ? 1 : 0) +
                             (_hasMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          // En üstte "daha eski mesajları yükle" düğmesi
-                          // (bellek penceresi) veya yükleme göstergesi.
+                          // Listenin sırası (baştan sona):
+                          //   [0]              → "daha eski mesajları yükle"
+                          //                                      (yalnız `_hasMore`)
+                          //   [_headerLen]     → sayfalama göstergesi
+                          //                                      (yalnız `_loadingMore`)
+                          //   [_headerLen..]   → mesaj balonları
+                          //   son              → "düşünüyor" göstergesi
+                          //                                      (yalnız `_sending`)
+                          //
+                          // Mesaj indeksine geçmek için **üstteki** yardımcı
+                          // satır sayısı çıkarılır. Buradaki `+ (_hasMore ? 1 : 0)`
+                          // işareti tersydi (`-` olmalıydı): `_hasMore` doğru
+                          // olduğunda `itemCount` başlık satırını içeriyor ama
+                          // `i` bir fazla büyüyordu ve `visible[i]`
+                          // `RangeError` fırlatıyordu — yani "daha eski
+                          // mesajlar" düğmesi görünen **her** sohbette liste
+                          // çöküyordu (`_hasMore` varsayılan `true`).
+                          final headerLen = (_hasMore ? 1 : 0) + (_loadingMore ? 1 : 0);
                           if (_hasMore && index == 0) {
                             return _LoadEarlierHeader(
                               loading: _loadingMore,
@@ -403,9 +458,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               ),
                             );
                           }
-                          final i = index -
-                              (_loadingMore ? 1 : 0) +
-                              (_hasMore ? 1 : 0);
+                          final i = index - headerLen;
                           // En altta "düşünüyor" göstergesi.
                           if (_sending && i == visible.length) {
                             return Padding(
@@ -884,4 +937,33 @@ class _PendingAttachment {
   final Uint8List bytes;
   final String name;
   final String mimeType;
+}
+
+/// Sohbet eki boyut sınırları — tek dosya ve toplam.
+///
+/// Saf fonksiyon olarak tutulur: sınır kararı `image_picker`'a bağlı
+/// olmadan (paket seçiciyi değiştirdiğinde sınır da unutulmasın diye)
+/// doğrudan test edilebilir.
+abstract final class ChatAttachmentLimits {
+  /// Tek dosya üst sınırı (10 MB).
+  static const int maxFileBytes = 10 * 1024 * 1024;
+
+  /// Tüm eklerin toplam üst sınırı (25 MB).
+  ///
+  /// Tek dosya sınırı tek başına yetersiz: 3 × 10 MB = 30 MB ham byte
+  /// bellekte tutuluyor ve `insertUserMessage` bunları base64'e çevirip
+  /// (~1.33×) edge function gövdesine koyuyor → ~40 MB gövde.
+  static const int maxTotalBytes = 25 * 1024 * 1024;
+
+  /// Yeni ekin eklenip eklenemeyeceğini belirler.
+  ///
+  /// [pendingBytes] seçili eklerin mevcut toplamı, [newBytes] eklenmek
+  /// istenen dosyanın boyutudur. Sınır **aşıldığında** reddedilir (eşitlik
+  /// kabul edilir), böylece kullanıcının seçimi bozulmaz; eklenen dosya
+  /// listeye hiç girmez.
+  static bool canAccept({required int pendingBytes, required int newBytes}) {
+    if (newBytes < 0 || pendingBytes < 0) return false;
+    if (newBytes > maxFileBytes) return false;
+    return pendingBytes + newBytes <= maxTotalBytes;
+  }
 }
