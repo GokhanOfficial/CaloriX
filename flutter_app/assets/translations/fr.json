@@ -134,7 +134,9 @@
     "fiberG": "Fibres (g)",
     "photoTooLarge": "Photo trop volumineuse",
     "flash": "Flash",
-    "amountRequired": "Quantité requise"
+    "amountRequired": "Quantité requise",
+    "invalidAmount": "Saisissez une quantité valide",
+    "invalidAmountPartial": "{count} éléments n'ont pas pu être ajoutés. Vérifiez les quantités."
   },
   "export": {
     "success": "exporté",
@@ -210,6 +212,14 @@
       "signingUp": "Inscription...",
       "sending": "Envoi...",
       "saving": "Enregistrement..."
+    },
+    "changePassword": {
+      "title": "Modifier le mot de passe",
+      "subtitle": "Saisissez un nouveau mot de passe pour votre compte.",
+      "newLabel": "Nouveau mot de passe",
+      "toggleVisibility": "Afficher le mot de passe",
+      "confirmLabel": "Confirmer le nouveau mot de passe",
+      "confirmHint": "Saisissez à nouveau le nouveau mot de passe"
     }
   },
   "meals": {
@@ -541,9 +551,11 @@
       "loadMore": "Impossible de charger les anciens messages",
       "send": "Impossible d’envoyer le message",
       "action": "Impossible de traiter l’action",
-      "clear": "Impossible d’effacer le chat"
+      "clear": "Impossible d’effacer le chat",
+      "assistant": "Impossible de joindre l'assistant. Veuillez réessayer."
     },
-    "welcomeMessage": "Bonjour ! Je suis CaloriX AI. Je peux vous aider à suivre vos repas, votre consommation d’eau, votre poids et vos objectifs."
+    "welcomeMessage": "Bonjour ! Je suis CaloriX AI. Je peux vous aider à suivre vos repas, votre consommation d’eau, votre poids et vos objectifs.",
+    "loadEarlier": "Charger les messages plus anciens"
   },
   "updates": {
     "requiredTitle": "Mise à jour requise",
@@ -555,9 +567,25 @@
     "recheck": "Revérifier",
     "checkFailed": "Échec de la vérification de mise à jour",
     "notesTitle": "Nouveautés",
-    "openFailed": "Impossible d'ouvrir la page de téléchargement"
+    "openFailed": "Impossible d'ouvrir la page de téléchargement",
+    "unsafeUrl": "Ce lien de mise à jour n'est pas valide. La mise à jour a été annulée."
   },
   "errors": {
     "notFound": "Page introuvable"
+  },
+  "onboarding": {
+    "step": "Étape {step} sur {total}",
+    "pick": "Choisissez une date",
+    "next": "Suivant",
+    "fieldName": "Nom complet",
+    "calcErrorHint": "Nous n'avons pas pu calculer vos objectifs. Vous pouvez saisir les valeurs manuellement.",
+    "localCalculation": "Calculé sur cet appareil",
+    "saveError": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
+    "errNameShort": "Le nom doit comporter au moins 2 caractères",
+    "errBirthRequired": "Veuillez choisir votre date de naissance",
+    "errAgeRange": "L'âge doit être compris entre {min} et {max}",
+    "errHeightRange": "La taille doit être comprise entre {min} et {max} cm",
+    "errWeightRange": "Le poids doit être compris entre {min} et {max} kg",
+    "errTargetWeightRange": "Le poids cible doit être compris entre {min} et {max} kg"
   }
 }

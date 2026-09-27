@@ -184,7 +184,9 @@ manifest and behaves based on the device version:
 Release flow:
 
 ```bash
-# 1) Bump the version in flutter_app/pubspec.yaml: version: 1.2.0+3
+# 1) Bump the version in flutter_app/pubspec.yaml: version: 1.3.0+4
+#    (keep AppConstants.appVersion and CHANGELOG.md in sync —
+#     node tool/check_versions.cjs is the gate)
 
 # 2) Normal release (older versions get an OPTIONAL update):
 tool/release_android.sh --notes-en "Bug fixes" --notes-tr "Hata düzeltmeleri"
@@ -201,14 +203,19 @@ update.
 
 ## 🔧 Technologies
 
-| Category | Technology |
-|----------|------------|
-| Frontend | React 18, TypeScript, Vite |
-| Styling | Tailwind CSS, shadcn/ui |
-| State | TanStack Query, React Context |
-| Backend | Supabase (PostgreSQL, Auth, Edge Functions) |
-| AI | OpenAI GPT-5-Mini, [Pollinations.ai](https://pollinations.ai) |
-| Deployment | Vercel |
+Both clients share one backend. `flutter_app/` is the **primary app**;
+`src/` is the React PWA and is in maintenance mode.
+
+| Category | Primary app (`flutter_app/`) | React PWA (`src/`, maintenance) |
+|----------|------------------------------|--------------------------------|
+| Frontend | Flutter 3.47 / Dart 3.13 (Android + web) | React 18, TypeScript 5.8, Vite 5 |
+| Styling | Material 3 + `app_theme.dart` | Tailwind CSS, shadcn/ui |
+| State | Riverpod 2, `go_router` | TanStack Query, React Context |
+| Local data | Drift (SQLite) + `shared_preferences` | i18next-http-backend, localStorage |
+| Backend | Supabase (PostgreSQL, Auth, Edge Functions) | same |
+| AI | OpenAI GPT-5-Mini, [Pollinations.ai](https://pollinations.ai) | same |
+| CI | `.github/workflows/flutter.yml` (analyze + test + build) | `.github/workflows/react.yml` (tsc + lint + build) |
+| Deployment | GitHub Releases (APK), Flutter web build | Vercel |
 
 ## 🌸 AI Supporters
 

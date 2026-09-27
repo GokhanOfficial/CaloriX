@@ -25,7 +25,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.47.0"
+  # 3.47.x stable kanalında YAYIMLANDI (doğrulama 2026-09-27:
+  # storage.googleapis.com/flutter_infra_release/releases_linux.json
+  # → 3.47.0 2026-08-12 … 3.47.5 2026-09-18, current stable = 3.47.5).
+  # Eski `3.47.0` sabiti CI'ı kırmıyordu ama 5 patch gerideydi; 3.47.5'e
+  # sabitlendi. `flutter pub outdated` / `dart analyze` farkları patch'ler
+  # arasında çıkabildiği için **majör.minör.yerel** (tam) sürüm sabit
+  # tutulur, `channel: stable` sürümü yukarı taşımaz.
+  FLUTTER_VERSION: "3.47.5"
   # build.gradle.kts (compileOptions VERSION_17) ile uyumlu.
   JAVA_VERSION: "17"
   # Node 20 = ubuntu-latest'in kendi Node'u ile uyumlu; i18n denetleyicisi
@@ -81,11 +88,64 @@ jobs:
       - name: build_runner (codegen)
         run: dart run build_runner build --delete-conflicting-outputs
 
+      # `analysis_options.yaml` strict-casts / strict-inference /
+      # strict-raw-types + `always_declare_return_types`,
+      # `prefer_single_quotes`, `unawaited_futures` açık. Repo şu an
+      # "No issues found!" veriyor (0 error, 0 warning, 0 info) ve test
+      # paketi de `prefer_single_quotes`'e uyuyor, bu yüzden uyarıları da
+      # kapıya almak maliyetsiz: `--fatal-infos --fatal-warnings` yeni bir
+      # lint uyarısı doğduğunda CI'ı kırar. (Tur 1'de 3 konuşma `test/**`
+      # altındaydı; temizlendi.)
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
 
       - name: Test
         run: flutter test
+
+      # `flutter analyze` ve `flutter test` yalnızca Dart kodunu doğrular.
+      # `flutter_app/android/**` altındaki Kotlin (ana ekran widget'ları:
+      # `kotlin/com/calorix/calorix/widget/`) ve XML kaynakları
+      # (`res/layout/widget_*.xml`, `res/xml/widget_*_info.xml`,
+      # `res/values/strings.xml`) **hiç** bu iki komutta denetlenmiyor —
+      # widget commit'i (ec681c3) `analyze`'ı ve `test`'i olduğu gibi geçti.
+      # Ölçüm (2026-09-27, bu makine, warm Gradle cache):
+      #   flutter build apk --debug          → 33 sn
+      #   ./gradlew :app:compileDebugKotlin   → 62 sn **ve BAŞARISIZ**
+      #       (`:app:compileFlutterBuildDebug` bağımlı olduğu için Dart
+      #        asset paketlemesini de tetikliyor, ayrıca Dart derleme
+      #        hatasını maskeliyor; ayrı hedef avantaj sağlamıyor)
+      # Bu yüzden `assembleDebug` seçildi: tek hem daha hızlı hem de
+      # Kotlin + XML + resource merge + manifest birleştirmesinin tamamını
+      # doğrular. CI'da `flutter-action` cache'i sayesinde ilk çalışma da
+      # makul kalır.
+      - name: Build Android debug APK (Kotlin + XML doğrulaması)
+        run: flutter build apk --debug
+
+      # XML kaynakları: `aapt2` derleme sırasında zaten doğruluyor, ama
+      # layout/info XML'lerindeki `@string/...` referanslarının
+      # `strings.xml`'de **tanımlı** olduğunu erken ve ucuz bir adımla
+      # kontrol ediyoruz. Eksik referans `aapt2`'de daha geç (link aşamasında)
+      # patlar ve hata mesajı daha az okunabilir.
+      - name: Validate Android resource references
+        run: |
+          set -euo pipefail
+          res=android/app/src/main/res
+          strings="$res/values/strings.xml"
+          missing=0
+          for xml in $(find "$res" -name '*.xml'); do
+            while IFS= read -r ref; do
+              name="${ref#@string/}"
+              if ! grep -q "name=\"$name\"" "$strings"; then
+                echo "✗ $xml: tanımsız @string/$name"
+                missing=$((missing + 1))
+              fi
+            done < <(grep -o '@string/[A-Za-z0-9_]*' "$xml" | sort -u)
+          done
+          if [ "$missing" -gt 0 ]; then
+            echo "$missing tanımsız string referansı bulundu."
+            exit 1
+          fi
+          echo "✓ tüm @string referansları tanımlı"
 
       # i18n bütünlüğü — 12 dilde eksik/fazla anahtar, boş değer ve
       # placeholder uyuşmazlığı ile "kodda kullanılan ama hiçbir dilde

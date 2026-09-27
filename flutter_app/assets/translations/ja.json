@@ -134,7 +134,9 @@
     "fiberG": "食物繊維 (g)",
     "photoTooLarge": "写真が大きすぎます",
     "flash": "フラッシュ",
-    "amountRequired": "量を入力してください"
+    "amountRequired": "量を入力してください",
+    "invalidAmount": "有効な量を入力してください",
+    "invalidAmountPartial": "{count} 件を追加できませんでした。量を確認してください。"
   },
   "export": {
     "success": "エクスポート完了",
@@ -210,6 +212,14 @@
       "signingUp": "登録中...",
       "sending": "送信中...",
       "saving": "保存中..."
+    },
+    "changePassword": {
+      "title": "パスワードの変更",
+      "subtitle": "アカウントの新しいパスワードを入力してください。",
+      "newLabel": "新しいパスワード",
+      "toggleVisibility": "パスワードを表示",
+      "confirmLabel": "新しいパスワードの確認",
+      "confirmHint": "新しいパスワードをもう一度入力"
     }
   },
   "meals": {
@@ -541,9 +551,11 @@
       "loadMore": "以前のメッセージを読み込めませんでした",
       "send": "メッセージを送信できませんでした",
       "action": "操作を処理できませんでした",
-      "clear": "チャットを消去できませんでした"
+      "clear": "チャットを消去できませんでした",
+      "assistant": "アシスタントに接続できませんでした。もう一度お試しください。"
     },
-    "welcomeMessage": "こんにちは！私はCaloriX AIです。食事、水分摂取、体重、目標の管理をお手伝いできます。"
+    "welcomeMessage": "こんにちは！私はCaloriX AIです。食事、水分摂取、体重、目標の管理をお手伝いできます。",
+    "loadEarlier": "以前のメッセージを読み込む"
   },
   "updates": {
     "requiredTitle": "更新が必要です",
@@ -555,9 +567,25 @@
     "recheck": "再確認する",
     "checkFailed": "更新の確認に失敗しました",
     "notesTitle": "このバージョンの新機能",
-    "openFailed": "ダウンロードページを開けませんでした"
+    "openFailed": "ダウンロードページを開けませんでした",
+    "unsafeUrl": "この更新リンクは無効です。更新を中止しました。"
   },
   "errors": {
     "notFound": "ページが見つかりません"
+  },
+  "onboarding": {
+    "step": "ステップ {step} / {total}",
+    "pick": "日付を選択",
+    "next": "次へ",
+    "fieldName": "氏名",
+    "calcErrorHint": "目標を計算できませんでした。値を手動で入力できます。",
+    "localCalculation": "この端末で計算",
+    "saveError": "プロフィールを保存できませんでした。もう一度お試しください。",
+    "errNameShort": "氏名は 2 文字以上で入力してください",
+    "errBirthRequired": "生年月日を選択してください",
+    "errAgeRange": "年齢は {min} から {max} の間にしてください",
+    "errHeightRange": "身長は {min} から {max} cm の間にしてください",
+    "errWeightRange": "体重は {min} から {max} kg の間にしてください",
+    "errTargetWeightRange": "目標体重は {min} から {max} kg の間にしてください"
   }
 }

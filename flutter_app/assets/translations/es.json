@@ -134,7 +134,9 @@
     "fiberG": "Fibra (g)",
     "photoTooLarge": "La foto es demasiado grande",
     "flash": "Flash",
-    "amountRequired": "Se requiere la cantidad"
+    "amountRequired": "Se requiere la cantidad",
+    "invalidAmount": "Introduce una cantidad válida",
+    "invalidAmountPartial": "No se pudieron añadir {count} elementos. Revisa las cantidades."
   },
   "export": {
     "success": "exportado",
@@ -210,6 +212,14 @@
       "signingUp": "Registrando...",
       "sending": "Enviando...",
       "saving": "Guardando..."
+    },
+    "changePassword": {
+      "title": "Cambiar contraseña",
+      "subtitle": "Introduce una nueva contraseña para tu cuenta.",
+      "newLabel": "Nueva contraseña",
+      "toggleVisibility": "Mostrar contraseña",
+      "confirmLabel": "Confirmar nueva contraseña",
+      "confirmHint": "Vuelve a introducir la nueva contraseña"
     }
   },
   "meals": {
@@ -541,9 +551,11 @@
       "loadMore": "No se pudieron cargar los mensajes anteriores",
       "send": "No se pudo enviar el mensaje",
       "action": "No se pudo procesar la acción",
-      "clear": "No se pudo borrar el chat"
+      "clear": "No se pudo borrar el chat",
+      "assistant": "No se pudo contactar con el asistente. Inténtalo de nuevo."
     },
-    "welcomeMessage": "¡Hola! Soy CaloriX AI. Puedo ayudarte a seguir tus comidas, consumo de agua, peso y objetivos."
+    "welcomeMessage": "¡Hola! Soy CaloriX AI. Puedo ayudarte a seguir tus comidas, consumo de agua, peso y objetivos.",
+    "loadEarlier": "Cargar mensajes anteriores"
   },
   "updates": {
     "requiredTitle": "Actualización obligatoria",
@@ -555,9 +567,25 @@
     "recheck": "Comprobar de nuevo",
     "checkFailed": "No se pudo comprobar la actualización",
     "notesTitle": "Novedades",
-    "openFailed": "No se pudo abrir la página de descarga"
+    "openFailed": "No se pudo abrir la página de descarga",
+    "unsafeUrl": "Este enlace de actualización no es válido. Se canceló la actualización."
   },
   "errors": {
     "notFound": "Página no encontrada"
+  },
+  "onboarding": {
+    "step": "Paso {step} de {total}",
+    "pick": "Selecciona una fecha",
+    "next": "Siguiente",
+    "fieldName": "Nombre completo",
+    "calcErrorHint": "No pudimos calcular tus objetivos. Puedes introducir los valores manualmente.",
+    "localCalculation": "Calculado en este dispositivo",
+    "saveError": "No se pudo guardar tu perfil. Inténtalo de nuevo.",
+    "errNameShort": "El nombre debe tener al menos 2 caracteres",
+    "errBirthRequired": "Selecciona tu fecha de nacimiento",
+    "errAgeRange": "La edad debe estar entre {min} y {max}",
+    "errHeightRange": "La altura debe estar entre {min} y {max} cm",
+    "errWeightRange": "El peso debe estar entre {min} y {max} kg",
+    "errTargetWeightRange": "El peso objetivo debe estar entre {min} y {max} kg"
   }
 }

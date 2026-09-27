@@ -1,0 +1,93 @@
+name: React CI
+
+# `src/**` (React PWA, bakım modunda) altındaki değişikliklerde tetiklenir.
+# Bu workflow olmadan React tarafında derleme kırılmaları (ör. TS5103
+# "Invalid value for --ignoreDeprecations", A5'ın bulduğu ve tsc'nin
+# hiç derlemediği hata) CI'da hiç yakalanmıyordu: `.github/workflows/`
+# altında yalnızca `flutter.yml` vardı ve o da `paths: flutter_app/**`
+# ile tetikleniyordu.
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "src/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+      - "package.json"
+      - "package-lock.json"
+      - "eslint.config.js"
+      - "components.json"
+      - "postcss.config.js"
+      - "tailwind.config.ts"
+      - "public/locales/**"
+      - ".github/workflows/react.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+      - "package.json"
+      - "package-lock.json"
+      - "eslint.config.js"
+      - "components.json"
+      - "postcss.config.js"
+      - "tailwind.config.ts"
+      - "public/locales/**"
+      - ".github/workflows/react.yml"
+
+# Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Vite 5 + ESLint 9 + TypeScript 5.8 bu major'ın üzerinde test edildi.
+  # `npm ci` için `package-lock.json`'daki lockfile sürümü Node 20+ gerektirir
+  # (npm 10+ üretir). Sabit major: sürüm kayması CI'ı kırmasın.
+  NODE_VERSION: "20"
+
+# Varsayılan `write-all` yerine sadece okuma. Bu workflow hiçbir şey
+# yazmıyor (PR yorumu yok, issue açmıyor) ama default'ı daraltmak
+# istismar yüzeyini kaldırır. `flutter.yml` ile aynı gerekçe.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: tsc + lint + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci` lock dosyasına **sadık** kurulum yapar ve `node_modules`
+      # durumunu CI'da temiz tutar. `npm install` farklı bir ağaç kurup
+      # `package-lock.json`'ı sessizce güncellerdi.
+      - name: Install dependencies
+        run: npm ci
+
+      # A5'ın bulduğu asıl boşluk: `tsconfig.app.json` içindeki
+      # `"ignoreDeprecations": "6.0"` TS 5.8.3'te TS5103 veriyor ve
+      # tsc hiç derlemiyordu. `tsc -b` yerine `-p tsconfig.app.json`
+      # kullanılır: repo kökündeki `tsconfig.json` solution-style referans
+      # dosyası uygulama ayarlarını içermez.
+      - name: Type check
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      # `eslint .` config'i `src/**` dışındaki dosyaları da gezer;
+      # `--max-warnings` ile 0 hata + sınırlı uyarı kapısı kurulur. Repo
+      # şu an 9 uyarı (shadcn/ui ve context dosyalarındaki
+      # react-refresh/only-export-components) üretiyor; bu eşik mevcut
+      # tabanı kırmadan yeni hataları yakalar.
+      - name: Lint
+        run: npm run lint -- --max-warnings 25
+
+      - name: Build
+        run: npm run build

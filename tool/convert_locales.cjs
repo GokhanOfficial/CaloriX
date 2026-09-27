@@ -8,8 +8,14 @@
  *   - i18next interpolasyonu  {{var}}  ->  {var}
  *   - nested anahtar yapısı korunur (easy_localization nested JSON destekler)
  *
- * Kullanım:  node tool/convert_locales.js            (tüm diller)
- *            node tool/convert_locales.js en tr      (seçili diller)
+ * Kullanım:  node tool/convert_locales.cjs            (tüm diller)
+ *            node tool/convert_locales.cjs en tr      (seçili diller)
+ *
+ * DİKKAT: Bu script `flutter_app/assets/translations/*.json` dosyalarını
+ * **üzerine yazar**. Kaynak `public/locales` (i18next) 360 anahtara sahipken
+ * Flutter tarafı elle 457 anahtara kadar genişletildi; script'i çalıştırmak
+ * 97 anahtarı sessizce siler. Yeni anahtar eklerken bu script'i değil
+ * `node tool/check_i18n.cjs --write-missing` kullan.
  */
 const fs = require('fs');
 const path = require('path');

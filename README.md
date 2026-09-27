@@ -183,7 +183,9 @@ manifestini kontrol eder ve cihaz sürümüne göre davranır:
 Yayınlama akışı:
 
 ```bash
-# 1) flutter_app/pubspec.yaml içinde sürümü yükselt: version: 1.2.0+3
+# 1) flutter_app/pubspec.yaml içinde sürümü yükselt: version: 1.3.0+4
+#    (AppConstants.appVersion ve CHANGELOG.md'yi de eşitle —
+#     node tool/check_versions.cjs kapıdır)
 
 # 2) Normal sürüm (eskiler opsiyonel güncelleme görür):
 tool/release_android.sh --notes-tr "Hata düzeltmeleri" --notes-en "Bug fixes"
@@ -199,14 +201,19 @@ Releases'a yükler. `--min-code` mantığı: veritabanına migration girdiğiniz
 
 ## 🔧 Teknolojiler
 
-| Kategori | Teknoloji |
-|----------|-----------|
-| Frontend | React 18, TypeScript, Vite |
-| Styling | Tailwind CSS, shadcn/ui |
-| State | TanStack Query, React Context |
-| Backend | Supabase (PostgreSQL, Auth, Edge Functions) |
-| AI | OpenAI GPT-5-Mini, [Pollinations.ai](https://pollinations.ai) |
-| Deployment | Vercel |
+İki istemci aynı backend'i paylaşır; aşağıdaki tablo ikisini birlikte listeler.
+**`flutter_app/` ana uygulamadır**, `src/` React PWA bakım modundadır.
+
+| Kategori | Ana uygulama (`flutter_app/`) | React PWA (`src/`, bakım modu) |
+|----------|-------------------------------|-------------------------------|
+| Frontend | Flutter 3.47 / Dart 3.13 (Android + web) | React 18, TypeScript 5.8, Vite 5 |
+| Styling | Material 3 + `app_theme.dart` | Tailwind CSS, shadcn/ui |
+| State | Riverpod 2, `go_router` | TanStack Query, React Context |
+| Yerel veri | Drift (SQLite) + `shared_preferences` | i18next-http-backend, localStorage |
+| Backend | Supabase (PostgreSQL, Auth, Edge Functions) | aynı |
+| AI | OpenAI GPT-5-Mini, [Pollinations.ai](https://pollinations.ai) | aynı |
+| CI | `.github/workflows/flutter.yml` (analyze + test + build) | `.github/workflows/react.yml` (tsc + lint + build) |
+| Deployment | GitHub Releases (APK), Flutter web build | Vercel |
 
 ## 🌸 AI Destekçileri
 

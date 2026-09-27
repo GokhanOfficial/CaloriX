@@ -60,15 +60,48 @@ const topVersion = changelog.match(
   /^##\s*\[(?:flutter\s+)?(\d+\.\d+\.\d+)(?:\+\d+)?\]/m,
 );
 if (!topVersion) {
-  warnings('CHANGELOG.md: flutter sürüm başlığı bulunamadı (## [flutter X.Y.Z+N])');
+  errors.push(
+    'CHANGELOG.md: flutter sürüm başlığı bulunamadı (## [flutter X.Y.Z+N])',
+  );
 } else if (topVersion[1] !== pubspecVersion) {
   errors.push(
     `CHANGELOG.md en üst flutter sürümü = ${topVersion[1]} ama pubspec = ${pubspecVersion}`,
   );
 }
 
-function warnings(msg) {
-  console.warn(`⚠ ${msg}`);
+// --- Varsayılan hedefler ↔ Calculations.macros tutarlılığı -----------------
+// `AppConstants.defaultFat = 65`, `Calculations.macros(2000).fat = 67`
+// (2000 * 0.30 / 9 = 66.67 → 67) idi. Profil yokken onboarding "2000 kcal"
+// derken makro kartı 65 g yağ gösteriyordu — kullanıcıyı yanıltan, iki
+// ekranda farklı sayı gösteren tutarsızlık (P1, Tur 1 bulgusu).
+//
+// `defaultProtein` (150 = 2000*0.30/4) zaten tutarlıydı; sapma yağdaydı
+// (65 vs 67). Karbonhidrat oranı `Calculations.macros` içinde **0.40**
+// (200 → 225 g arası bir fark yok; 2000*0.40/4 = 200 ✓).
+const MACRO_SPLIT = { protein: 0.30, carbs: 0.40, fat: 0.30 };
+const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 };
+
+const caloriesConst = constants.match(/defaultCalories\s*=\s*(\d+)/);
+if (!caloriesConst) {
+  errors.push('app_constants.dart: `defaultCalories` sabiti bulunamadı');
+} else {
+  const kcal = Number(caloriesConst[1]);
+  for (const [name, ratio] of Object.entries(MACRO_SPLIT)) {
+    // Calculations.macros: (kcal * ratio / kcalPerG).round()
+    const expected = Math.round((kcal * ratio) / KCAL_PER_G[name]);
+    const m = constants.match(
+      new RegExp(`default${name[0].toUpperCase()}${name.slice(1)}\\s*=\\s*(\\d+)`),
+    );
+    if (!m) {
+      errors.push(`app_constants.dart: \`default${name}\` sabiti bulunamadı`);
+    } else if (Number(m[1]) !== expected) {
+      errors.push(
+        `AppConstants.default${name[0].toUpperCase()}${name.slice(1)} = ${m[1]} ` +
+          `ama Calculations.macros(${kcal}).${name} = ${expected} ` +
+          `(${kcal} kcal × ${ratio} ÷ ${KCAL_PER_G[name]})`,
+      );
+    }
+  }
 }
 
 // --- Rapor ------------------------------------------------------------------

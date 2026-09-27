@@ -134,7 +134,9 @@
     "fiberG": "Lif (g)",
     "photoTooLarge": "Fotoğraf çok büyük",
     "flash": "Flaş",
-    "amountRequired": "Miktar gerekli"
+    "amountRequired": "Miktar gerekli",
+    "invalidAmount": "Geçerli bir miktar girin",
+    "invalidAmountPartial": "{count} öğün eklenemedi. Miktarları kontrol edin."
   },
   "export": {
     "success": "dışa aktarıldı",
@@ -210,6 +212,14 @@
       "signingUp": "Kayıt olunuyor...",
       "sending": "Gönderiliyor...",
       "saving": "Kaydediliyor..."
+    },
+    "changePassword": {
+      "title": "Şifre değiştir",
+      "subtitle": "Hesabınız için yeni bir şifre girin.",
+      "newLabel": "Yeni şifre",
+      "toggleVisibility": "Şifreyi göster",
+      "confirmLabel": "Yeni şifreyi onayla",
+      "confirmHint": "Yeni şifreyi tekrar girin"
     }
   },
   "meals": {
@@ -541,9 +551,11 @@
       "loadMore": "Eski mesajlar yüklenemedi",
       "send": "Mesaj gönderilemedi",
       "action": "İşlem gerçekleştirilemedi",
-      "clear": "Sohbet temizlenemedi"
+      "clear": "Sohbet temizlenemedi",
+      "assistant": "Asistana ulaşılamadı. Lütfen tekrar deneyin."
     },
-    "welcomeMessage": "Merhaba! Ben CaloriX AI. Öğünlerini, su tüketimini, kilonu ve hedeflerini takip etmene yardımcı olabilirim."
+    "welcomeMessage": "Merhaba! Ben CaloriX AI. Öğünlerini, su tüketimini, kilonu ve hedeflerini takip etmene yardımcı olabilirim.",
+    "loadEarlier": "Daha eski mesajları yükle"
   },
   "updates": {
     "requiredTitle": "Güncelleme Gerekli",
@@ -555,9 +567,25 @@
     "recheck": "Yeniden kontrol et",
     "checkFailed": "Güncelleme kontrolü yapılamadı",
     "notesTitle": "Bu sürümde",
-    "openFailed": "İndirme sayfası açılamadı"
+    "openFailed": "İndirme sayfası açılamadı",
+    "unsafeUrl": "Bu güncelleme bağlantısı geçerli değil. Güncelleme iptal edildi."
   },
   "errors": {
     "notFound": "Sayfa bulunamadı"
+  },
+  "onboarding": {
+    "step": "Adım {step} / {total}",
+    "pick": "Bir tarih seçin",
+    "next": "İleri",
+    "fieldName": "Ad soyad",
+    "calcErrorHint": "Hedefleriniz hesaplanamadı. Değerleri elle girebilirsiniz.",
+    "localCalculation": "Bu cihazda hesaplandı",
+    "saveError": "Profiliniz kaydedilemedi. Lütfen tekrar deneyin.",
+    "errNameShort": "Ad en az 2 karakter olmalıdır",
+    "errBirthRequired": "Lütfen doğum tarihinizi seçin",
+    "errAgeRange": "Yaş {min} ile {max} arasında olmalıdır",
+    "errHeightRange": "Boy {min} ile {max} cm arasında olmalıdır",
+    "errWeightRange": "Kilo {min} ile {max} kg arasında olmalıdır",
+    "errTargetWeightRange": "Hedef kilo {min} ile {max} kg arasında olmalıdır"
   }
 }

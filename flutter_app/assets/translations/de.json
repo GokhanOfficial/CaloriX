@@ -134,7 +134,9 @@
     "fiberG": "Ballaststoffe (g)",
     "photoTooLarge": "Foto ist zu groß",
     "flash": "Blitz",
-    "amountRequired": "Menge ist erforderlich"
+    "amountRequired": "Menge ist erforderlich",
+    "invalidAmount": "Bitte eine gültige Menge eingeben",
+    "invalidAmountPartial": "{count} Einträge konnten nicht hinzugefügt werden. Bitte Mengen prüfen."
   },
   "export": {
     "success": "exportiert",
@@ -210,6 +212,14 @@
       "signingUp": "Registrierung...",
       "sending": "Senden...",
       "saving": "Speichern..."
+    },
+    "changePassword": {
+      "title": "Passwort ändern",
+      "subtitle": "Geben Sie ein neues Passwort für Ihr Konto ein.",
+      "newLabel": "Neues Passwort",
+      "toggleVisibility": "Passwort anzeigen",
+      "confirmLabel": "Neues Passwort bestätigen",
+      "confirmHint": "Neues Passwort erneut eingeben"
     }
   },
   "meals": {
@@ -541,9 +551,11 @@
       "loadMore": "Ältere Nachrichten konnten nicht geladen werden",
       "send": "Nachricht konnte nicht gesendet werden",
       "action": "Aktion konnte nicht verarbeitet werden",
-      "clear": "Chat konnte nicht gelöscht werden"
+      "clear": "Chat konnte nicht gelöscht werden",
+      "assistant": "Der Assistent ist nicht erreichbar. Bitte erneut versuchen."
     },
-    "welcomeMessage": "Hallo! Ich bin CaloriX AI. Ich kann dir helfen, deine Mahlzeiten, deinen Wasserkonsum, dein Gewicht und deine Ziele zu verfolgen."
+    "welcomeMessage": "Hallo! Ich bin CaloriX AI. Ich kann dir helfen, deine Mahlzeiten, deinen Wasserkonsum, dein Gewicht und deine Ziele zu verfolgen.",
+    "loadEarlier": "Frühere Nachrichten laden"
   },
   "updates": {
     "requiredTitle": "Update erforderlich",
@@ -555,9 +567,25 @@
     "recheck": "Erneut prüfen",
     "checkFailed": "Update-Prüfung fehlgeschlagen",
     "notesTitle": "Neu in dieser Version",
-    "openFailed": "Download-Seite konnte nicht geöffnet werden"
+    "openFailed": "Download-Seite konnte nicht geöffnet werden",
+    "unsafeUrl": "Dieser Update-Link ist ungültig. Das Update wurde abgebrochen."
   },
   "errors": {
     "notFound": "Seite nicht gefunden"
+  },
+  "onboarding": {
+    "step": "Schritt {step} von {total}",
+    "pick": "Datum auswählen",
+    "next": "Weiter",
+    "fieldName": "Vollständiger Name",
+    "calcErrorHint": "Ihre Ziele konnten nicht berechnet werden. Sie können Werte manuell eingeben.",
+    "localCalculation": "Auf diesem Gerät berechnet",
+    "saveError": "Ihr Profil konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "errNameShort": "Der Name muss mindestens 2 Zeichen haben",
+    "errBirthRequired": "Bitte wählen Sie Ihr Geburtsdatum",
+    "errAgeRange": "Das Alter muss zwischen {min} und {max} liegen",
+    "errHeightRange": "Die Größe muss zwischen {min} und {max} cm liegen",
+    "errWeightRange": "Das Gewicht muss zwischen {min} und {max} kg liegen",
+    "errTargetWeightRange": "Das Zielgewicht muss zwischen {min} und {max} kg liegen"
   }
 }

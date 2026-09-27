@@ -11,6 +11,71 @@ React web app. Versions below track `pubspec.yaml` version only.
 
 ## [flutter 1.3.0+4] - 2026-09-27
 
+### Added — React (PWA) CI kapısı
+- `.github/workflows/react.yml`: `npm ci` → `npx tsc -p tsconfig.app.json
+  --noEmit` → `npm run lint` → `npm run build`. Daha önce React tarafında
+  **hiç** CI işi yoktu; bu yüzden `tsconfig.app.json` içindeki
+  `"ignoreDeprecations": "6.0"` değerinin TypeScript 5.8.3'te verdiği
+  `TS5103` hatası (derlemenin hiç çalışmaması) fark edilemiyordu.
+  `permissions: contents: read`, `setup-node` ile sabit Node major'ı ve
+  `cache: npm`.
+
+### Added — Android derleme doğrulaması
+- CI'ın `check` işine `flutter build apk --debug` eklendi. `flutter analyze`
+  ve `flutter test` yalnızca Dart kodunu doğrular; ana ekran widget'larının
+  Kotlin/XML tarafı (`kotlin/com/calorix/calorix/widget/`,
+  `res/layout/widget_*.xml`, `res/xml/widget_*_info.xml`) bu iki komutta
+  hiç kontrol edilmiyordu.
+- Ek adım: tüm Android resource XML'lerindeki `@string/...` referanslarının
+  `res/values/strings.xml`'de tanımlı olduğunu doğrular (aapt2'den erken,
+  okunabilir hata).
+
+### Added — CI kapılarının sıkılaştırılması
+- `flutter analyze` artık `--fatal-infos --fatal-warnings` ile çalışıyor:
+  lint uyarıları da CI'ı kırar (mevcut taban temiz).
+- `FLUTTER_VERSION` `3.47.0` → `3.47.5` (stable kanalındaki güncel patch;
+  3.47.0 yayımlanmıştı, CI kırılmıyordu ama 5 patch gerideydi).
+- `tool/check_versions.cjs` artık `AppConstants.defaultFat/Protein/Carbs`
+  ile `Calculations.macros(2000)` çıktısını karşılaştırır. `defaultFat = 65`
+  sapması ancak bu kapıyla yakalanabiliyordu (A3 alanında düzeltiliyor).
+
+### Added — i18n
+- 24 yeni çeviri anahtarı (`onboarding.*`, `auth.changePassword.*`,
+  `chat.errors.assistant`, `chat.loadEarlier`, `dialogs.invalidAmount*`,
+  `updates.unsafeUrl`) 12 dile de eklendi. Bu anahtarlar koddan `.tr()` ile
+  çağrılıyordu ama hiçbir dil dosyasında yoktu — ilgili ekranlar ham anahtar
+  metni gösteriyordu. 12 dil, 457 anahtar, 0 hata.
+
+### Fixed
+- `tool/check_i18n.cjs` yanlış negatifleri gideriyordu: çok satırlı zincirleme
+  `.tr()` çağrıları (`'k'\n  .tr()`) ve dolaylı anahtarlar
+  (`bmi.*`, `settings.goals.activity.*`, `meals.*`, `notifications.*Title`)
+  taranmıyordu; 20 anahtar yanlışlıkla "orphan" sayılıyordu. Orphan raporu
+  dört sınıfa ayrıldı: **ölü** (iki istemcide de yok), **react** (`src/**`
+  içinde canlı), **dinamik** (interpolasyonlu kalıp kapsamında), **dolaylı**
+  (literal geçiyor, `.tr()` değil).
+- `tool/check_versions.cjs` `CHANGELOG` başlığı yoksa hata yerine uyarı
+  basıyordu ama `warnings` fonksiyonu tanımından **sonra** çağrılıyordu;
+  zamanlamanın kendisi sorun değildi ancak fonksiyon kaldırıldı/ düzeltilerek
+  hata listesine alındı.
+
+### Docs
+- `README.md` / `README_EN.md`: "Frontend | React 18" satırı, depoda iki
+  istemci bulunduğu gerçeğiyle çelişiyordu. Teknoloji tablosu iki istemciye
+  ayrılmış, Flutter birincil olarak işaretlenmiştir. Yayınlama talimatındaki
+  bayat `1.2.0+3` örneği `1.3.0+4` olarak güncellendi.
+- `tool/convert_locales.cjs`: kullanım yorumu `.js` → `.cjs`; ayrıca
+  script'in `flutter_app/assets/translations/*.json` üzerine yazıp 97
+  Flutter-only anahtarı sileceği uyarısı eklendi.
+
+### Added — i18n orphan ratchet'i
+- `check_i18n.cjs` artık **ölü** orphan sayısı 63'ü aşarsa CI'ı kırar.
+  Silme yapılmadı: 63 ölünün 61'i `public/locales` altındaki React çeviri
+  dosyalarında hâlâ yer alıyor (PWA'nın çalışma zamanı kaynağı) ve
+  `flutter_app/assets/translations/*.json` bu dosyaların üst kümesidir —
+  silmek iki istemciden birini kırardı. Gerekçe ve ölçüm `tool/check_i18n.cjs`
+  içindeki `ORPHAN_BASELINE` yorumunda kayıtlıdır.
+
 ### Added — Ana ekran widget'ları (Android)
 - Günlük ve haftalık özet widget'ları: hedefe göre kalan kalori, makro satırı,
   su takımı, kilo satırı, 7 günlük kalori grafiği, haftalık ortalama ve

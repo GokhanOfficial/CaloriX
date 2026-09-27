@@ -134,7 +134,9 @@
     "fiberG": "Fiber (g)",
     "photoTooLarge": "Photo is too large",
     "flash": "Flash",
-    "amountRequired": "Amount is required"
+    "amountRequired": "Amount is required",
+    "invalidAmount": "Enter a valid amount",
+    "invalidAmountPartial": "{count} items could not be added. Check the amounts."
   },
   "export": {
     "success": "exported",
@@ -210,6 +212,14 @@
       "signingUp": "Signing up...",
       "sending": "Sending...",
       "saving": "Saving..."
+    },
+    "changePassword": {
+      "title": "Change password",
+      "subtitle": "Enter a new password for your account.",
+      "newLabel": "New password",
+      "toggleVisibility": "Show password",
+      "confirmLabel": "Confirm new password",
+      "confirmHint": "Re-enter the new password"
     }
   },
   "meals": {
@@ -541,9 +551,11 @@
       "loadMore": "Older messages could not be loaded",
       "send": "Message could not be sent",
       "action": "Action could not be processed",
-      "clear": "Chat could not be cleared"
+      "clear": "Chat could not be cleared",
+      "assistant": "The assistant could not be reached. Please try again."
     },
-    "welcomeMessage": "Hello! I’m CaloriX AI. I can help you track your meals, water intake, weight and goals."
+    "welcomeMessage": "Hello! I’m CaloriX AI. I can help you track your meals, water intake, weight and goals.",
+    "loadEarlier": "Load earlier messages"
   },
   "updates": {
     "requiredTitle": "Update Required",
@@ -555,9 +567,25 @@
     "recheck": "Check again",
     "checkFailed": "Update check failed",
     "notesTitle": "What's new",
-    "openFailed": "Could not open the download page"
+    "openFailed": "Could not open the download page",
+    "unsafeUrl": "This update link is not valid. Update was cancelled."
   },
   "errors": {
     "notFound": "Page not found"
+  },
+  "onboarding": {
+    "step": "Step {step} of {total}",
+    "pick": "Select a date",
+    "next": "Next",
+    "fieldName": "Full name",
+    "calcErrorHint": "We could not calculate your targets. You can enter them manually.",
+    "localCalculation": "Calculated on this device",
+    "saveError": "Your profile could not be saved. Please try again.",
+    "errNameShort": "Name must be at least 2 characters",
+    "errBirthRequired": "Please select your date of birth",
+    "errAgeRange": "Age must be between {min} and {max}",
+    "errHeightRange": "Height must be between {min} and {max} cm",
+    "errWeightRange": "Weight must be between {min} and {max} kg",
+    "errTargetWeightRange": "Target weight must be between {min} and {max} kg"
   }
 }
