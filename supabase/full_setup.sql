@@ -1,3 +1,20 @@
+-- ============================================================================
+-- CaloriX — TEK DOSYALIK KURULUM (senkron: 20260927120000 + 20260927220000 +
+-- 20260927220500 migration'larının son hali)
+-- ----------------------------------------------------------------------------
+-- BU DOSYA "boş veritabanı + sıfır kullanıcı" senaryosu içindir; YENİ kurulum
+-- yapanlar önce `supabase/migrations/*.sql` dizinini uygulamalıdır (bkz. README).
+-- Bu dosya artık migration setiyle HİZALI HALEDİR:
+--   * tüm UPDATE politikalarında `USING` + `WITH CHECK`
+--   * tüm politikalarda `TO authenticated` (anon kapsamı yok)
+--   * eksik DELETE politikaları (user_settings, foods, food_nutrition, chat_*)
+--   * `chat_threads` / `chat_messages` tabloları + politikaları + storage kovası
+--   * `rate_limits` tablosu ve `rate_limit_hit()` / `cleanup_rate_limits()` RPC'leri
+--   * `SECURITY DEFINER` fonksiyonlarda `search_path = ''`
+--   * negatif miktar/kilo, bildirim tipi/saat CHECK kısıtları
+--   * `GRANT`/`REVOKE` (anon'a hiçbir tablo erişimi yok)
+-- ============================================================================
+
 -- 1. Main Schema
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -197,121 +214,140 @@ CREATE TABLE public.push_subscriptions (
 );
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- CHAT THREADS TABLE (AI sohbet geçmişi — 20260518080500 ile eklendi)
+CREATE TABLE public.chat_threads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT,
+  archived_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.chat_threads ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_chat_threads_user_updated ON public.chat_threads(user_id, updated_at DESC);
+
+-- CHAT MESSAGES TABLE
+CREATE TABLE public.chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  thread_id UUID REFERENCES public.chat_threads(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+  content TEXT,
+  attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+  tool_calls JSONB NOT NULL DEFAULT '[]'::jsonb,
+  tool_results JSONB NOT NULL DEFAULT '[]'::jsonb,
+  pending_action JSONB,
+  action_status TEXT CHECK (action_status IN ('pending', 'approved', 'rejected', 'executed', 'failed')),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON public.chat_messages(thread_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created ON public.chat_messages(user_id, created_at DESC);
+
+-- RATE LIMITS TABLE (kalıcı hız sınırı sayacı — 20260927220500 ile eklendi)
+CREATE TABLE public.rate_limits (
+  key TEXT PRIMARY KEY,
+  bucket TEXT NOT NULL,
+  max_count INTEGER NOT NULL,
+  window_seconds INTEGER NOT NULL,
+  window_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+  request_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT rate_limits_positive_check CHECK (max_count > 0 AND window_seconds > 0 AND request_count >= 0)
+);
+CREATE INDEX IF NOT EXISTS rate_limits_window_start_idx ON public.rate_limits (window_start);
+ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- RLS POLICIES
+-- ----------------------------------------------------------------------------
+-- Kurallar (20260927220000 ile hizalandi):
+--   1) Her politika `TO authenticated` — `anon` hicbir tabloya erisemez.
+--   2) UPDATE politikalarinda MUTLAKA `USING` **ve** `WITH CHECK` birlikte.
+--      (PostgreSQL'de WITH CHECK yazilmazsa USING ile ayni kabul edilir; yine de
+--       her yerde acikca yazilir, bkz. migration basligindaki kanit.)
+--   3) Politika adlari migration setiyle BIREBIR ayni (DROP/CREATE uyumlu).
+-- ============================================================================
+
 -- PROFILES POLICIES
-CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 
 -- USER ROLES POLICIES
-CREATE POLICY "Users can view their own roles" ON public.user_roles FOR SELECT USING (auth.uid() = user_id);
+-- NOT: INSERT/UPDATE/DELETE politikasi BILEREK YOKTUR — rol atama yolu kapalı.
+CREATE POLICY "Users can view their own roles" ON public.user_roles FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
 -- FOODS POLICIES
-CREATE POLICY "Anyone can view foods" ON public.foods FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can view foods" ON public.foods FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can add foods" ON public.foods FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
+CREATE POLICY "Users can update foods they created" ON public.foods FOR UPDATE TO authenticated USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
+CREATE POLICY "Users can delete foods they created" ON public.foods FOR DELETE TO authenticated USING (created_by = auth.uid());
 
 -- FOOD NUTRITION POLICIES
-CREATE POLICY "Anyone can view food nutrition" ON public.food_nutrition FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can view food nutrition" ON public.food_nutrition FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can add nutrition for foods they created" ON public.food_nutrition FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.foods WHERE foods.id = food_nutrition.food_id AND foods.created_by = auth.uid()));
+CREATE POLICY "Users can update nutrition for foods they created" ON public.food_nutrition FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.foods WHERE foods.id = food_nutrition.food_id AND foods.created_by = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.foods WHERE foods.id = food_nutrition.food_id AND foods.created_by = auth.uid()));
+CREATE POLICY "Users can delete nutrition for foods they created" ON public.food_nutrition FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.foods WHERE foods.id = food_nutrition.food_id AND foods.created_by = auth.uid()));
 
 -- MEAL ENTRIES POLICIES
-CREATE POLICY "Users can view their own meal entries" ON public.meal_entries FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own meal entries" ON public.meal_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own meal entries" ON public.meal_entries FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own meal entries" ON public.meal_entries FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own meal entries" ON public.meal_entries FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own meal entries" ON public.meal_entries FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own meal entries" ON public.meal_entries FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own meal entries" ON public.meal_entries FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- WATER ENTRIES POLICIES
-CREATE POLICY "Users can view their own water entries" ON public.water_entries FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own water entries" ON public.water_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own water entries" ON public.water_entries FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own water entries" ON public.water_entries FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own water entries" ON public.water_entries FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own water entries" ON public.water_entries FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own water entries" ON public.water_entries FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own water entries" ON public.water_entries FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- WEIGHT ENTRIES POLICIES
-CREATE POLICY "Users can view their own weight entries" ON public.weight_entries FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own weight entries" ON public.weight_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own weight entries" ON public.weight_entries FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own weight entries" ON public.weight_entries FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own weight entries" ON public.weight_entries FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own weight entries" ON public.weight_entries FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own weight entries" ON public.weight_entries FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own weight entries" ON public.weight_entries FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- NOTIFICATIONS POLICIES
-CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING (auth.uid() = user_id);
+-- INSERT yalnizca service_role'a acik (kullanicilar sahte bildirim uretemez).
+CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Service role can insert notifications" ON public.notifications FOR INSERT TO service_role WITH CHECK (true);
 
 -- USER SETTINGS POLICIES
-CREATE POLICY "Users can view their own settings" ON public.user_settings FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own settings" ON public.user_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own settings" ON public.user_settings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own settings" ON public.user_settings FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own settings" ON public.user_settings FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own settings" ON public.user_settings FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own settings" ON public.user_settings FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- FAVORITE FOODS POLICIES
-CREATE POLICY "Users can view their own favorites" ON public.favorite_foods FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own favorites" ON public.favorite_foods FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own favorites" ON public.favorite_foods FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own favorites" ON public.favorite_foods FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own favorites" ON public.favorite_foods FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own favorites" ON public.favorite_foods FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- RECENT FOODS POLICIES
-CREATE POLICY "Users can view their own recent foods" ON public.recent_foods FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own recent foods" ON public.recent_foods FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own recent foods" ON public.recent_foods FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own recent foods" ON public.recent_foods FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own recent foods" ON public.recent_foods FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own recent foods" ON public.recent_foods FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own recent foods" ON public.recent_foods FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own recent foods" ON public.recent_foods FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- PUSH SUBSCRIPTIONS POLICIES
-CREATE POLICY "Users can view their own push subscriptions" ON public.push_subscriptions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own push subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own push subscriptions" ON public.push_subscriptions FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own push subscriptions" ON public.push_subscriptions FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own push subscriptions" ON public.push_subscriptions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own push subscriptions" ON public.push_subscriptions FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own push subscriptions" ON public.push_subscriptions FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
--- HELPER FUNCTIONS
-CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
-RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role)
-$$;
-
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SET search_path = public;
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, display_name)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data ->> 'display_name', split_part(NEW.email, '@', 1))
-  );
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.increment_food_popularity()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF NEW.food_id IS NOT NULL THEN
-    UPDATE public.foods SET popularity_count = popularity_count + 1 WHERE id = NEW.food_id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
--- TRIGGERS
-CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_foods_updated_at BEFORE UPDATE ON public.foods FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_food_nutrition_updated_at BEFORE UPDATE ON public.food_nutrition FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_meal_entries_updated_at BEFORE UPDATE ON public.meal_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_water_entries_updated_at BEFORE UPDATE ON public.water_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_weight_entries_updated_at BEFORE UPDATE ON public.weight_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER on_meal_entry_created AFTER INSERT ON public.meal_entries FOR EACH ROW EXECUTE FUNCTION public.increment_food_popularity();
-
--- 2. RLS Improvements
-CREATE POLICY "Authenticated users can add foods" ON public.foods FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
-CREATE POLICY "Users can add nutrition for foods they created" ON public.food_nutrition FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.foods WHERE id = food_id AND created_by = auth.uid()));
-CREATE POLICY "Users can update nutrition for foods they created" ON public.food_nutrition FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.foods WHERE id = food_id AND created_by = auth.uid()));
-
--- 3. Profile Updates
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auto_recalculate_macros BOOLEAN DEFAULT true;
-
--- 4. Notification Preferences
+-- NOTIFICATION PREFERENCES TABLE
+-- NOT: Dosyanın orijinalinde bu tablo bölüm 4'te, yani bu politika
+-- bloklarından SONRA oluşturuluyordu. Politikaların tanımlanabilmesi için
+-- tablo buraya taşındı (şema aynıdır, yalnızca sıra değişmiştir).
 CREATE TABLE IF NOT EXISTS public.notification_preferences (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -328,15 +364,271 @@ CREATE TABLE IF NOT EXISTS public.notification_preferences (
   UNIQUE(user_id, notification_type)
 );
 ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own notification preferences" ON public.notification_preferences FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own notification preferences" ON public.notification_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own notification preferences" ON public.notification_preferences FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own notification preferences" ON public.notification_preferences FOR DELETE USING (auth.uid() = user_id);
+
+-- NOTIFICATION PREFERENCES POLICIES
+CREATE POLICY "Users can view own notification preferences" ON public.notification_preferences FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own notification preferences" ON public.notification_preferences FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own notification preferences" ON public.notification_preferences FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own notification preferences" ON public.notification_preferences FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- CHAT THREADS POLICIES
+CREATE POLICY "Users can view their own chat threads" ON public.chat_threads FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own chat threads" ON public.chat_threads FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own chat threads" ON public.chat_threads FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own chat threads" ON public.chat_threads FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- CHAT MESSAGES POLICIES
+-- Mesaj yalnizca kullaniciya ait bir sohbete aitse gorulur/yazilir.
+CREATE POLICY "Users can view their own chat messages" ON public.chat_messages FOR SELECT TO authenticated
+  USING (auth.uid() = user_id AND EXISTS (
+    SELECT 1 FROM public.chat_threads WHERE chat_threads.id = chat_messages.thread_id AND chat_threads.user_id = auth.uid()));
+CREATE POLICY "Users can insert their own chat messages" ON public.chat_messages FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id AND EXISTS (
+    SELECT 1 FROM public.chat_threads WHERE chat_threads.id = chat_messages.thread_id AND chat_threads.user_id = auth.uid()));
+CREATE POLICY "Users can update their own chat messages" ON public.chat_messages FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id AND EXISTS (
+    SELECT 1 FROM public.chat_threads WHERE chat_threads.id = chat_messages.thread_id AND chat_threads.user_id = auth.uid()))
+  WITH CHECK (auth.uid() = user_id AND EXISTS (
+    SELECT 1 FROM public.chat_threads WHERE chat_threads.id = chat_messages.thread_id AND chat_threads.user_id = auth.uid()));
+CREATE POLICY "Users can delete their own chat messages" ON public.chat_messages FOR DELETE TO authenticated
+  USING (auth.uid() = user_id AND EXISTS (
+    SELECT 1 FROM public.chat_threads WHERE chat_threads.id = chat_messages.thread_id AND chat_threads.user_id = auth.uid()));
+
+-- ============================================================================
+-- RLS GRANT'LERI — en az yetki (anon hicbir tabloya erisemez)
+-- ----------------------------------------------------------------------------
+-- NOT: Bu blok, `notification_preferences` dahil TUM tablolar olustuktan sonra
+-- calisir; bu yuzden dosyanin SONUNDA tekrar yer alir (bkz. "7. Grants" bolumu).
+-- Burada yalnizca sema izinleri verilir.
+-- ============================================================================
+REVOKE ALL ON SCHEMA public FROM anon;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO authenticated, service_role;
+
+-- HELPER FUNCTIONS
+-- NOT: `SECURITY DEFINER` fonksiyonlarda `search_path = ''` kullanilir
+-- (search_path hijacking korumasi). Tum referanslar sema on eklidir.
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role)
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SET search_path = '';
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, display_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data ->> 'display_name', split_part(NEW.email, '@', 1))
+  );
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.increment_food_popularity()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.food_id IS NOT NULL THEN
+    UPDATE public.foods SET popularity_count = popularity_count + 1 WHERE id = NEW.food_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Chat sohbetinin `updated_at` damgasini yeniler.
+CREATE OR REPLACE FUNCTION public.touch_chat_thread_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.chat_threads SET updated_at = now() WHERE id = NEW.thread_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+-- Degismez kolon korumasi: RLS politika ifadesinde `OLD` kullanilamaz
+-- (PostgreSQL politikaya yalnizca yeni satiri verir), bu yuzden trigger gerekir.
+CREATE OR REPLACE FUNCTION public.freeze_immutable_columns()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'recent_foods'
+     AND (to_jsonb(NEW) ->> 'food_id') IS DISTINCT FROM (to_jsonb(OLD) ->> 'food_id') THEN
+    RAISE EXCEPTION 'recent_foods.food_id değiştirilemez' USING ERRCODE = '42501';
+  END IF;
+  IF TG_TABLE_NAME = 'chat_messages'
+     AND (to_jsonb(NEW) ->> 'thread_id') IS DISTINCT FROM (to_jsonb(OLD) ->> 'thread_id') THEN
+    RAISE EXCEPTION 'chat_messages.thread_id değiştirilemez' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SET search_path = '';
+
+-- KALICI RATE LIMIT — atomik sayaç artırma (bkz. 20260927220500).
+-- Donus: { allowed, count, max, retry_after }
+CREATE OR REPLACE FUNCTION public.rate_limit_hit(
+  p_key TEXT, p_bucket TEXT, p_max_count INTEGER, p_window_seconds INTEGER
+)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_now TIMESTAMPTZ := now();
+  v_count INTEGER;
+  v_window_start TIMESTAMPTZ;
+  v_effective_window INTEGER;
+  v_reset_at TIMESTAMPTZ;
+BEGIN
+  IF p_key IS NULL OR length(p_key) = 0 OR length(p_key) > 512 THEN
+    RAISE EXCEPTION 'rate_limit_hit: gecersiz anahtar';
+  END IF;
+  IF p_max_count <= 0 OR p_window_seconds <= 0 OR p_window_seconds > 86400 THEN
+    RAISE EXCEPTION 'rate_limit_hit: gecersiz kova tanimi';
+  END IF;
+
+  INSERT INTO public.rate_limits AS rl
+    (key, bucket, max_count, window_seconds, window_start, request_count, updated_at)
+  VALUES (p_key, p_bucket, p_max_count, p_window_seconds, v_now, 1, v_now)
+  ON CONFLICT (key) DO UPDATE
+    SET request_count = CASE
+          WHEN rl.window_start + make_interval(secs => rl.window_seconds) <= v_now THEN 1
+          ELSE rl.request_count + 1
+        END,
+        window_start = CASE
+          WHEN rl.window_start + make_interval(secs => rl.window_seconds) <= v_now THEN v_now
+          ELSE rl.window_start
+        END,
+        max_count = EXCLUDED.max_count,
+        window_seconds = EXCLUDED.window_seconds,
+        bucket = EXCLUDED.bucket,
+        updated_at = v_now
+  RETURNING rl.request_count, rl.window_start, rl.window_seconds
+  INTO v_count, v_window_start, v_effective_window;
+
+  v_reset_at := v_window_start + make_interval(secs => v_effective_window);
+
+  RETURN jsonb_build_object(
+    'allowed', v_count <= p_max_count,
+    'count', v_count,
+    'max', p_max_count,
+    'retry_after', GREATEST(0, CEIL(EXTRACT(EPOCH FROM (v_reset_at - v_now)))::INTEGER)
+  );
+END;
+$$;
+
+-- Suresi dolmus sayaç kayitlarini temizler.
+CREATE OR REPLACE FUNCTION public.cleanup_rate_limits()
+RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_deleted INTEGER;
+BEGIN
+  DELETE FROM public.rate_limits
+  WHERE window_start + make_interval(secs => window_seconds) < now() - INTERVAL '1 hour';
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+-- Rate limit RPC'leri yalnizca edge function'lar (service_role) cagirabilir.
+REVOKE ALL ON FUNCTION public.rate_limit_hit(TEXT, TEXT, INTEGER, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rate_limit_hit(TEXT, TEXT, INTEGER, INTEGER) TO service_role;
+REVOKE ALL ON FUNCTION public.cleanup_rate_limits() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cleanup_rate_limits() TO service_role;
+
+-- TRIGGERS
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_foods_updated_at BEFORE UPDATE ON public.foods FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_food_nutrition_updated_at BEFORE UPDATE ON public.food_nutrition FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_meal_entries_updated_at BEFORE UPDATE ON public.meal_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_water_entries_updated_at BEFORE UPDATE ON public.water_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_weight_entries_updated_at BEFORE UPDATE ON public.weight_entries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER on_meal_entry_created AFTER INSERT ON public.meal_entries FOR EACH ROW EXECUTE FUNCTION public.increment_food_popularity();
+CREATE TRIGGER trg_touch_chat_thread_updated_at AFTER INSERT OR UPDATE ON public.chat_messages FOR EACH ROW EXECUTE FUNCTION public.touch_chat_thread_updated_at();
+CREATE TRIGGER freeze_recent_foods_food_id BEFORE UPDATE ON public.recent_foods FOR EACH ROW EXECUTE FUNCTION public.freeze_immutable_columns();
+CREATE TRIGGER freeze_chat_messages_thread_id BEFORE UPDATE ON public.chat_messages FOR EACH ROW EXECUTE FUNCTION public.freeze_immutable_columns();
+
+-- 2. RLS Improvements
+-- NOT: foods/food_nutrition INSERT+UPDATE politikaları yukarıdaki "RLS POLICIES"
+-- bölümünde tanımlandı; burada tekrar tanımlanmaz (isim çakışması hatası).
+
+-- 3. Profile Updates
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auto_recalculate_macros BOOLEAN DEFAULT true;
+
+-- 4. Notification Preferences
+-- NOT: Tablo yukarıda ("RLS POLICIES" bölümünden hemen önce) oluşturuldu;
+-- burada yalnızca `updated_at` trigger'ı tanımlanır.
 CREATE TRIGGER update_notification_preferences_updated_at BEFORE UPDATE ON public.notification_preferences FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'Europe/Istanbul';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_water_reminder timestamptz;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_daily_log_reminder timestamptz;
+
+-- ============================================================================
+-- 4b. VERI BÜTÜNLÜĞÜ — CHECK kisitlari (20260927120000 ile hizalandi)
+-- ----------------------------------------------------------------------------
+-- Negatif miktar/kilo kaydi engellenir; ust sinirlar ile absurd degerler de.
+-- Bildirim tipi allow-list'i edge function'larin gonderdigi degerleri kapsar.
+-- Bildirim tercihlerinde saat/aralik degerleri dogrulanir.
+-- ============================================================================
+ALTER TABLE public.meal_entries
+  ADD CONSTRAINT meal_entries_amount_positive CHECK (amount_g_ml > 0 AND amount_g_ml <= 10000);
+ALTER TABLE public.water_entries
+  ADD CONSTRAINT water_entries_amount_positive CHECK (amount_ml > 0 AND amount_ml <= 10000);
+ALTER TABLE public.weight_entries
+  ADD CONSTRAINT weight_entries_weight_range CHECK (weight_kg > 0 AND weight_kg <= 1000);
+ALTER TABLE public.notification_preferences
+  ADD CONSTRAINT notification_preferences_type_allowlist
+  CHECK (notification_type IN ('weigh_in','daily_log','water','goal_achieved','weekly_summary'));
+ALTER TABLE public.notification_preferences
+  ADD CONSTRAINT notification_preferences_hours_range
+  CHECK (start_hour BETWEEN 0 AND 23 AND end_hour BETWEEN 0 AND 23
+         AND interval_hours BETWEEN 1 AND 24
+         AND summary_day BETWEEN 0 AND 6 AND summary_hour BETWEEN 0 AND 23);
+
+-- notifications.type CHECK'i: eski UI degerleri + edge function degerleri.
+ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
+ALTER TABLE public.notifications
+  ADD CONSTRAINT notifications_type_allowlist
+  CHECK (type IN ('weigh_in','meal_reminder','goal','achievement','system',
+                  'water','daily_log','weekly_summary','goal_achieved'));
+
+-- ============================================================================
+-- 4c. STORAGE — chat-attachments kovasi (20260518080500 ile hizalandi)
+-- ----------------------------------------------------------------------------
+-- Kova gizlidir (public = false), dosya boyutu 10 MB ile sinirlidir ve
+-- politikalar yalnizca `authenticated` icindir; her obje kullanici klasorunde
+-- olmak zorundadir: <user_id>/<dosya>
+-- ============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'chat-attachments', 'chat-attachments', false, 10485760,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Users can upload their own chat attachments" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view their own chat attachments" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own chat attachments" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own chat attachments" ON storage.objects;
+
+CREATE POLICY "Users can upload their own chat attachments" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'chat-attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users can view their own chat attachments" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'chat-attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users can update their own chat attachments" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'chat-attachments' AND (storage.foldername(name))[1] = auth.uid()::text)
+  WITH CHECK (bucket_id = 'chat-attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users can delete their own chat attachments" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'chat-attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 -- 5. Cron Jobs
 CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
@@ -351,3 +643,34 @@ ALTER TABLE public.food_nutrition ADD COLUMN IF NOT EXISTS nutri_score text NULL
 COMMENT ON COLUMN public.food_nutrition.trans_fat_g IS 'Trans fat content per 100g/ml';
 COMMENT ON COLUMN public.food_nutrition.nova_score IS 'NOVA food classification: 1=Unprocessed, 2=Processed culinary ingredients, 3=Processed foods, 4=Ultra-processed';
 COMMENT ON COLUMN public.food_nutrition.nutri_score IS 'Nutri-Score grade: A (best) to E (worst)';
+
+-- ============================================================================
+-- 7. Grants — en az yetki (tüm tablolar olustuktan SONRA calisir)
+-- ----------------------------------------------------------------------------
+-- `anon` hicbir tabloya erisemez. `authenticated` komut bazli GRANT alir ve
+-- satir bazli yetkiyi RLS belirler. `service_role` BYPASSRLS ile her seye
+-- erisir (edge function'lar bunu kullanir).
+-- ============================================================================
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'profiles','user_roles','foods','food_nutrition','meal_entries','water_entries',
+    'weight_entries','notifications','user_settings','favorite_foods','recent_foods',
+    'push_subscriptions','notification_preferences','chat_threads','chat_messages'
+  ] LOOP
+    IF to_regclass(format('public.%I', t)) IS NULL THEN
+      RAISE WARNING 'Tablo bulunamadi, GRANT atlaniyor: %', t;
+      CONTINUE;
+    END IF;
+    EXECUTE format('REVOKE ALL ON public.%I FROM anon', t);
+    EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC', t);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t);
+    EXECUTE format('GRANT ALL ON public.%I TO service_role', t);
+  END LOOP;
+END $$;
+
+-- rate_limits: yalnizca servis rolu (kullanici sayacini okuyamaz/sifirlayamaz)
+REVOKE ALL ON public.rate_limits FROM anon, authenticated, PUBLIC;
+GRANT ALL ON public.rate_limits TO service_role;
