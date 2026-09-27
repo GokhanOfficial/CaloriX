@@ -68,14 +68,9 @@ supabase/.env.local
 coverage
 .nyc_output
 
-# AI editör / ajan oturum planları (kaynak kod değil, kişiye özel notlar)
-.zcode/
-
-# Flutter Android imzalama — anahtarlar ASLA commit edilmez.
-# (flutter_app/.gitignore'da .env var; keystore koruması burada)
-**/key.properties
-**/*.jks
-**/*.keystore
+# NOT: `.zcode/` (ajan oturum planları) ve Android imzalama dosyaları
+# (`**/key.properties`, `**/*.jks`, `**/*.keystore`) yukarıda zaten
+# ignore ediliyor — ayrı kural gerekmiyor.
 
 # OS generated files
 Thumbs.db
