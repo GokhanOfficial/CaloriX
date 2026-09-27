@@ -2,7 +2,7 @@
 
 **Kapsam:** `flutter_app/lib/features/**`, `flutter_app/lib/app.dart`, `flutter_app/lib/shared/**`
 **Pusula:** `plans/analiz-26-09-27/PROTOKOL.md` §6
-**Commit:** `a4b1e01` — 13 dosya (lib) + 2 yeni test dosyası
+**Commit:** `501cfb1` — 16 dosya, +775 / −76 (13 lib + 2 yeni test + rapor)
 
 ---
 
