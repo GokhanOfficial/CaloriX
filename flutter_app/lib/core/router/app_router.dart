@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -28,6 +28,18 @@ abstract final class AppRoutes {
   static const chat = '/chat';
   static const about = '/about';
 }
+
+/// Widget deep link şeması — `AndroidManifest.xml` ve `DailyWidgetProvider.kt`
+/// ile aynı olmalı.
+abstract final class DeepLinks {
+  /// `calorix://widget/settings` → widget ayarları diyaloğu.
+  static const widgetSettings = 'calorix://widget/settings';
+}
+
+/// Kök navigasyon anahtarı — widget'ın ayarlar düğmesi router dışından
+/// ekran açmak zorunda olduğu için (GoRouter'ın `navigatorKey`'i olarak da
+/// kullanılır, böylece aynı anahtar iki yerde de geçerli olur).
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// Router'ı auth/onboarding durumuna göre yönlendiren birleşik durum.
 ///
@@ -97,6 +109,7 @@ final _routeDecisionProvider = Provider<_RouteDecision>((ref) {
 final appRouterProvider = Provider<GoRouter>((ref) {
   // redirect içinde provider'ı okumak için ref'i yakala.
   final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.dashboard,
     refreshListenable: _RouterRefresh(ref),
     redirect: (context, state) {

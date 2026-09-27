@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Haftalık 7 günlük kalori grafiği widget'ı.
+  Çubuk yükseklikleri `weekly.values` (JSON int[]) verisinden ölçeklenerek
+  runtime'da ayarlanır; layout sabit bir yükseklik referansı sunar.
+  Gün etiketleri de Dart tarafından (`weekly.labels`, locale'a göre) gelir.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/widget_title"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:maxLines="1" />
+
+    <!-- Grafik alanı: çubuklar runtime'da ölçeklenir (bkz. WeeklyWidgetProvider).
+         Yükseklik referansı @dimen/widget_chart_height. -->
+    <LinearLayout
+        android:id="@+id/widget_chart"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/widget_chart_height"
+        android:orientation="horizontal"
+        android:gravity="bottom"
+        android:layout_marginTop="8dp">
+
+        <View android:id="@+id/widget_bar_0" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+        <View android:id="@+id/widget_bar_1" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+        <View android:id="@+id/widget_bar_2" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+        <View android:id="@+id/widget_bar_3" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+        <View android:id="@+id/widget_bar_4" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+        <View android:id="@+id/widget_bar_5" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+        <View android:id="@+id/widget_bar_6" android:layout_width="0dp" android:layout_height="@dimen/widget_chart_height" android:layout_weight="1" android:layout_marginHorizontal="1dp" android:background="@color/widget_bar" />
+    </LinearLayout>
+
+    <!-- API 31 altında çubuk yüksekliği ölçeklenemediği için değer listesi. -->
+    <TextView
+        android:id="@+id/widget_values"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:textColor="@color/widget_secondary"
+        android:textSize="11sp"
+        android:visibility="gone" />
+
+    <!-- Gün etiketleri (Pzt, Sal, ...) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="2dp">
+
+        <TextView android:id="@+id/widget_label_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+        <TextView android:id="@+id/widget_label_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+        <TextView android:id="@+id/widget_label_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+        <TextView android:id="@+id/widget_label_3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+        <TextView android:id="@+id/widget_label_4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+        <TextView android:id="@+id/widget_label_5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+        <TextView android:id="@+id/widget_label_6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="@color/widget_secondary" android:textSize="9sp" android:maxLines="1" />
+    </LinearLayout>
+
+    <!-- Alt bilgi: ortalama / hedefte gün sayısı -->
+    <LinearLayout
+        android:id="@+id/widget_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/widget_avg"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/widget_secondary"
+            android:textSize="10sp"
+            android:maxLines="1" />
+
+        <TextView
+            android:id="@+id/widget_on_target"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:textColor="@color/widget_secondary"
+            android:textSize="10sp"
+            android:maxLines="1" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_message"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:textColor="@color/widget_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</LinearLayout>

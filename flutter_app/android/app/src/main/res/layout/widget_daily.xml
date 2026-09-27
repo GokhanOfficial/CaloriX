@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Günlük özet widget'ı.
+  Kullanıcı metinleri Dart tarafında çevrilip veri kanalından gelir
+  (bkz. WidgetData.kt); burada yalnızca etiket harfleri (P/K/Y) sabittir.
+  Karanlık tema: values-night/colors.xml üzerinden @color/widget_* referansları.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="12dp">
+
+    <!-- Başlık + ayarlar düğmesi -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/widget_title"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <ImageView
+            android:id="@+id/widget_settings_button"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_manage"
+            android:contentDescription="@string/widget_settings_cd"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+
+    <!-- ready durumunda görünen gövde -->
+    <LinearLayout
+        android:id="@+id/widget_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Kalori satırı -->
+        <TextView
+            android:id="@+id/widget_calories"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/widget_accent"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:maxLines="1" />
+
+        <TextView
+            android:id="@+id/widget_remaining"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_secondary"
+            android:textSize="12sp"
+            android:maxLines="1" />
+
+        <!-- İlerleme çubuğu (0..1000) -->
+        <ProgressBar
+            android:id="@+id/widget_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="6dp"
+            android:max="1000"
+            android:progressDrawable="@drawable/widget_progress" />
+
+        <!-- Makro satırı -->
+        <LinearLayout
+            android:id="@+id/widget_macros"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_protein"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/widget_secondary"
+                android:textSize="11sp"
+                android:maxLines="1" />
+
+            <TextView
+                android:id="@+id/widget_carbs"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/widget_secondary"
+                android:textSize="11sp"
+                android:maxLines="1" />
+
+            <TextView
+                android:id="@+id/widget_fat"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:textColor="@color/widget_secondary"
+                android:textSize="11sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <!-- Su satırı -->
+        <TextView
+            android:id="@+id/widget_water"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/widget_secondary"
+            android:textSize="12sp"
+            android:maxLines="1" />
+
+        <!-- Kilo satırı (varsayılan gizli) -->
+        <TextView
+            android:id="@+id/widget_weight"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_secondary"
+            android:textSize="12sp"
+            android:maxLines="1" />
+
+        <!-- Teşvik metni (yalnızca gün boşsa) -->
+        <TextView
+            android:id="@+id/widget_encouragement"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/widget_encouragement"
+            android:textSize="11sp"
+            android:maxLines="2" />
+
+        <!-- Bayat veri ipucu -->
+        <TextView
+            android:id="@+id/widget_stale"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_warning"
+            android:textSize="10sp"
+            android:maxLines="1" />
+    </LinearLayout>
+
+    <!-- signedOut / noConfig durumunda gösterilen mesaj -->
+    <TextView
+        android:id="@+id/widget_message"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:textColor="@color/widget_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <!-- Hızlı ekle düğmesi -->
+    <TextView
+        android:id="@+id/widget_quick_add"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:padding="6dp"
+        android:textColor="@color/widget_accent"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:background="@drawable/widget_button_background" />
+
+</LinearLayout>

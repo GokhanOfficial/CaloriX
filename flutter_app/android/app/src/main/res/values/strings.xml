@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget'ların **kullanıcıya görünen** tek metin kaynağı budur. Uygulama
+  metinleri (başlıklar, "kalan", makro değerleri) Dart tarafında çevrilip
+  veri kanalıyla gelir; burada yalnızca launcher'ın gösterdiği etiketler ve
+  erişilebilirlik açıklamaları yer alır.
+-->
+<resources>
+    <string name="widget_daily_label">Günlük Özet</string>
+    <string name="widget_weekly_label">Haftalık Grafik</string>
+    <string name="widget_daily_desc">Bugünkün kalori, makro ve su özeti</string>
+    <string name="widget_weekly_desc">Son 7 günün kalori grafiği</string>
+    <string name="widget_settings_cd">Widget ayarları</string>
+</resources>

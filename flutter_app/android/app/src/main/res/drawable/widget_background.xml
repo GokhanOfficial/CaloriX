@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher'da yuvarlatılmış kart arka planı (Android 12+ launcher'ı zaten
+     kırpar; daha eski sürümlerde köşeleri yumuşatır). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_background" />
+    <corners android:radius="16dp" />
+</shape>

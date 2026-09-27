@@ -42,6 +42,13 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="io.supabase.calorix" android:host="reset-callback"/>
             </intent-filter>
+            <!-- Ana ekran widget'ının "ayarlar" düğmesi (bkz. DailyWidgetProvider) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="calorix" android:host="widget" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -57,6 +64,34 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
+        </receiver>
+        <!-- Ana ekran widget'ları (v1.3.0). Veri Dart tarafında önceden
+             hesaplanıp SharedPreferences'a yazılır; native taraf yalnızca
+             okur ve çizer (bkz. kotlin/.../widget/WidgetData.kt). -->
+        <receiver
+            android:name=".widget.DailyWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_daily_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <!-- Dart tarafı ayar/güncelleme sonrası tazeleme yayını gönderir. -->
+                <action android:name="com.calorix.app.action.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_daily_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.WeeklyWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_weekly_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.calorix.app.action.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_weekly_info" />
         </receiver>
     </application>
     <!-- Required to query activities that can process text, see:

@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#00C7B7</color>
+    <!-- Ana ekran widget'ları — widget'lar uygulamanın DrawerLayout'ına
+         değil, launcher'a ait olduğu için ayrı bir palet kullanırlar.
+         Koyu tema karşılıkları values-night/colors.xml'de. -->
+    <color name="widget_background">#FFFFFFFF</color>
+    <color name="widget_title">#FF11111C</color>
+    <color name="widget_secondary">#FF6B7280</color>
+    <color name="widget_accent">#FF4F46E5</color>
+    <color name="widget_encouragement">#FF059669</color>
+    <color name="widget_warning">#FFB45309</color>
+    <color name="widget_bar">#FF4F46E5</color>
+    <color name="widget_progress_track">#FFE5E7EB</color>
 </resources>

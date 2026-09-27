@@ -549,6 +549,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  home_widget:
+    dependency: "direct main"
+    description:
+      name: home_widget
+      sha256: "1dbfdfbb3b47de24639adfba352050d85d66af112b9cc3ec5bf7627a7813abcb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.0"
   hooks:
     dependency: transitive
     description:
@@ -681,26 +689,10 @@ packages:
     dependency: transitive
     description:
       name: jni
-      sha256: f038e58b4dc2c9037f50e233175086337e0b305e356d28211bf55f21c504cbd3
+      sha256: d2c361082d554d4593c3012e26f6b188f902acd291330f13d6427641a92b3da1
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.3"
-  jni_flutter:
-    dependency: transitive
-    description:
-      name: jni_flutter
-      sha256: "7b717011ea40d04fd47c2731d3d1d36eb99eba3435c2753d62489e8c3c9991d5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.2"
-  jni_util:
-    dependency: transitive
-    description:
-      name: jni_util
-      sha256: "1ba86da04a5f2bf18fde2edb235587e70c5b0fc5bd4ba955f46b00942c3fc35f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
+    version: "0.14.2"
   json_annotation:
     dependency: "direct main"
     description:
@@ -817,10 +809,10 @@ packages:
     dependency: transitive
     description:
       name: package_config
-      sha256: ffcf4cf3d6c0b74ac43708d9f56625506e8a68aa935abe9d267a7330f320eb5d
+      sha256: f096c55ebb7deb7e384101542bfba8c52696c1b56fca2eb62827989ef2353bbc
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.0"
+    version: "2.2.0"
   package_info_plus:
     dependency: "direct main"
     description:
@@ -865,10 +857,10 @@ packages:
     dependency: transitive
     description:
       name: path_provider_android
-      sha256: "69cbd515a62b94d32a7944f086b2f82b4ac40a1d45bebfc00813a430ab2dabcd"
+      sha256: "149441ca6e4f38193b2e004c0ca6376a3d11f51fa5a77552d8bd4d2b0c0912ba"
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.1"
+    version: "2.2.23"
   path_provider_foundation:
     dependency: transitive
     description:
@@ -997,6 +989,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.6.1"
+  sentry:
+    dependency: transitive
+    description:
+      name: sentry
+      sha256: c2ecd8abe82e63cdcb6947f71320612ced56e10ba94db7529d85cc02be47cb3b
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.27.0"
+  sentry_flutter:
+    dependency: "direct main"
+    description:
+      name: sentry_flutter
+      sha256: ec89cc6ba939ca19155ea83900d9740a36544f50b3b6baf265518e3348fb0f50
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.27.0"
   share_plus:
     dependency: "direct main"
     description:
@@ -1354,6 +1362,54 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
+  workmanager:
+    dependency: "direct main"
+    description:
+      name: workmanager
+      sha256: "96b09a4a852ec487d29371f27031dab80ce2e260911e2dbe0f904951e22a3956"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.10"
+  workmanager_android:
+    dependency: transitive
+    description:
+      name: workmanager_android
+      sha256: ffe8aa061885370c9363f7ae2d2196d31855217c58e7b15899d915d36c768c4a
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.9"
+  workmanager_apple:
+    dependency: transitive
+    description:
+      name: workmanager_apple
+      sha256: "9e0ca0b857df986b37ca964ffa3b21990e1bc0f7935356a9706b47e5b71a7524"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.11"
+  workmanager_linux:
+    dependency: transitive
+    description:
+      name: workmanager_linux
+      sha256: "7d8520e1103b910a43d8bafe37ec2415f4c7c148afcb1eee0ec73ae67b4cdd22"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.1+1"
+  workmanager_platform_interface:
+    dependency: transitive
+    description:
+      name: workmanager_platform_interface
+      sha256: a1022dca1284d64ba8bbe046edc9089cc5158b3d0e2cf9f68c7cde2fbf89746c
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.5"
+  workmanager_web:
+    dependency: transitive
+    description:
+      name: workmanager_web
+      sha256: "2ac481ade599bdd957ee2891be09a0c34be87923a2c3ca4dfe36add6fc735ffd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   xdg_directories:
     dependency: transitive
     description:
