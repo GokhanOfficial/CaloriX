@@ -9,6 +9,37 @@ All notable changes to CaloriX are documented in this file.
 The Flutter app (`flutter_app/`) carries its own version independent of the
 React web app. Versions below track `pubspec.yaml` version only.
 
+## [flutter 1.3.0+4] - 2026-09-27
+
+### Added — Ana ekran widget'ları (Android)
+- Günlük ve haftalık özet widget'ları: hedefe göre kalan kalori, makro satırı,
+  su takımı, kilo satırı, 7 günlük kalori grafiği, haftalık ortalama ve
+  "hedefteki gün" sayısı. Veriler cihazda `HomeWidget` üzerinden
+  paylaşılan bir anahtar sözleşmesiyle (`daily.*`, `weekly.*`, `str.*`)
+  saklanır; widget ayarları cihaza lokal olarak kalıcıdır.
+- "Bugün hiç öğün eklemedin" günlük hatırlatıcısı (nudge): seçilen saatte
+  bir kez gönderilir, gün içinde öğün eklenirse gönderilmez.
+- Boş günlerde sabah/öğleden sonra/akşam teşvik metinleri (11:00'dan
+  önce gösterilmez).
+- İmza değişikliği sonrası widget yenilemede kullanıcı kilitlenmesini
+  önlemek için `signedOut` / `noConfig` durumları.
+
+### Added — Gözlemlenebilirlik
+- Merkezi `AppLog` katmanı (`lib/core/observability/`): hatalar ve
+  uyarılar tek noktadan loglanır, Sentry'ye bağlanır. Daha önce sessizce
+  yutulan `catch (_)` blokları artık bağlamsal log üretir.
+
+### Fixed
+- i18n: `common.undo`, `dashboard.edit`, `dashboard.delete`,
+  `analytics.goToCalories` ve `analytics.charts.macroFocus.title`
+  anahtarları 10 dilde hiç yoktu — bu dillerde ilgili düğmeler ham
+  anahtar metni gösteriyordu. 12 dilde tamamlandı.
+- Dashboard render testleri gerçek çeviri metinlerini doğruluyor.
+
+### Tests
+- Manifest karar mantığı, öğün hatırlatıcısı göçü, widget veri bayatlama,
+  hesaplama kenar durumları ve dashboard render için birim testleri.
+
 ## [flutter 1.2.1+3] - 2026-08-22
 
 ### Changed — Öğün bazlı hatırlatıcılar

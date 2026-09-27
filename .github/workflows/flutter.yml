@@ -1,16 +1,22 @@
 name: Flutter CI
 
-# Sadece `flutter_app/**` altındaki değişikliklerde (ve bu workflow'un kendisinde)
-# tetiklenir — React web CI'ından bağımsız çalışır.
+# `flutter_app/**` altındaki değişikliklerde (ve bu workflow'un kendisinde)
+# tetiklenir. `tool/check_i18n.cjs` + `tool/check_versions.cjs` repo kökünden
+# çalışır ve Flutter kodu + çevirileri okuduğu için `tool/**` ve
+# `CHANGELOG.md` de path listesinde.
 on:
   push:
     branches: [main, "feature/**"]
     paths:
       - "flutter_app/**"
+      - "tool/**"
+      - "CHANGELOG.md"
       - ".github/workflows/flutter.yml"
   pull_request:
     paths:
       - "flutter_app/**"
+      - "tool/**"
+      - "CHANGELOG.md"
       - ".github/workflows/flutter.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
@@ -22,6 +28,16 @@ env:
   FLUTTER_VERSION: "3.47.0"
   # build.gradle.kts (compileOptions VERSION_17) ile uyumlu.
   JAVA_VERSION: "17"
+  # Node 20 = ubuntu-latest'in kendi Node'u ile uyumlu; i18n denetleyicisi
+  # (tool/check_i18n.cjs) yalnızca Node gerektirir, bağımlılık kurmaz.
+  NODE_VERSION: "20"
+
+# Varsayılan `write-all` yerine sadece okuma. Bu workflow hiçbir şey
+# yazmıyor (PR yorumu yok, issue açmıyor) ama default'ı daraltmak
+# istismar yüzeyini kaldırır. CI hesabına `contents: read` yeterli:
+# release işi `tool/release_android.sh` + `gh` ile lokalde çalışır.
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -71,6 +87,20 @@ jobs:
       - name: Test
         run: flutter test
 
+      # i18n bütünlüğü — 12 dilde eksik/fazla anahtar, boş değer ve
+      # placeholder uyuşmazlığı ile "kodda kullanılan ama hiçbir dilde
+      # karşılığı olmayan" anahtar kontrolü. Kaynak tabanı repo kökünde
+      # olduğu için bu adım working-directory'yi geçici olarak köke alır.
+      - name: Check i18n integrity
+        working-directory: .
+        run: node tool/check_i18n.cjs
+
+      # pubspec.yaml / AppConstants.appVersion / CHANGELOG.md sürüm
+      # kayması — kullanıcıya yanlış sürüm gösterilmesini yakalar.
+      - name: Check version consistency
+        working-directory: .
+        run: node tool/check_versions.cjs
+
   build:
     name: build web + appbundle
     # Yalnızca main'e gittiğinde (push/PR merge) release build üret.
@@ -108,13 +138,18 @@ jobs:
       - name: build_runner (codegen)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # canvaskit, Flutter 3.x'de web release build'in varsayılan
-      # renderer'ıdır; `--web-renderer` bayrağı artık yoktur.
+      # Secrets doğrudan `run:` kabuğuna gömülürse, değerde bir kabuk
+      # metakarakteri ($, `, ", \) command injection'a dönüşür. Bunlar
+      # env'e taşınır, kabuk genişletmesi yalnızca runner'ın kendi
+      # değişkenlerine uygulanır.
       - name: Build web (release)
+        env:
+          SUPABASE_URL: ${{ secrets.FLUTTER_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.FLUTTER_SUPABASE_ANON_KEY }}
         run: |
           flutter build web --release \
-            --dart-define=SUPABASE_URL="${{ secrets.FLUTTER_SUPABASE_URL }}" \
-            --dart-define=SUPABASE_ANON_KEY="${{ secrets.FLUTTER_SUPABASE_ANON_KEY }}"
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
       - name: Upload web build
         uses: actions/upload-artifact@v4
@@ -127,10 +162,13 @@ jobs:
       # signing'e düşer; build pipeline'ı yeşil kontrolü yeterli. Play
       # Console için gerçek imzalama ayrı, elle yapılır (Faz 5 dokümanı).
       - name: Build Android app bundle (release)
+        env:
+          SUPABASE_URL: ${{ secrets.FLUTTER_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.FLUTTER_SUPABASE_ANON_KEY }}
         run: |
           flutter build appbundle --release \
-            --dart-define=SUPABASE_URL="${{ secrets.FLUTTER_SUPABASE_URL }}" \
-            --dart-define=SUPABASE_ANON_KEY="${{ secrets.FLUTTER_SUPABASE_ANON_KEY }}"
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
       - name: Upload app bundle
         uses: actions/upload-artifact@v4

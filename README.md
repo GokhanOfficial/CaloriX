@@ -8,7 +8,8 @@
 
 [![Live Demo](https://img.shields.io/badge/Demo-yediginibil.vercel.app-00C7B7?style=flat-square&logo=vercel)](https://yediginibil.vercel.app)
 [![GitHub](https://img.shields.io/badge/GitHub-CaloriX-181717?style=flat-square&logo=github)](https://github.com/GokhanOfficial/CaloriX)
-[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen?style=flat-square)](CHANGELOG.md)
+[![Flutter](https://img.shields.io/badge/Flutter-1.3.0-blue?style=flat-square)](CHANGELOG.md)
+[![PWA](https://img.shields.io/badge/PWA-1.1.0-brightgreen?style=flat-square)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 [🇺🇸 English](README_EN.md)
@@ -16,6 +17,18 @@
 [🚀 Demo](https://yediginibil.vercel.app) • [📖 Özellikler](#-özellikler) • [📝 Değişiklikler](CHANGELOG.md) • [🛠️ Kurulum](#️-kurulum) • [📱 Ekran Görüntüleri](#-ekran-görüntüleri)
 
 </div>
+
+---
+
+> ## 📱 Bu depoda iki istemci var
+>
+> | Yol | Durum |
+> |-----|-------|
+> | **`flutter_app/`** | **Ana uygulama** — Flutter (Android + web). Sürüm `pubspec.yaml`'da, geliştirme aktif. → [Kurulum ve mimari](flutter_app/README.md) |
+> | `src/` | React PWA — **bakım modunda**, yeni özellik eklenmez. Vercel demosu bunu sunar. |
+>
+> İkisi aynı Supabase backend'ini ve aynı veri modelini kullanır. Aşağıdaki
+> özellik/kurulum bölümleri React PWA içindir.
 
 ---
 

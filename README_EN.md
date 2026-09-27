@@ -8,7 +8,8 @@
 
 [![Live Demo](https://img.shields.io/badge/Demo-yediginibil.vercel.app-00C7B7?style=flat-square&logo=vercel)](https://yediginibil.vercel.app)
 [![GitHub](https://img.shields.io/badge/GitHub-CaloriX-181717?style=flat-square&logo=github)](https://github.com/GokhanOfficial/CaloriX)
-[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen?style=flat-square)](CHANGELOG.md)
+[![Flutter](https://img.shields.io/badge/Flutter-1.3.0-blue?style=flat-square)](CHANGELOG.md)
+[![PWA](https://img.shields.io/badge/PWA-1.1.0-brightgreen?style=flat-square)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 [🇹🇷 Türkçe](README.md)
@@ -16,6 +17,18 @@
 [🚀 Demo](https://yediginibil.vercel.app) • [📖 Features](#-features) • [📝 Changelog](CHANGELOG.md) • [🛠️ Installation](#️-installation) • [📱 Screenshots](#-screenshots)
 
 </div>
+
+---
+
+> ## 📱 This repository contains two clients
+>
+> | Path | Status |
+> |------|--------|
+> | **`flutter_app/`** | **Primary app** — Flutter (Android + web). Version lives in `pubspec.yaml`; actively developed. → [Setup & architecture](flutter_app/README.md) |
+> | `src/` | React PWA — **maintenance mode**, no new features. This is what the Vercel demo serves. |
+>
+> Both use the same Supabase backend and the same data model. The
+> features/installation sections below describe the React PWA.
 
 ---
 
