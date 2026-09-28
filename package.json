@@ -8,7 +8,9 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tool/test_backup_import.mjs",
+    "test:web-verify": "npm test && node tool/check_versions.cjs && node tool/check_i18n.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

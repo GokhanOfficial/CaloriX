@@ -4,9 +4,26 @@ name: Flutter CI
 # tetiklenir. `tool/check_i18n.cjs` + `tool/check_versions.cjs` repo kökünden
 # çalışır ve Flutter kodu + çevirileri okuduğu için `tool/**` ve
 # `CHANGELOG.md` de path listesinde.
+# TETİKLEME KAPSAMI (Tur 5 kararı)
+#
+# `push` **tüm branch'lere** açıldı. Önceden yalnız `main` ve
+# `feature/**` idi: bir `fix/...` veya `tur5/...` branch'ine yapılan
+# push CI'ı tetiklemiyordu, dolayısıyla PR açılmadan önce kırık kod
+# branch üzerinde hiç denetlenmeden birikiyordu. `pull_request` zaten
+# tüm branch'lerde çalışıyordu; yani asıl boşluk **push → PR arası**
+# geri bildirimdi.
+#
+# Maliyet: `paths` filtresi sayesinde `flutter_app/**`, `tool/**` ve
+# `CHANGELOG.md` dışındaki bir değişiklikte Flutter CI **çalışmaz**.
+# Konfigürasyon (`docs/**`, `.github/**` dışı) değişiklikleri tetiklemez.
+# Buna karşılık her branch push'unda tam `analyze + test + APK build`
+# koşar; bu, ikinci bir `analyze` adımı (PR'da zaten koşar) demektir.
+# `concurrency` bloğu aynı branch'teki ardışık push'larda eski çalışmayı
+# iptal ettiği için ek yük sınırlıdır. Alternatif (branch listesi
+# genişletmek) `fix/*`, `chore/*`, `tur*/` gibi önekler her yeni
+# ekipte yeniden unutulacağı için daha kırılgandır.
 on:
   push:
-    branches: [main, "feature/**"]
     paths:
       - "flutter_app/**"
       - "tool/**"

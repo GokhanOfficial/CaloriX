@@ -13,15 +13,21 @@ name: Supabase Edge CI
 # 15 sıfır-hatalı migration Postgres'e doğrulanmış durumdadır; bu workflow
 # edge TypeScript katmanını kapsar. Migration/RLS testlerini CI'a almak
 # `supabase start` gerektirir (bkz. rapor: "Doğrulayamadığım şeyler").
+# TETİKLEME KAPSAMI (Tur 5 kararı — flutter.yml ile aynı gerekçe)
+# `push` tüm branch'lere açık: `fix/...`/`tur5/...` gibi branch'lerde
+# edge function değişikliği `deno check`/`deno test` kapısını atlıyordu.
+# `paths` filtresi sayesinde `supabase/**` dışındaki değişiklikler
+# tetiklemez.
 on:
   push:
-    branches: [main, "feature/**"]
     paths:
       - "supabase/**"
+      - "deno.lock"
       - ".github/workflows/supabase.yml"
   pull_request:
     paths:
       - "supabase/**"
+      - "deno.lock"
       - ".github/workflows/supabase.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.

@@ -6,9 +6,11 @@ name: React CI
 # hiç derlemediği hata) CI'da hiç yakalanmıyordu: `.github/workflows/`
 # altında yalnızca `flutter.yml` vardı ve o da `paths: flutter_app/**`
 # ile tetikleniyordu.
+# TETİKLEME KAPSAMI (Tur 5 kararı — flutter.yml/supabase.yml ile aynı)
+# `push` tüm branch'lere açık; `tool/**` ve `CHANGELOG.md` de eklendi,
+# çünkü `check_versions.cjs`/`check_i18n.cjs` bu dosyaları okuyor.
 on:
   push:
-    branches: [main, "feature/**"]
     paths:
       - "src/**"
       - "index.html"
@@ -21,6 +23,8 @@ on:
       - "postcss.config.js"
       - "tailwind.config.ts"
       - "public/locales/**"
+      - "tool/**"
+      - "CHANGELOG.md"
       - ".github/workflows/react.yml"
   pull_request:
     paths:
@@ -35,6 +39,8 @@ on:
       - "postcss.config.js"
       - "tailwind.config.ts"
       - "public/locales/**"
+      - "tool/**"
+      - "CHANGELOG.md"
       - ".github/workflows/react.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
@@ -94,6 +100,28 @@ jobs:
       # tabanı kırmadan yeni hataları yakalar.
       - name: Lint
         run: npm run lint -- --max-warnings 25
+
+      # Mantık testleri (yedek içe aktarımı) + sürüm/sabit denetleyicileri.
+      # `node --experimental-strip-types` Node 22.6+ gerektirir; CI'ın
+      # NODE_VERSION'ı 20 olduğu için **Node 24** (yerleşik type-stripping
+      # varsayılan) kullanılır. Bu adım olmadan `src/lib/import/**` hiç
+      # çalıştırılmıyordu: 40 test yalnız geliştiricinin makinelerinde
+      # koşuyordu ve yedek import sözleşmesi (ölümcül ihlalde hiç yazma
+      # olmaması, `deleted_at` canlanmaması, epoch dedup, PGRST102) CI'da
+      # doğrulanmıyordu.
+      - name: Set up Node 24 (type-stripping for tests)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Test (backup import logic)
+        run: npm test
+
+      # `check_versions.cjs` iki istemcinin sabitlerini (makro oranları,
+      # aktivite çarpanları, varsayılan hedefler) karşılaştırır; bu yüzden
+      # `src/**` değişikliği Flutter sabitlerinden ayrışırsa da yakalar.
+      - name: Check version consistency
+        run: node tool/check_versions.cjs
 
       - name: Build
         run: npm run build
