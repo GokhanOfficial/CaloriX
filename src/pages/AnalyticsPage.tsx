@@ -34,35 +34,55 @@ const AnalyticsPage = () => {
   const { profile } = useProfile();
 
   // Get targets from profile or use defaults
+  //
+  // `||` yerine **null/NaN/negatif kontrolü**: `profile.daily_calorie_target`
+  // 0 yazılmış bir profil (AI hesaplaması başarısız olduğunda A1r4'ün
+  // `requireNumber(..., 0, 20000)` doğrulaması 0'a izin veriyor) `||`
+  // sayesinde varsayılana düşüyordu, ama `-1` veya `NaN` gibi değerler
+  // **geçiyordu** ve tüm yüzdeler `NaN`/`-%` oluyordu. Flutter tarafında
+  // A4r2 bu beş noktayı tek `_percent()` yardımcısıyla kapatmıştı
+  // (bkz. TRANSFER-defteri "sıfıra bölme" maddesi).
+  const target = (value: number | null | undefined, fallback: number) =>
+    Number.isFinite(value) && (value as number) > 0 ? (value as number) : fallback;
+
   const targets = {
-    calories: profile?.daily_calorie_target || DEFAULT_GOALS.calories,
-    protein: profile?.protein_target_g || DEFAULT_GOALS.protein,
-    carbs: profile?.carbs_target_g || DEFAULT_GOALS.carbs,
-    fat: profile?.fat_target_g || DEFAULT_GOALS.fat,
-    water: profile?.daily_water_target_ml || DEFAULT_GOALS.water,
+    calories: target(profile?.daily_calorie_target, DEFAULT_GOALS.calories),
+    protein: target(profile?.protein_target_g, DEFAULT_GOALS.protein),
+    carbs: target(profile?.carbs_target_g, DEFAULT_GOALS.carbs),
+    fat: target(profile?.fat_target_g, DEFAULT_GOALS.fat),
+    water: target(profile?.daily_water_target_ml, DEFAULT_GOALS.water),
   };
 
   // Calculate macro percentages for charts (normalized to 100% target)
+  //
+  // Yüzde grafikleri **hedefi aşan** günleri de göstermelidir; bu yüzden
+  // `calculateProgress` (0..100'e kırpar) kullanılmaz. Sıfıra bölme yine
+  // savunulur: hedef 0'a düşmüşse (bozuk profil) grafik `NaN` noktalarıyla
+  // çizilmek yerine boş kalır.
+  const percentOf = (value: number, denominator: number) =>
+    denominator > 0 ? Math.round((value / denominator) * 100) : 0;
+
   const macroChartData = dailyStats.map((day) => ({
     ...day,
-    proteinPercent: Math.round((day.protein / targets.protein) * 100),
-    carbsPercent: Math.round((day.carbs / targets.carbs) * 100),
-    fatPercent: Math.round((day.fat / targets.fat) * 100),
-    caloriesPercent: Math.round((day.calories / targets.calories) * 100),
+    proteinPercent: percentOf(day.protein, targets.protein),
+    carbsPercent: percentOf(day.carbs, targets.carbs),
+    fatPercent: percentOf(day.fat, targets.fat),
+    caloriesPercent: percentOf(day.calories, targets.calories),
   }));
 
   // Weight change calculation
   const firstWeight = weightTrend[0]?.weight;
   const lastWeight = weightTrend[weightTrend.length - 1]?.weight;
   const weightChange = lastWeight && firstWeight ? lastWeight - firstWeight : 0;
-  const weightChangePercent = firstWeight ? ((weightChange / firstWeight) * 100).toFixed(1) : "0";
+  const weightChangePercent =
+    firstWeight && firstWeight > 0 ? ((weightChange / firstWeight) * 100).toFixed(1) : "0";
 
   // Average percentage vs target
-  const avgCaloriesPercent = Math.round((averages.avgCalories / targets.calories) * 100);
-  const avgProteinPercent = Math.round((averages.avgProtein / targets.protein) * 100);
-  const avgCarbsPercent = Math.round((averages.avgCarbs / targets.carbs) * 100);
-  const avgFatPercent = Math.round((averages.avgFat / targets.fat) * 100);
-  const avgWaterPercent = Math.round((averages.avgWater / targets.water) * 100);
+  const avgCaloriesPercent = percentOf(averages.avgCalories, targets.calories);
+  const avgProteinPercent = percentOf(averages.avgProtein, targets.protein);
+  const avgCarbsPercent = percentOf(averages.avgCarbs, targets.carbs);
+  const avgFatPercent = percentOf(averages.avgFat, targets.fat);
+  const avgWaterPercent = percentOf(averages.avgWater, targets.water);
 
   if (loading) {
     return (

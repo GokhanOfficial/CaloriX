@@ -20,6 +20,30 @@ const passwordSchema = z.string().min(6);
 
 type AuthView = "auth" | "forgot-password" | "pending-verification" | "reset-password";
 
+/**
+ * Supabase Auth hata mesajını **beyaz listeye** karşı eşler.
+ *
+ * `error.message` doğrudan kullanıcıya gösterildiğinde iç şema bilgisi
+ * sızabiliyor (kullanıcı yok/e-posta kayıtlı ayrımı, yetki hataları,
+ * oturum yok). `handleSignIn`/`handleSignUp` zaten `includes(...)` ile
+ * beyaz listeliyor; **şifre güncelleme** yolu bu listeyi kullanmıyor ve
+ * ham mesajı ekrana koyuyordu. Eşleşmeyen mesaj → sabit metin.
+ */
+const authErrorText = (raw: string): string => {
+  if (raw.includes("Invalid login credentials")) return "Geçersiz e-posta veya şifre";
+  if (raw.includes("Email not confirmed")) return "E-posta adresi doğrulanmamış";
+  if (raw.includes("User already registered")) return "Bu e-posta zaten kayıtlı";
+  if (raw.includes("Password should be")) return "Şifre en az 6 karakter olmalı";
+  if (raw.includes("New password should be different")) {
+    return "Yeni şifre eskisinden farklı olmalı";
+  }
+  if (raw.includes("Auth session missing")) return "Oturum bulunamadı, tekrar giriş yapın";
+  if (raw.includes("Rate limit") || raw.includes("too many")) {
+    return "Çok fazla deneme, biraz sonra tekrar deneyin";
+  }
+  return "Bir hata oluştu";
+};
+
 export default function AuthPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -185,9 +209,19 @@ export default function AuthPage() {
     setIsLoading(false);
 
     if (error) {
+      // **Ham hata mesajı kullanıcıya gösteriliyordu (P1).**
+      // `supabase.auth.updateUser` hatası içerebilir: "User not found",
+      // "New password should be different from the old password",
+      // "Email address not confirmed" vb. Bunlar kısmen kullanıcıya dönük,
+      // kısmen **iç şema** (yetki/tablo) bilgisi taşıyor. Yukarıdaki
+      // `signIn`/`signUp` akışları zaten **beyaz liste** ile eşleştiriyor
+      // (`includes(...)`); burada da aynı politika uygulanıyor: eşleşen
+      // mesaj gösterilir, eşleşmeyen sabit metne düşer, ham metin
+      // yalnızca konsola gider.
+      console.error('Password update failed:', error);
       toast({
         title: "Hata",
-        description: error.message,
+        description: authErrorText(error.message),
         variant: "destructive",
       });
     } else {

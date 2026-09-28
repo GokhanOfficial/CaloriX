@@ -20,7 +20,9 @@
     "meal": "Meal",
     "searchFood": "Search Food",
     "searchPlaceholder": "Search food...",
-    "version": "Version"
+    "version": "Version",
+    "previousDay": "Previous day",
+    "nextDay": "Next day"
   },
   "header": {
     "signedOut": "Signed Out",
@@ -126,7 +128,8 @@
       "title": "Edit Entry",
       "updated": "Entry updated",
       "deleted": "Entry deleted"
-    }
+    },
+    "invalidAmount": "Enter a valid amount"
   },
   "export": {
     "success": "exported",
@@ -291,7 +294,9 @@
       "passwordChanged": "Password updated",
       "aiSuccess": "AI Calculation Completed",
       "aiUpdate": "AI Macro Update",
-      "error": "An error occurred"
+      "error": "An error occurred",
+      "aiFailedTitle": "Targets could not be updated",
+      "aiFailedDesc": "Your details were saved, but your targets could not be recalculated. Try again with \"Recalculate\" in the Goals section."
     }
   },
   "dashboard": {

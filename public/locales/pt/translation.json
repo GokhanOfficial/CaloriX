@@ -20,7 +20,9 @@
     "meal": "Refeição",
     "searchFood": "Buscar Alimento",
     "searchPlaceholder": "Buscar alimento...",
-    "version": "Versão"
+    "version": "Versão",
+    "previousDay": "Dia anterior",
+    "nextDay": "Próximo dia"
   },
   "header": {
     "signedOut": "Desconectado",
@@ -126,7 +128,8 @@
       "title": "Editar registro",
       "updated": "Registro atualizado",
       "deleted": "Registro excluído"
-    }
+    },
+    "invalidAmount": "Insira uma quantidade válida"
   },
   "export": {
     "success": "exportado",
@@ -291,7 +294,9 @@
       "passwordChanged": "Senha atualizada",
       "aiSuccess": "Cálculo de IA concluído",
       "aiUpdate": "Atualização de macros por IA",
-      "error": "Ocorreu um erro"
+      "error": "Ocorreu um erro",
+      "aiFailedTitle": "Não foi possível atualizar as metas",
+      "aiFailedDesc": "Seus dados foram salvos, mas suas metas não puderam ser recalculadas. Tente novamente com \"Recalcular\" na seção Metas."
     }
   },
   "dashboard": {

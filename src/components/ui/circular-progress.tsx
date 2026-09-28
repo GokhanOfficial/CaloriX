@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { calculateProgress } from "@/lib/calculations";
 
 interface CircularProgressProps {
   value: number;
@@ -10,6 +11,11 @@ interface CircularProgressProps {
   showValue?: boolean;
   label?: string;
   color?: 'primary' | 'macro-protein' | 'macro-carbs' | 'macro-fat' | 'macro-calories';
+  /**
+   * Ekran okuyucu metni. `role="progressbar"` + `aria-valuenow/min/max`
+   * yalnız görsel halkayı anlatır; yüzde metni okunmaz.
+   */
+  ariaLabel?: string;
 }
 
 export function CircularProgress({
@@ -21,10 +27,15 @@ export function CircularProgress({
   showValue = true,
   label,
   color = 'primary',
+  ariaLabel,
 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const percentage = Math.min(100, (value / max) * 100);
+  // `calculateProgress` 0/negatif/NaN hedefte 0 döner ve 0..100'e kırpar
+  // (`Math.min(100, (value / max) * 100)` korumasız sürümde `max = 0`
+  // iken `NaN`/`Infinity` üretiyordu → halka ya hiç çizilmiyor ya da
+  // tamamen dolu görünüyordu). Flutter `Calculations.progress` ile aynı.
+  const percentage = calculateProgress(value, max);
   const offset = circumference - (percentage / 100) * circumference;
 
   const colorClasses = {
@@ -36,8 +47,19 @@ export function CircularProgress({
   };
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
-      <svg width={size} height={size} className="-rotate-90">
+    <div
+      className={cn("relative inline-flex items-center justify-center", className)}
+      // Erişilebilirlik: görsel halka için `role="progressbar"`; `aria-valuetext`
+      // yüzdeyi okur (`aria-valuenow` sadece ham sayı verir ve 0'a bölünmüş
+      // durumda anlamsız kalır).
+      role="progressbar"
+      aria-label={ariaLabel ?? label ?? 'İlerleme'}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percentage}
+      aria-valuetext={`%${percentage}`}
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         {/* Background circle */}
         <circle
           cx={size / 2}

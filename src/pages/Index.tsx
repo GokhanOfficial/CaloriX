@@ -19,7 +19,8 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeFunction, type MacroCalcResponse } from "@/integrations/supabase/functions";
-import { calculateAge } from "@/lib/calculations";
+import { calculateAge, genderForBmr, parseDateOnly } from "@/lib/calculations";
+import { formatLocalDate, parseDateOnly as parseLocalDay } from "@/lib/dates";
 import { useTranslation } from "react-i18next";
 
 const Index = () => {
@@ -106,9 +107,21 @@ const Index = () => {
         // doğum tarihi 29 Şubat olan bir kullanıcıda her yıl 28 Şubat'ta
         // "365.25 gün" bölmesi 1 gün fazla sayıyor (veya 1 gün eksik),
         // sonuç BMR'yi ~5 kcal kaydırıyordu. Takvim yılı farkı birebir.
+        //
+        // `parseDateOnly`: `new Date("2000-01-15")` **UTC gece yarısı**
+        // ayrıştırır; Türkiye'de (UTC+03:00) `getDate()` 14 döner ve yaş
+        // doğum gününden bir gün **önce** ilerlerdi (BMR ~5 kcal sapma).
+        // Yerel takvim gününe sabitleniyor.
         const response = await invokeFunction<MacroCalcResponse>("calculate-macros", {
-          age: profile.birth_date ? calculateAge(new Date(profile.birth_date)) : 30,
-          gender: profile.gender || "other",
+          age: profile.birth_date
+            ? calculateAge(parseDateOnly(profile.birth_date) ?? new Date())
+            : 30,
+          // `profile.gender` null olabilir (`"other"` de bir DB değeri).
+          // Edge function `other`'ı kabul ediyor ama **yerel** fallback'te
+          // web'in `calculateBMR`'ı kadın formülüne düşüyordu → aynı
+          // kullanıcı iki istemcide 166 kcal farklı hedef görüyordu.
+          // Tek kaynak `genderForBmr` (bkz. `lib/calculations.ts`).
+          gender: profile.gender ?? genderForBmr(profile.gender),
           height_cm: profile.height_cm || 170,
           current_weight_kg: weight,
           target_weight_kg: profile.target_weight_kg || weight,
@@ -186,7 +199,10 @@ const Index = () => {
     const { error } = await addMealEntry({
       ...data,
       food_id: null,
-      entry_date: format(selectedDate, "yyyy-MM-dd"),
+      // `format(date, "yyyy-MM-dd")` da **yerel** gün verir (date-fns yerel
+      // alanlardan okur), ama `useDailyData` da aynı dizeyi üretiyor;
+      // tek kaynak `formatLocalDate` olsun diye burada da o kullanılıyor.
+      entry_date: formatLocalDate(selectedDate),
       note: null,
       source: "manual",
     });
@@ -326,7 +342,11 @@ const Index = () => {
           {/* Weight Banner */}
           <WeightBanner
             lastWeight={latestWeight?.weight_kg || profile?.current_weight_kg}
-            lastWeighDate={latestWeight ? new Date(latestWeight.entry_date) : undefined}
+            // `entry_date` bir `DATE` kolonu → sunucu "2026-03-01" döner.
+            // `new Date(...)` bunu **UTC** gece yarısı yapar; Türkiye'de
+            // "3 gündür tartılmadı" uyarısı 3 saat eksik ölçülür ve
+            // uyarı bir gün geç gösterilir. Yerel takvim gününe sabitleniyor.
+            lastWeighDate={latestWeight ? parseLocalDay(latestWeight.entry_date) ?? undefined : undefined}
             reminderDays={profile?.weigh_in_frequency_days || 7}
             onLogWeight={handleLogWeight}
           />
@@ -387,19 +407,28 @@ const Index = () => {
         defaultMealType={selectedMealType}
         defaultTab={unifiedFoodDialogTab}
         onSubmit={async (foods) => {
-          try {
-            for (const food of foods) {
-              await addMealEntry({
-                ...food,
-                food_id: food.food_id || null,
-                entry_date: format(selectedDate, "yyyy-MM-dd"),
-                note: null,
+          // `addMealEntry` fırlatmaz, `{ error }` döndürür → `try/catch`
+          // hiç tetiklenmiyordu ve **hiçbir öğün yazılmamasına rağmen**
+          // `{ error: null }` dönüyordu (AI tanımanın ürettiği geçersiz
+          // miktar DB 400'üne takılıp kullanıcıya hiçbir geri bildirim
+          // verilmiyordu).
+          for (const food of foods) {
+            const { error } = await addMealEntry({
+              ...food,
+              food_id: food.food_id || null,
+              entry_date: formatLocalDate(selectedDate),
+              note: null,
+            });
+            if (error) {
+              toast({
+                title: t('common.error'),
+                description: t('dashboard.errorFood'),
+                variant: "destructive",
               });
+              return { error };
             }
-            return { error: null };
-          } catch (err) {
-            return { error: err as Error };
           }
+          return { error: null };
         }}
       />
     </AppLayout>

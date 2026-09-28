@@ -29,8 +29,12 @@ import {
   calculateTargetCalories,
   calculateMacros,
   calculateBMI,
-  getBMICategory
+  calculateAge,
+  getBMICategory,
+  parseDateOnly,
+  waterTargetMl,
 } from "@/lib/calculations";
+import { todayLocalDateString } from "@/lib/dates";
 import { ACTIVITY_LEVELS, GOALS, HEALTH_DISCLAIMER, activityLevelToDb, activityLevelFromDb, type ActivityLevel, type Goal } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -41,7 +45,10 @@ const TOTAL_STEPS = 5;
 const personalInfoSchema = z.object({
   displayName: z.string().min(2, "İsim en az 2 karakter olmalı").max(50),
   birthDate: z.string().refine((date) => {
-    const age = calculateAge(new Date(date));
+    // `parseDateOnly` olmadan `new Date("2000-01-15")` UTC gece yarısı
+    // ayrıştırılıyor; Türkiye'de yaş bir gün **önce** ilerliyordu ve
+    // doğum günü geldiği gün "13 yaşından küçüksün" hatası veriyordu.
+    const age = calculateAge(parseDateOnly(date) ?? new Date(NaN));
     return age >= 13 && age <= 120;
   }, "Yaş 13-120 arasında olmalı"),
   gender: z.enum(["male", "female", "other"]),
@@ -52,16 +59,6 @@ const bodyInfoSchema = z.object({
   currentWeightKg: z.number().min(30, "Kilo en az 30 kg olmalı").max(300, "Kilo en fazla 300 kg olabilir"),
   targetWeightKg: z.number().min(30, "Hedef kilo en az 30 kg olmalı").max(300, "Hedef kilo en fazla 300 kg olabilir"),
 });
-
-function calculateAge(birthDate: Date): number {
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-}
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -134,6 +131,37 @@ export default function OnboardingPage() {
     loadProfile();
   }, [user, navigate]);
 
+  /**
+   * Yerel (AI'sız) hesap — **tek** uygulama.
+   *
+   * Önceden aynı 12 satır iki kez yazılmıştı (AI hatası kolu + `catch`
+   * kolu) ve ikisi de `gender === "other" ? "male" : gender` yazarak
+   * cinsiyet kuralını **`calculateBMR`'ın içine gömülü** davranıştan
+   * ayırıyordu. `calculateBMR` artık `other`/bilinmeyen/null girdisinde
+   * kendisi erkek formülüne düşüyor (Flutter sözleşmesi), yani
+   * `genderForCalc` ön eklemesine gerek yok.
+   *
+   * Ayrıca `Math.round(weight * 33)` (su hedefi) `waterTargetMl` ile
+   * değiştirildi: `NaN` kilo → `NaN` su hedefi → profile `NaN` yazılıyordu.
+   */
+  const localGoals = () => {
+    const age = calculateAge(parseDateOnly(birthDate) ?? new Date(NaN));
+    const bmr = calculateBMR({ weight: currentWeightKg, height: heightCm, age, gender });
+    const tdee = calculateTDEE(bmr, activityLevel);
+    const targetCalories = calculateTargetCalories(tdee, goal);
+    const macros = calculateMacros(targetCalories);
+    return {
+      bmr,
+      tdee,
+      calories: targetCalories,
+      protein: macros.protein,
+      carbs: macros.carbs,
+      fat: macros.fat,
+      bmi: calculateBMI(currentWeightKg, heightCm),
+      waterTarget: waterTargetMl(currentWeightKg),
+    };
+  };
+
   // Calculate goals using AI when moving to step 5
   const calculateWithAI = async (): Promise<boolean> => {
     if (!birthDate || !heightCm || !currentWeightKg) return false;
@@ -141,7 +169,7 @@ export default function OnboardingPage() {
     setIsCalculating(true);
 
     try {
-      const age = calculateAge(new Date(birthDate));
+      const age = calculateAge(parseDateOnly(birthDate) ?? new Date(NaN));
       const bmi = calculateBMI(currentWeightKg, heightCm);
 
       const { data, error } = await invokeFunction<MacroCalcResponse>('calculate-macros', {
@@ -156,25 +184,8 @@ export default function OnboardingPage() {
 
       if (error || !data) {
         console.error('AI calculation error:', error);
-        // Fallback to local calculation
-        const genderForCalc = gender === "other" ? "male" : gender;
-        const bmr = calculateBMR({ weight: currentWeightKg, height: heightCm, age, gender: genderForCalc });
-        const tdee = calculateTDEE(bmr, activityLevel);
-        const targetCalories = calculateTargetCalories(tdee, goal);
-        const macros = calculateMacros(targetCalories);
-        const calculatedWater = Math.round(currentWeightKg * 33);
-
-        setCalculatedGoals({
-          bmr,
-          tdee,
-          calories: targetCalories,
-          protein: macros.protein,
-          carbs: macros.carbs,
-          fat: macros.fat,
-          bmi,
-          waterTarget: calculatedWater,
-        });
-
+        setCalculatedGoals(localGoals());
+        setHasCalculated(true);
         toast({
           title: "Bilgi",
           description: "AI hesaplama yapılamadı, yerel formüller kullanıldı",
@@ -192,37 +203,18 @@ export default function OnboardingPage() {
           explanation: data.explanation,
         });
 
+        setHasCalculated(true);
         toast({
           title: "AI Hesaplama Tamamlandı ✨",
           description: data.explanation || "Hedefleriniz hesaplandı",
         });
       }
 
-      setHasCalculated(true);
       return true;
     } catch (err) {
       console.error('Error calculating with AI:', err);
       // Fallback to local calculation
-      const age = calculateAge(new Date(birthDate));
-      const genderForCalc = gender === "other" ? "male" : gender;
-      const bmr = calculateBMR({ weight: currentWeightKg, height: heightCm, age, gender: genderForCalc });
-      const tdee = calculateTDEE(bmr, activityLevel);
-      const targetCalories = calculateTargetCalories(tdee, goal);
-      const macros = calculateMacros(targetCalories);
-      const bmi = calculateBMI(currentWeightKg, heightCm);
-      const calculatedWater = Math.round(currentWeightKg * 33);
-
-      setCalculatedGoals({
-        bmr,
-        tdee,
-        calories: targetCalories,
-        protein: macros.protein,
-        carbs: macros.carbs,
-        fat: macros.fat,
-        bmi,
-        waterTarget: calculatedWater,
-      });
-
+      setCalculatedGoals(localGoals());
       setHasCalculated(true);
       return true;
     } finally {
@@ -401,7 +393,13 @@ export default function OnboardingPage() {
                     type="date"
                     value={birthDate}
                     onChange={(e) => setBirthDate(e.target.value)}
-                    max={new Date().toISOString().split("T")[0]}
+                    // `toISOString().split("T")[0]` **UTC** günü. Türkiye'de
+                    // (UTC+03:00) saat 03:00'ten sonra bu, **yarın**'ı
+                    // verir → doğum tarihi alanında gün kazanılmış oluyor
+                    // ("2265-12-31"e kadar her şey seçilebilir ve 13-120
+                    // doğrulaması yalnız hesaplamada yakalıyordu).
+                    // Yerel takvim günü: `todayLocalDateString()`.
+                    max={todayLocalDateString()}
                   />
                   {errors.birthDate && (
                     <p className="text-xs text-destructive">{errors.birthDate}</p>

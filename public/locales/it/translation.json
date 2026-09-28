@@ -20,7 +20,9 @@
     "meal": "Pasto",
     "searchFood": "Cerca alimento",
     "searchPlaceholder": "Cerca alimento...",
-    "version": "Versione"
+    "version": "Versione",
+    "previousDay": "Giorno precedente",
+    "nextDay": "Giorno successivo"
   },
   "header": {
     "signedOut": "Disconnesso",
@@ -126,7 +128,8 @@
       "title": "Modifica voce",
       "updated": "Voce aggiornata",
       "deleted": "Voce eliminata"
-    }
+    },
+    "invalidAmount": "Inserisci una quantità valida"
   },
   "export": {
     "success": "esportato",
@@ -291,7 +294,9 @@
       "passwordChanged": "Password aggiornata",
       "aiSuccess": "Calcolo IA completato",
       "aiUpdate": "Aggiornamento macro da IA",
-      "error": "Si è verificato un errore"
+      "error": "Si è verificato un errore",
+      "aiFailedTitle": "Impossibile aggiornare gli obiettivi",
+      "aiFailedDesc": "I tuoi dati sono stati salvati, ma gli obiettivi non sono stati ricalcolati. Riprova con «Ricalcola» nella sezione Obiettivi."
     }
   },
   "dashboard": {

@@ -332,10 +332,31 @@ export interface WaterInstant {
   micros: number;
   /** DB'ye yazılacak ISO-8601 damga (UTC). */
   iso: string;
-  /** `entry_date` (`yyyy-MM-dd`, UTC günü). */
+  /**
+   * `entry_date` (`yyyy-MM-dd`). `entry_date` okunabildiyse yedeğin
+   * **kendi** günü (yerel ayrıştırma ile), okunamadıysa damganın **UTC**
+   * günü — bkz. `utcDateFromMicros`.
+   */
   day: string;
 }
 
+/**
+ * UTC damga → `yyyy-MM-dd`.
+ *
+ * **Bu kasıtlı olarak UTC'dir** (Flutter `formatUtcDateFromMicros` ile
+ * birebir). Yalnız `entry_date` **hiç** okunamıyorsa kullanılır; amaç
+ * "hangi güne ait?" sorusuna **verinin kendi saat diliminde** cevap
+ * vermektir, yoksa içe aktarma sırasında bulunulan ülkenin günüyle
+ * karıştırıp kaydı yanlış güne yazmaktır. Örnek: kullanıcı yedek içe
+ * aktarırken `entry_time = 2026-01-01T22:00Z`'yi Türkiye'de yüklüyor →
+ * yerel 1 Ocak 01:00 → yerel gün **1 Ocak**. Bu fonksiyon yalnız
+ * `entry_date` yoksa devreye girer ve bu durumda kaydın **kendi** günü
+ * (UTC) en az veri kaybı yaratır.
+ *
+ * NOT: `toISOString().slice(0, 10)` deseni `lib/dates.ts`teki
+ * `formatLocalDate`in **kötü** karşılığıdır ve normalde kullanılmaz —
+ * burada kapsamı öyle daraltılmıştır ki aynı sonuç zorunludur.
+ */
 function utcDateFromMicros(micros: number): string {
   return new Date(micros / 1000).toISOString().slice(0, 10);
 }

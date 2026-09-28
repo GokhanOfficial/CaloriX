@@ -20,7 +20,9 @@
     "meal": "Öğün",
     "searchFood": "Yiyecek Ara",
     "searchPlaceholder": "Yiyecek ara...",
-    "version": "Sürüm"
+    "version": "Sürüm",
+    "previousDay": "Önceki gün",
+    "nextDay": "Sonraki gün"
   },
   "header": {
     "signedOut": "Çıkış Yapıldı",
@@ -126,7 +128,8 @@
       "title": "Kaydı Düzenle",
       "updated": "Kayıt güncellendi",
       "deleted": "Kayıt silindi"
-    }
+    },
+    "invalidAmount": "Geçerli bir miktar girin"
   },
   "export": {
     "success": "dışa aktarıldı",
@@ -291,7 +294,9 @@
       "passwordChanged": "Şifre güncellendi",
       "aiSuccess": "Yapay Zeka Hesaplaması Tamamlandı",
       "aiUpdate": "Yapay Zeka Makro Güncellemesi",
-      "error": "Bir hata oluştu"
+      "error": "Bir hata oluştu",
+      "aiFailedTitle": "Hedefler güncellenemedi",
+      "aiFailedDesc": "Bilgileriniz kaydedildi ancak hedefleriniz hesaplanamadı. Hedefler bölümünden \"Yeniden hesapla\" ile tekrar deneyin."
     }
   },
   "dashboard": {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { per100gFromTotals } from "@/lib/calculations";
 
 export interface RecentFood {
   id: string;
@@ -90,18 +91,28 @@ export function useRecentFoods() {
             last_used_at: entry.created_at,
           });
         } else {
-          // Custom food entry - calculate per 100g values
-          const amount = entry.amount_g_ml || 100;
+          // Özel gıda kaydı — 100 g karşılığı. `amount_g_ml = 0` iken elle
+          // yazılmış bölme `NaN` üretiyordu; `per100gFromTotals` (Flutter'ın
+          // `FoodRepository.customItem` karşılığı) tek kaynak.
+          const per100 = per100gFromTotals(
+            {
+              kcal: entry.calculated_kcal,
+              protein: entry.calculated_protein,
+              carbs: entry.calculated_carbs,
+              fat: entry.calculated_fat,
+            },
+            entry.amount_g_ml
+          );
           uniqueFoods.push({
             id: entry.id,
             food_id: null,
             name: entry.custom_name || "Bilinmeyen",
             brand: null,
-            serving_size_g: amount,
-            calories: Math.round((entry.calculated_kcal / amount) * 100),
-            protein_g: Math.round((entry.calculated_protein / amount) * 100 * 10) / 10,
-            carbs_g: Math.round((entry.calculated_carbs / amount) * 100 * 10) / 10,
-            fat_g: Math.round((entry.calculated_fat / amount) * 100 * 10) / 10,
+            serving_size_g: entry.amount_g_ml || 100,
+            calories: per100.kcal,
+            protein_g: per100.protein,
+            carbs_g: per100.carbs,
+            fat_g: per100.fat,
             last_used_at: entry.created_at,
           });
         }

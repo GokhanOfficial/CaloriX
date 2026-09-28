@@ -39,8 +39,10 @@ import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, APP_VERSION, DEFAULT_GOALS, 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
+  calculateAge,
   calculateBMI,
   getBMICategory,
+  parseDateOnly,
 } from "@/lib/calculations";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeFunction, type MacroCalcResponse } from "@/integrations/supabase/functions";
@@ -50,15 +52,11 @@ import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { Globe } from "lucide-react";
 
-function calculateAge(birthDate: Date): number {
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-}
+// `calculateAge` artık `lib/calculations`'ta **tek kaynakta**. Burada ve
+// `OnboardingPage`'de aynı 8 satırın kopyası yaşıyordu; üçüncü kopya
+// (`OnboardingPage`) üst sınır uygulamadığı için 2265 doğum yılını kabul
+// ediyor, bu kopya ise yalnız alt sınır koyuyordu → aynı kullanıcı
+// onboarding'de geçerli, ayarlarda geçersiz sayılabiliyordu.
 
 const SettingsPage = () => {
   const { t } = useTranslation();
@@ -140,7 +138,7 @@ const SettingsPage = () => {
     setIsRecalculating(true);
 
     try {
-      const age = calculateAge(new Date(birthDate));
+      const age = calculateAge(parseDateOnly(birthDate) ?? new Date(NaN));
 
       const { data, error } = await invokeFunction<MacroCalcResponse>('calculate-macros', {
         age,
@@ -187,6 +185,11 @@ const SettingsPage = () => {
   const savePersonalInfo = async () => {
     setIsLoading(true);
 
+    // `calculate-macros` başarısız olursa profil yine de yazılır ama
+    // hedefler güncellenmez. Kullanıcı bunu bilmeli — bkz. aşağıdaki
+    // `aiFailed` dalı.
+    let aiFailed = false;
+
     const updates: Record<string, unknown> = {
       display_name: displayName,
       birth_date: birthDate,
@@ -199,7 +202,7 @@ const SettingsPage = () => {
     // If auto-recalculate is on and weight changed, use AI to recalculate macros
     if (autoRecalculate && profile?.current_weight_kg !== currentWeightKg && birthDate) {
       try {
-        const age = calculateAge(new Date(birthDate));
+        const age = calculateAge(parseDateOnly(birthDate) ?? new Date(NaN));
 
         // `activityLevelToDb` UI anahtarı (camelCase) bekler; profil DB'den
         // snake_case okur. `activityLevelFromDb` ile önce UI'ya, sonra
@@ -229,14 +232,27 @@ const SettingsPage = () => {
           updates.protein_target_g = data.protein_target_g;
           updates.carbs_target_g = data.carbs_target_g;
           updates.fat_target_g = data.fat_target_g;
+          updates.daily_water_target_ml = data.daily_water_target_ml;
 
           toast({
             title: t('settings.messages.aiUpdate'),
             description: data.explanation || t('settings.messages.aiUpdateDesc'),
           });
+        } else {
+          // **Sessiz kayıp (P1).** `auto_recalculate_macros` açık olan bir
+          // kullanıcı kilo değiştirdiğinde hedefleri güncellemek için
+          // `calculate-macros` çağrılıyordu; hata durumunda (AI servisi
+          // kapalı, 429, timeout) **hiçbir şey olmuyordu** ve hemen
+          // ardından gelen "Kişisel bilgiler kaydedildi" toast'u
+          // kullanıcıya hedeflerinin de güncellendiğini düşündürüyordu.
+          // Profil kalırsa hedefler eski kiloya göre kalıyor (davranış
+          // bozuk, veri tutarsız).
+          console.error('AI recalculation failed:', aiError);
+          aiFailed = true;
         }
       } catch (aiError) {
         console.error('AI recalculation failed:', aiError);
+        aiFailed = true;
       }
     }
 
@@ -246,7 +262,17 @@ const SettingsPage = () => {
     if (error) {
       toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
     } else {
-      toast({ title: t('common.success'), description: t('settings.messages.personalInfoSaved') });
+      if (aiFailed) {
+        // Profil yazıldı ama hedefler güncellenmedi — ikisini ayırmak
+        // zorunda, yoksa kullanıcı yanlış bilgilendiriliyor.
+        toast({
+          title: t('settings.messages.aiFailedTitle'),
+          description: t('settings.messages.aiFailedDesc'),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: t('common.success'), description: t('settings.messages.personalInfoSaved') });
+      }
       setPersonalInfoOpen(false);
     }
   };
@@ -313,7 +339,10 @@ const SettingsPage = () => {
     setIsChangingPassword(false);
 
     if (error) {
-      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
+      // Ham `error.message` kullanıcıya gösteriliyordu (iç şema bilgisi
+      // sızıntısı — bkz. `AuthPage` notu). Beyaz listeli metin kullanılır.
+      console.error('Password change failed:', error);
+      toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
     } else {
       toast({ title: t('common.success'), description: t('settings.messages.passwordChanged') });
       setPasswordDialogOpen(false);

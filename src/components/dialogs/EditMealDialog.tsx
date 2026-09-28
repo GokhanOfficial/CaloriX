@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MEAL_TYPES, type MealType } from "@/lib/constants";
+import { calculateNutritionForAmount, per100gFromTotals } from "@/lib/calculations";
+import { MAX_MEAL_AMOUNT } from "@/hooks/useDailyData";
 import { Loader2, Trash2 } from "lucide-react";
 import {
   AlertDialog,
@@ -81,34 +83,39 @@ export function EditMealDialog({
   // Update form when entry changes
   useEffect(() => {
     if (entry) {
-      // Calculate per-100g values from the entry's total values
-      const amount = entry.amount || 100;
+      // 100 g karşılığı — `per100gFromTotals` tek kaynak
+      // (`amount = 0` iken `x / 0` → `Infinity` idi ve forma
+      // "Infinity" yazılıyordu).
+      const per100 = per100gFromTotals(
+        { kcal: entry.calories, protein: entry.protein, carbs: entry.carbs, fat: entry.fat },
+        entry.amount
+      );
       setFormData({
         name: entry.name,
         mealType: entry.mealType,
         amount: String(entry.amount),
-        caloriesPer100: String(Math.round((entry.calories / amount) * 100)),
-        proteinPer100: String(Math.round((entry.protein / amount) * 100 * 10) / 10),
-        carbsPer100: String(Math.round((entry.carbs / amount) * 100 * 10) / 10),
-        fatPer100: String(Math.round((entry.fat / amount) * 100 * 10) / 10),
+        caloriesPer100: String(per100.kcal),
+        proteinPer100: String(per100.protein),
+        carbsPer100: String(per100.carbs),
+        fatPer100: String(per100.fat),
       });
     }
   }, [entry]);
 
-  // Calculate current totals based on amount and per-100g values
-  const currentAmount = parseFloat(formData.amount) || 0;
-  const calculatedCalories = Math.round(
-    (parseFloat(formData.caloriesPer100) || 0) * currentAmount / 100
+  // Miktar ve 100 g değerlerinden toplamları yeniden hesapla —
+  // `calculateNutritionForAmount` tek kaynak (0/negatif/NaN miktar koruması
+  // dahil). Önceden elle yazılmış dört ayrı ifade vardı ve negatif
+  // miktarla **negatif kalori** üretiyordu.
+  const currentAmount = parseFloat(formData.amount);
+  const calculated = calculateNutritionForAmount(
+    {
+      kcal: parseFloat(formData.caloriesPer100) || 0,
+      protein: parseFloat(formData.proteinPer100) || 0,
+      carbs: parseFloat(formData.carbsPer100) || 0,
+      fat: parseFloat(formData.fatPer100) || 0,
+    },
+    currentAmount
   );
-  const calculatedProtein = Math.round(
-    (parseFloat(formData.proteinPer100) || 0) * currentAmount / 100 * 10
-  ) / 10;
-  const calculatedCarbs = Math.round(
-    (parseFloat(formData.carbsPer100) || 0) * currentAmount / 100 * 10
-  ) / 10;
-  const calculatedFat = Math.round(
-    (parseFloat(formData.fatPer100) || 0) * currentAmount / 100 * 10
-  ) / 10;
 
   // `parseFloat` yalnızca **baştaki** sayıyı okur: "12abc" → 12, "-5" → -5,
   // "abc" → NaN. Miktar alanı boş/çöp/negatif olduğunda `amount_g_ml = 0`
@@ -116,7 +123,8 @@ export function EditMealDialog({
   // (Flutter tarafındaki `recognition_confirm`/`add_manual_entry` düzeltmesinin
   // React karşılığı). `type="number"` tarayıcıyı uyarmaya zorlar ama
   // doğrulamayı atlamak mümkündür.
-  const amountValid = Number.isFinite(currentAmount) && currentAmount > 0;
+  const amountValid =
+    Number.isFinite(currentAmount) && currentAmount > 0 && currentAmount <= MAX_MEAL_AMOUNT;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,10 +138,10 @@ export function EditMealDialog({
       custom_name: formData.name,
       meal_type: formData.mealType,
       amount_g_ml: currentAmount,
-      calculated_kcal: calculatedCalories,
-      calculated_protein: calculatedProtein,
-      calculated_carbs: calculatedCarbs,
-      calculated_fat: calculatedFat,
+      calculated_kcal: calculated.kcal,
+      calculated_protein: calculated.protein,
+      calculated_carbs: calculated.carbs,
+      calculated_fat: calculated.fat,
     });
 
     setLoading(false);
@@ -294,7 +302,7 @@ export function EditMealDialog({
                     Hesaplanan toplam ({currentAmount}g)
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {calculatedCalories} kcal • P: {calculatedProtein}g • K: {calculatedCarbs}g • Y: {calculatedFat}g
+                    {calculated.kcal} kcal • P: {calculated.protein}g • K: {calculated.carbs}g • Y: {calculated.fat}g
                   </p>
                 </div>
               </div>

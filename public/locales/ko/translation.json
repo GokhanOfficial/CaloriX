@@ -20,7 +20,9 @@
     "meal": "식사",
     "searchFood": "음식 검색",
     "searchPlaceholder": "음식 검색...",
-    "version": "버전"
+    "version": "버전",
+    "previousDay": "이전 날짜",
+    "nextDay": "다음 날짜"
   },
   "header": {
     "signedOut": "로그아웃됨",
@@ -126,7 +128,8 @@
       "title": "항목 편집",
       "updated": "항목 업데이트됨",
       "deleted": "항목 삭제됨"
-    }
+    },
+    "invalidAmount": "유효한 양을 입력하세요"
   },
   "export": {
     "success": "내보내기 완료",
@@ -291,7 +294,9 @@
       "passwordChanged": "비밀번호가 업데이트되었습니다",
       "aiSuccess": "AI 계산 완료",
       "aiUpdate": "AI 매크로 업데이트",
-      "error": "오류가 발생했습니다"
+      "error": "오류가 발생했습니다",
+      "aiFailedTitle": "목표를 업데이트할 수 없습니다",
+      "aiFailedDesc": "정보는 저장되었지만 목표를 다시 계산하지 못했습니다. 목표 섹션의 \"다시 계산\"으로 다시 시도해 주세요."
     }
   },
   "dashboard": {

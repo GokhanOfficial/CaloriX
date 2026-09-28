@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "./useDebounce";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { per100gFromTotals } from "@/lib/calculations";
 
 export interface FoodSearchResult {
   id: string;
@@ -109,17 +110,27 @@ export function useFoodSearch(query: string) {
             if (!seenNames.has(nameKey)) {
               seenNames.add(nameKey);
               
-              // Calculate per 100g values
-              const amount = entry.amount_g_ml || 100;
+              // 100 g karşılığı — `amount_g_ml` 0/bozuk ise bölme
+              // `NaN`/`Infinity` üretiyordu. `per100gFromTotals` (Flutter'ın
+              // `FoodRepository.customItem` karşılığı) tek kaynak.
+              const per100 = per100gFromTotals(
+                {
+                  kcal: entry.calculated_kcal,
+                  protein: entry.calculated_protein,
+                  carbs: entry.calculated_carbs,
+                  fat: entry.calculated_fat,
+                },
+                entry.amount_g_ml
+              );
               allResults.push({
                 id: `custom_${entry.id}`,
                 name: entry.custom_name,
                 brand: null,
-                serving_size_g: amount,
-                calories: Math.round((entry.calculated_kcal / amount) * 100),
-                protein_g: Math.round((entry.calculated_protein / amount) * 100 * 10) / 10,
-                carbs_g: Math.round((entry.calculated_carbs / amount) * 100 * 10) / 10,
-                fat_g: Math.round((entry.calculated_fat / amount) * 100 * 10) / 10,
+                serving_size_g: entry.amount_g_ml || 100,
+                calories: per100.kcal,
+                protein_g: per100.protein,
+                carbs_g: per100.carbs,
+                fat_g: per100.fat,
                 isCustom: true,
               });
             }

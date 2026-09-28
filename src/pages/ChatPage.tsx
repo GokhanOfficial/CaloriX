@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeFunction } from "@/integrations/supabase/functions";
 import { cn } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dates";
 import { useToast } from "@/hooks/use-toast";
 
 type ChatRole = "user" | "assistant" | "system" | "tool";
@@ -42,6 +43,21 @@ const PAGE_SIZE = 10;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 /** `<input>` accept ile uyumlu izinli görsel MIME'leri. */
 const ALLOWED_ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+
+/**
+ * MIME → dosya uzantısı. **Beyaz liste.**
+ *
+ * Önceden uzantı `file.name.split(".").pop()` ile **kullanıcı dosya
+ * adından** geliyordu: `kötü niyetli.html` yüklendiğinde storage'a
+ * `.html` uzantısıyla yazılıyordu (içerik tipi `image/*` olsa bile).
+ * Uzantı artık içerik tipinden türetiliyor.
+ */
+const ALLOWED_EXTENSIONS_BY_TYPE: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
 
 const renderInlineMarkdown = (text: string) => {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -177,10 +193,12 @@ const ChatPage = () => {
   }, [t, user]);
 
   const loadInitial = useCallback(async () => {
+    const loadId = ++loadIdRef.current;
     if (!user) return;
     setLoading(true);
     try {
       const activeThreadId = await ensureThread();
+      if (loadId !== loadIdRef.current) return;
       if (!activeThreadId) return;
       setThreadId(activeThreadId);
       const { data, error } = await supabase
@@ -189,19 +207,24 @@ const ChatPage = () => {
         .eq("thread_id", activeThreadId)
         .eq("user_id", user.id)
         .is("deleted_at", null)
+        // Sayfalama `id` ile de sıralanıyor (bkz. `loadMore`).
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(PAGE_SIZE);
 
+      if (loadId !== loadIdRef.current) return;
       if (error) throw error;
       const signed = await signAttachments((data || []) as unknown as ChatMessage[]);
+      if (loadId !== loadIdRef.current) return;
       setMessages(signed.reverse());
       setHasMore((data || []).length === PAGE_SIZE);
       scrollToBottom();
     } catch (error) {
+      if (loadId !== loadIdRef.current) return;
       console.error(error);
       toast({ title: t("common.error"), description: t("chat.errors.load"), variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (loadId === loadIdRef.current) setLoading(false);
     }
   }, [ensureThread, scrollToBottom, signAttachments, t, toast, user]);
 
@@ -218,9 +241,29 @@ const ChatPage = () => {
         .eq("thread_id", threadId)
         .eq("user_id", user.id)
         .is("deleted_at", null)
-        .lt("created_at", oldest.created_at)
+        // **Sıralama anahtarı belirsizdi (P1).** Yalnız `created_at DESC`
+        // sıralanıyordu, `.lt("created_at", …)` ile önceki sayfa aranıyordu
+        // ve sayfa sonu `data.length === PAGE_SIZE` ile belirleniyordu.
+        // Aynı `created_at` değerine sahip iki mesaj olduğunda sayfa sınırı
+        // **ikisini de içerebilir** → her `loadMore` aynı kayıtları
+        // getirir, `hasMore` hep true kalır, `sortedMessages[0]` hiç
+        // değişmez: **sonsuz döngü + kopya mesaj**.
+        //
+        // Çözüm: `id` **ikincil** sıralama anahtarı (PostgREST çok sütunlu
+        // sıralamayı kararlı verir) ve `id`'ye göre keyset (`lt`).
+        // UUID v4 **zaman sıralı değildir** ama **tekil** olduğu için
+        // "daha küçük UUID" bir sıralama **ilişkisi** değil, yalnızca
+        // **ayırt edici** bir anahtardır: aynı `created_at`'ta başka bir
+        // mesajla karşılaştırılabilir, farklı `created_at`'ta `created_at`
+        // süzgeci devreye girer. İkisi birlikte tam ve örtüşmeyen sayfalar
+        // verir.
         .order("created_at", { ascending: false })
-        .limit(PAGE_SIZE);
+        .order("id", { ascending: false })
+        .limit(PAGE_SIZE)
+        .or(
+          `created_at.lt.${oldest.created_at},` +
+            `and(created_at.eq.${oldest.created_at},id.lt.${oldest.id})`
+        );
 
       if (error) throw error;
       const signed = await signAttachments((data || []) as unknown as ChatMessage[]);
@@ -238,8 +281,39 @@ const ChatPage = () => {
     }
   }, [hasMore, loadingMore, messages.length, signAttachments, sortedMessages, t, threadId, toast, user]);
 
+  /**
+   * `sendMessage` uçuşu sırasında kullanıcı sayfayı değiştirirse
+   * (`setMessages`/`setInput`) çözülmüş bir `await` artık **çözülmüş**
+   * bileşene yazıyor. React 18 bunu konsol uyarısı olarak yazar ve
+   * korumasız bırakılırsa "hassas veri" yarışı doğar (yeni kullanıcıya
+   * eski kullanıcının mesajının `setInput("")` ile silinmesi gibi).
+   *
+   * `signAttachments` **her mesaj için** imza URL'si üretir; 10 ekli bir
+   * sohbette bu 10 ardışık ağ turu demek.
+   */
+  const mountedRef = useRef(true);
   useEffect(() => {
-    loadInitial();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  /**
+   * Uçuşta kalan yüklemeleri geçersiz kılmak için sayaç.
+   *
+   * `loadInitial` `ensureThread()` (varsa INSERT) + mesaj sorgusu +
+   * imza URL'leri için **üç** ağ turu yapıyor; en az 2 saniye sürebiliyor.
+   * Bu sürede `clearVisibleChat` çağrılırsa (kullanıcı üç nokta → "sohbeti
+   * temizle") `loadInitial`'in eski isteği, arşivlemeden **sonra** çözülüp
+   * arşivlenmiş sohbeti `messages`'a geri yazıyordu: kullanıcı "temizledim"
+   * diyor, mesajlar ekranda duruyor. Aynı desen `ProfileContext` ve
+   * `useDailyData`'da da çözüldü.
+   */
+  const loadIdRef = useRef(0);
+
+  useEffect(() => {
+    void loadInitial();
   }, [loadInitial]);
 
   const handleScroll = () => {
@@ -248,27 +322,63 @@ const ChatPage = () => {
     if (el.scrollTop < 80) loadMore();
   };
 
-  const uploadAttachments = async (activeThreadId: string) => {
+  /**
+   * Yarım kalan ek yüklemelerini temizler (best-effort).
+   *
+   * Silme yetkisi yoksa hata **yutulur** ama `console.warn` ile kaydedilir:
+   * kullanıcıya ikinci bir hata bildirimi göstermek, asıl hatayı
+   * gölgeler.
+   */
+  const removeUploadedFiles = async (paths: string[]) => {
+    if (paths.length === 0) return;
+    const { error } = await supabase.storage
+      .from("chat-attachments")
+      .remove(paths);
+    if (error) {
+      console.warn("Yüklenen ek dosyaları temizlenemedi:", paths, error);
+    }
+  };
+
+  const uploadAttachments = async (
+    activeThreadId: string,
+    onProgress?: (paths: string[]) => void
+  ) => {
     if (!user || !selectedFiles.length) return [];
     const uploaded: ChatAttachment[] = [];
-    for (const file of selectedFiles) {
-      // Boyut sınırı yüklemeye ÖNCE uygulanıyor: sunucu tarafı storage
-      // policy'si sınırsız olsa da gereksiz bant genişliği tüketimini ve
-      // kullanıcıyı uzun süre bekletmeyi engeller.
-      if (file.size > MAX_ATTACHMENT_BYTES) {
-        throw new Error(`File too large: ${file.name} (max ${MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB)`);
+    const paths: string[] = [];
+    try {
+      for (const file of selectedFiles) {
+        // Boyut sınırı yüklemeye ÖNCE uygulanıyor: sunucu tarafı storage
+        // policy'si sınırsız olsa da gereksiz bant genişliği tüketimini ve
+        // kullanıcıyı uzun süre bekletmeyi engeller.
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          throw new Error(`File too large: ${file.name} (max ${MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB)`);
+        }
+        if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+          throw new Error(`Unsupported file type: ${file.type}`);
+        }
+        // Uzantı **güvenlik için** beyaz listeye girmeli: dosya adından
+        // gelen `.php`/`.html` uzantısı, bucket içerik tipi doğru ayarlansa
+        // bile platform tarafından farklı yorumlanabiliyordu. MIME türü
+        // zaten `ALLOWED_ATTACHMENT_TYPES` ile sınırlı.
+        const extension = ALLOWED_EXTENSIONS_BY_TYPE[file.type] ?? "jpg";
+        const path = `${user.id}/${activeThreadId}/${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage.from("chat-attachments").upload(path, file, { contentType: file.type, upsert: false });
+        if (error) throw error;
+        paths.push(path);
+        // İlk dosya yüklendiğinden itibaren çağıran, INSERT hatasında
+        // artık kalanları silebilsin.
+        onProgress?.([...paths]);
+        const { data } = await supabase.storage.from("chat-attachments").createSignedUrl(path, 60 * 60);
+        uploaded.push({ path, name: file.name, type: file.type, size: file.size, signedUrl: data?.signedUrl });
       }
-      if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
-        throw new Error(`Unsupported file type: ${file.type}`);
-      }
-      const extension = file.name.split(".").pop() || "jpg";
-      const path = `${user.id}/${activeThreadId}/${crypto.randomUUID()}.${extension}`;
-      const { error } = await supabase.storage.from("chat-attachments").upload(path, file, { contentType: file.type, upsert: false });
-      if (error) throw error;
-      const { data } = await supabase.storage.from("chat-attachments").createSignedUrl(path, 60 * 60);
-      uploaded.push({ path, name: file.name, type: file.type, size: file.size, signedUrl: data?.signedUrl });
+      return uploaded;
+    } catch (error) {
+      // Dosyalardan biri yüklenemezse: **önceki yüklemeler de** artık
+      // kalıcı (mesaj hiç yazılmayacak). Telafi yapılıyor.
+      await removeUploadedFiles(paths);
+      throw error;
     }
-    return uploaded;
   };
 
   const invokeAssistant = async (activeThreadId: string) => {
@@ -282,11 +392,19 @@ const ChatPage = () => {
       // (`en-CA` her tarayıcıda yyyy-mm-dd garantisi vermiyor). Sunucu
       // `currentDate`'i prompt'a düz metin koyduğu için belirsiz "09/07/2026"
       // gün/ay sırasını AI'a bırakmak yanlış gün yorumlatıyordu.
-      currentDate: format(new Date(), "yyyy-MM-dd"),
+      //
+      // `formatLocalDate` (yerel takvim günü) — `format(new Date(), …)`
+      // da yerel okur ama **tek kaynak** `lib/dates.ts`; bu değer doğrudan
+      // LLM prompt'una gittiği için gün kayması kullanıcıya **yanlış
+      // beslenme önerisi** olarak döner.
+      currentDate: formatLocalDate(new Date()),
     });
     if (error || !data) throw error ?? new Error("ai-chat boş yanıt döndü");
     if (data.message) {
       const signed = await signAttachments([data.message as ChatMessage]);
+      // Bileşen çözülmüş olabilir (kullanıcı mesaj gönderirken başka
+      // sayfaya geçti) — çözülmüş bileşene state yazmıyoruz.
+      if (!mountedRef.current) return;
       setMessages((prev) => [...prev, signed[0]]);
       scrollToBottom("smooth");
     }
@@ -296,7 +414,21 @@ const ChatPage = () => {
     if (!user || !threadId || sending || (!input.trim() && !selectedFiles.length)) return;
     setSending(true);
     try {
-      const attachments = await uploadAttachments(threadId);
+      // **Yarım yazma (P1).** Ekli mesajda `uploadAttachments` önce
+      // **her dosyayı** yüklüyor, sonra `chat_messages` INSERT'i yapılıyordu.
+      // INSERT başarısız olursa (geçersiz `role`, RLS, boyut) yüklenen
+      // dosyalar storage'da **kalıcı** olarak artıyor ve kullanıcıya hiç
+      // erişilemez oluyordu (bucket'a silme yolu yok — `chat-attachments`
+      // RLS'i yalnız INSERT/SELECT'e izin veriyor). Ek yüklemesi
+      // başarısız olursa da **önceki dosyalar** yine artıyordu.
+      // Burada: yükleme sonrası INSERT başarısızsa yüklenen yollar
+      // silinmeye çalışılır (best-effort, yetki yoksa kullanıcı yine de
+      // uyarılır).
+      let uploadedPaths: string[] = [];
+      const attachments = await uploadAttachments(threadId, (paths) => {
+        uploadedPaths = paths;
+      });
+
       const { data: saved, error } = await supabase
         .from("chat_messages" as any)
         .insert({
@@ -309,7 +441,11 @@ const ChatPage = () => {
         .select("*")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        await removeUploadedFiles(uploadedPaths);
+        throw error;
+      }
+      if (!mountedRef.current) return;
       setMessages((prev) => [...prev, saved as unknown as ChatMessage]);
       setInput("");
       setSelectedFiles([]);
@@ -319,20 +455,28 @@ const ChatPage = () => {
       console.error(error);
       toast({ title: t("common.error"), description: t("chat.errors.send"), variant: "destructive" });
     } finally {
-      setSending(false);
+      if (mountedRef.current) setSending(false);
     }
   };
 
   const clearVisibleChat = async () => {
-    if (!threadId) return;
+    if (!threadId || !user) return;
     try {
       // Hata `error`'a alınmadan update çalıştırılıyordu: RLS/aynı kullanıcı
       // kontrolü başarısız olsa bile UI sohbeti sildi, kullanıcı verinin
       // arşivlenmediğini sanıyordu (sessiz veri kaybı izlenimi).
+      //
+      // `.eq("user_id", user.id)` **yoktu**: RLS `auth.uid() = user_id`
+      // ile korusa bile (A1r2'nin derinleştirdiği savunma katmanı —
+      // `useNotifications.markAsRead` ve `useDailyData.updateMealEntry`
+      // bu filtreyi kullanıyor), istek kullanıcı kapsamı dışına çıkmıyor.
       const { error } = await supabase
         .from("chat_threads" as any)
         .update({ archived_at: new Date().toISOString() })
-        .eq("id", threadId);
+        .eq("id", threadId)
+        .eq("user_id", user.id)
+        // Zaten arşivlenmiş sohbet tekrar arşivlenmiyor.
+        .is("archived_at", null);
       if (error) throw error;
       setMessages([]);
       setThreadId(null);

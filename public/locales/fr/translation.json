@@ -20,7 +20,9 @@
     "meal": "Repas",
     "searchFood": "Rechercher un aliment",
     "searchPlaceholder": "Rechercher un aliment...",
-    "version": "Version"
+    "version": "Version",
+    "previousDay": "Jour précédent",
+    "nextDay": "Jour suivant"
   },
   "header": {
     "signedOut": "Déconnecté",
@@ -126,7 +128,8 @@
       "title": "Modifier l'entrée",
       "updated": "Entrée mise à jour",
       "deleted": "Entrée supprimée"
-    }
+    },
+    "invalidAmount": "Saisissez une quantité valide"
   },
   "export": {
     "success": "exporté",
@@ -291,7 +294,9 @@
       "passwordChanged": "Mot de passe mis à jour",
       "aiSuccess": "Calcul IA terminé",
       "aiUpdate": "Mise à jour des macros par IA",
-      "error": "Une erreur s'est produite"
+      "error": "Une erreur s'est produite",
+      "aiFailedTitle": "Impossible de mettre à jour les objectifs",
+      "aiFailedDesc": "Vos informations ont été enregistrées, mais vos objectifs n'ont pas pu être recalculés. Réessayez avec « Recalculer » dans la section Objectifs."
     }
   },
   "dashboard": {

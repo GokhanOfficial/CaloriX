@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { formatLocalDate } from "@/lib/dates";
 import type { MealType } from "@/lib/constants";
+
+/**
+ * DB'nin kabul ettiği miktar aralığı — `meal_entries` CHECK kısıtı
+ * (`full_setup.sql`, `amount_g_ml > 0 AND amount_g_ml <= 10000`).
+ * Flutter tarafı da aynı sınırları uygular.
+ */
+export const MAX_MEAL_AMOUNT = 10_000;
 
 export interface MealEntry {
   id: string;
@@ -44,9 +51,28 @@ export function useDailyData(date: Date) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const dateStr = format(date, "yyyy-MM-dd");
+  // `date` bir `Date` nesnesidir ve her render'da **yeni referans** alır
+  // (`new Date()` / `setState`). `useCallback` bağımlılığına doğrudan
+  // konulamaz. O yüzden bağımlılık **gün dizesidir** ve gün değiştiğinde
+  // `fetchData` yeniden üretilir (aşağıdaki `useEffect` buna bağlı).
+  const dateStr = formatLocalDate(date);
+
+  /**
+   * Uçuşta kalan isteği geçersiz kılmak için sayaç (aynı desen
+   * `ProfileContext`'teki `requestIdRef`).
+   *
+   * Sorun: kullanıcı gün seçicide hızlıca "bugün → dün → bugün" yaptığında
+   * üç `fetchData` çağrısı birbirinden bağımsız çalışır. Yavaş olan ilk
+   * istek, hızlı çözülen son istekten **sonra** dönerse `setMealEntries`
+   * yanlış günün verisiyle ezilir → ekranda "bugün" başlığı altında
+   * **dünün** öğünleri görünür. Çözülme anında jeton karşılaştırması
+   * yapıldığı için geç gelen yanıt state'e hiç dokunmaz.
+   */
+  const requestIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
     if (!user) {
       setLoading(false);
       return;
@@ -62,6 +88,7 @@ export function useDailyData(date: Date) {
         .is("deleted_at", null)
         .order("created_at", { ascending: true });
 
+      if (requestId !== requestIdRef.current) return;
       if (mealsError) throw mealsError;
       setMealEntries((meals || []) as MealEntry[]);
 
@@ -73,6 +100,7 @@ export function useDailyData(date: Date) {
         .is("deleted_at", null)
         .order("entry_time", { ascending: true });
 
+      if (requestId !== requestIdRef.current) return;
       if (waterError) throw waterError;
       setWaterEntries((water || []) as WaterEntry[]);
 
@@ -81,28 +109,39 @@ export function useDailyData(date: Date) {
       // 1 satır döndüğünde `.single()` hata verir. `.maybeSingle()` tek bir
       // nesne döndürdüğü için doğru seçim. Ayrıca RLS'e ek olarak kullanıcı
       // kapsamı burada da filtreleniyor (savunma katmanı).
+      //
+      // **Belirsiz sıralama (P1):** yalnız `entry_date` sıralanıyordu.
+      // `weight_entries.entry_date` üzerinde tek gün için birden fazla satır
+      // yazılabilir (kilo günü `DATE` kolonu; UI "bugün" günü tekilleştirmiyor)
+      // ve aynı gün için satır **yoksa** `.limit(1)` hangi kaydı döndüreceğini
+      // DB garanti etmez → "en son kilo" iki farklı kayıt arasında rastgele
+      // değişebilir. `created_at` ikincil sıralama anahtarı eklendi:
+      // aynı gün içinde en son **yazılan** kayıt seçilir.
       const { data: weight, error: weightError } = await supabase
         .from("weight_entries")
         .select("*")
         .eq("user_id", user.id)
         .is("deleted_at", null)
         .order("entry_date", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
+      if (requestId !== requestIdRef.current) return;
       if (weightError) throw weightError;
       setLatestWeight(weight as WeightEntry | null);
 
       setError(null);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err as Error);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [user, dateStr]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const mealsByType = mealEntries.reduce((acc, entry) => {
@@ -127,6 +166,25 @@ export function useDailyData(date: Date) {
 
   const addMealEntry = async (entry: Omit<MealEntry, "id" | "created_at">) => {
     if (!user) return { error: new Error("Not authenticated") };
+
+    // **Sınır yoktu (P1).** `AddMealDialog` ve `EditMealDialog` kendi
+    // doğrulamasını yapsa da, miktarı o formdan geçmeyen yollar var:
+    // AI tanıma (`UnifiedFoodDialog` → `calculated_kcal` doğrudan yazılır),
+    // hızlı ekleme ve doğrudan `addMealEntry` çağrıları. Negatif ya da
+    // `NaN` miktar DB CHECK kısıtını ihlal eder (400), `1e9` gibi aşırı bir
+    // değer ise günlük toplamları tek öğünde bozar.
+    //
+    // Flutter tarafında aynı sınıf hata `recognition_confirm_dialog` /
+    // `edit_meal_entry_dialog` / `add_manual_entry` ile kapatıldı
+    // (`isUsableAmount`); web'de üç ayrı yol korumasız kalmıştı.
+    const amount = entry.amount_g_ml;
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_MEAL_AMOUNT) {
+      return {
+        error: new Error(
+          `Geçersiz miktar (0-${MAX_MEAL_AMOUNT} g/ml aralığında olmalı)`
+        ),
+      };
+    }
 
     try {
       const { data, error } = await supabase

@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { type MealType, MEAL_TYPES } from "@/lib/constants";
+import { calculateNutritionForAmount } from "@/lib/calculations";
+import { MAX_MEAL_AMOUNT } from "@/hooks/useDailyData";
 import {
   Select,
   SelectContent,
@@ -61,15 +63,30 @@ export function AddFromFoodDialog({
 
   if (!food) return null;
 
-  const amountNum = parseFloat(amount) || 0;
-  const calculated = {
-    kcal: Math.round((food.calories * amountNum) / 100),
-    protein: Math.round((food.protein_g * amountNum) / 100 * 10) / 10,
-    carbs: Math.round((food.carbs_g * amountNum) / 100 * 10) / 10,
-    fat: Math.round((food.fat_g * amountNum) / 100 * 10) / 10,
-  };
+  /**
+   * `parseFloat(amount) || 0` koruması **yetersizdi**: `"-5"` → -5
+   * (geçerli sayı → `|| 0` uygulanmaz), `"abc"` → `NaN` → `0`.
+   * `-5` miktarı DB CHECK kısıtını ihlal ediyor ve `addMealEntry` artık
+   * bunu reddediyor; ama **önce** besin değerleri negatif hesaplanıp
+   * ekranda "-125 kcal" gösteriliyordu. Flutter'daki karşılığı
+   * `isUsableAmount` (A4r2).
+   */
+  const amountNum = parseFloat(amount);
+  const amountValid =
+    Number.isFinite(amountNum) && amountNum > 0 && amountNum <= MAX_MEAL_AMOUNT;
+
+  const calculated = calculateNutritionForAmount(
+    {
+      kcal: food.calories,
+      protein: food.protein_g,
+      carbs: food.carbs_g,
+      fat: food.fat_g,
+    },
+    amountNum
+  );
 
   const handleSave = async () => {
+    if (!amountValid) return;
     setSaving(true);
     const result = await onSubmit({
       food_id: food.food_id,
@@ -197,9 +214,12 @@ export function AddFromFoodDialog({
         </DialogScrollArea>
 
         <DialogFooter>
+          {/* `type="button"` şart: diğer butonlarda da eksikti ve bir
+              `<form>` bağlamında örtük **submit** olurdu. */}
           <Button
+            type="button"
             onClick={handleSave}
-            disabled={saving || amountNum <= 0}
+            disabled={saving || !amountValid}
             className="w-full h-11"
           >
             {saving ? (

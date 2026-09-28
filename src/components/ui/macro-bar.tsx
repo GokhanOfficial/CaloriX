@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { calculateProgress } from "@/lib/calculations";
 
 interface MacroBarProps {
   label: string;
@@ -18,7 +19,18 @@ export function MacroBar({
   color,
   className,
 }: MacroBarProps) {
-  const percentage = Math.min(100, (current / target) * 100);
+  // **Sıfıra bölme koruması (P1).** `current / target` korumasız
+  // hesaplanıyordu. `target` 0 geldiğinde:
+  //   * `0 / 0` → `NaN` → `width: NaN%` → tarayıcı **çubuğu hiç çizmiyor**
+  //   * `>0 / 0` → `Infinity` → `Math.min(100, Infinity)` = 100 → hedefi 0 olan
+  //     makroda çubuk **dolu** görünüyor (kullanıcı "hedefi geçtim" sanıyor)
+  //   * hedef negatif → `-%400` (CSS geçersiz, çubuk kayboluyor)
+  // `target` 0, `profiles.protein_target_g` yazı hatasıyla bozulduğunda
+  // ya da hedef kaydı henüz oluşmamış bir profilde mümkün. Flutter tarafı
+  // `Calculations.progress` üç katmanlı savunma yapıyor; web'de
+  // `calculateProgress` **hiç kullanılmıyordu** — bileşenler kendi
+  // bölmesini yapıyordu. Artık tek kaynak kullanılıyor.
+  const percentage = calculateProgress(current, target);
   const isOver = current > target;
 
   const colorClasses = {

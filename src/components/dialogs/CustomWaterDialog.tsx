@@ -83,6 +83,7 @@ export function CustomWaterDialog({
               {[150, 200, 330, 400, 600].map((preset) => (
                 <Button
                   key={preset}
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setAmount(String(preset))}
@@ -96,10 +97,11 @@ export function CustomWaterDialog({
         </DialogScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
             {t('common.cancel')}
           </Button>
           <Button
+            type="button"
             onClick={handleSubmit}
             disabled={!amountValid}
           >

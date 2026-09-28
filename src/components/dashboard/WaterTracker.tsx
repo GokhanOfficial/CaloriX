@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { WATER_QUICK_ADD, DEFAULT_GOALS } from "@/lib/constants";
+import { calculateProgress } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
 import { CustomWaterDialog } from "@/components/dialogs/CustomWaterDialog";
 import { useTranslation } from "react-i18next";
@@ -20,42 +21,59 @@ export function WaterTracker({
   onAdd,
 }: WaterTrackerProps) {
   const { t } = useTranslation();
-  const percentage = Math.min(100, (current / target) * 100);
-  const remaining = Math.max(0, target - current);
+  // Sıfıra bölme koruması: `target = 0` iken `(current / target) * 100`
+  // → `Infinity` (veya `0/0` → `NaN`) → `Progress value={NaN}` radix
+  // `Progress` bileşeninde `translateX(-NaN%)` üretiyor ve çubuk kayboluyordu.
+  // `calculateProgress` tek kaynak (Flutter `Calculations.progress` ile aynı).
+  const percentage = calculateProgress(current, target);
+  const remaining = target > 0 ? Math.max(0, target - current) : 0;
   const [displayValue, setDisplayValue] = useState(current);
   const [isAnimating, setIsAnimating] = useState(false);
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const prevValueRef = useRef(current);
 
   // Animate the value change
+  //
+  // **`requestAnimationFrame` iptali (P1).** `rafId` saklanmıyordu; su
+  // ekleme animasyonu sürerken bileşen çözülürse (`Index` → `AnalyticsPage`
+  // geçişi, ya da su kaydının tamamlanıp ekranın yeniden render edilmesi)
+  // kalan kareler `setDisplayValue` çağırıyor — React 18'de bu artık
+  // sessizce yutulmuyor, konsola uyarı basıyor ve bellekte kalmış bir
+  // animasyon döngüsü bırakıyor. Cleanup `cancelAnimationFrame` ile
+  // döngüyü durdurur.
   useEffect(() => {
-    if (current !== prevValueRef.current) {
-      setIsAnimating(true);
-      const startValue = prevValueRef.current;
-      const endValue = current;
-      const duration = 400; // ms
-      const startTime = Date.now();
+    if (current === prevValueRef.current) return;
 
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+    setIsAnimating(true);
+    const startValue = prevValueRef.current;
+    const endValue = current;
+    const duration = 400; // ms
+    const startTime = Date.now();
+    let rafId = 0;
 
-        // Easing function (ease-out)
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const currentValue = Math.round(startValue + (endValue - startValue) * eased);
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
 
-        setDisplayValue(currentValue);
+      // Easing function (ease-out)
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.round(startValue + (endValue - startValue) * eased);
 
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          setIsAnimating(false);
-          prevValueRef.current = current;
-        }
-      };
+      setDisplayValue(currentValue);
 
-      requestAnimationFrame(animate);
-    }
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
+        prevValueRef.current = current;
+      }
+    };
+
+    rafId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
   }, [current]);
 
   return (

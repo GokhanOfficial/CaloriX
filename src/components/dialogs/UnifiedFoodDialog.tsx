@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MEAL_TYPES, type MealType } from "@/lib/constants";
+import { calculateNutritionForAmount, isUsableAmount } from "@/lib/calculations";
 import {
   Loader2,
   RefreshCw,
@@ -227,8 +228,12 @@ export function UnifiedFoodDialog({
       setDescription(data.description || "");
       setStep("results");
     } catch (err) {
+      // **Hata içeriği ekrana konuyordu (P1).** `err.message` doğrudan
+      // `setError` ile gösteriliyordu; Supabase/PostgREST/ağ hatası tablo,
+      // kolon, kısıt adları ve hatta `fetch` mesajları (URL, CORS) taşıyabilir.
+      // Ayrıntı konsola, ekrana sabit metin.
       console.error("Recognition error:", err);
-      setError(err instanceof Error ? err.message : t('dialogs.analysisFailed'));
+      setError(t('dialogs.analysisFailed'));
       setStep("input");
     } finally {
       setAnalyzing(false);
@@ -266,21 +271,32 @@ export function UnifiedFoodDialog({
   const handleSaveManual = async () => {
     if (!selectedFood) return;
 
+    // Miktar doğrulaması — AI tanıma yolundakiyle aynı gerekçe (P1).
+    if (!isUsableAmount(manualAmount)) {
+      toast.error(t('dialogs.invalidAmount'));
+      return;
+    }
+
     setSaving(true);
 
-    const calculatedCalories = Math.round((selectedFood.calories / 100) * manualAmount);
-    const calculatedProtein = Math.round((selectedFood.protein_g / 100) * manualAmount * 10) / 10;
-    const calculatedCarbs = Math.round((selectedFood.carbs_g / 100) * manualAmount * 10) / 10;
-    const calculatedFat = Math.round((selectedFood.fat_g / 100) * manualAmount * 10) / 10;
+    const nutrition = calculateNutritionForAmount(
+      {
+        kcal: selectedFood.calories,
+        protein: selectedFood.protein_g,
+        carbs: selectedFood.carbs_g,
+        fat: selectedFood.fat_g,
+      },
+      manualAmount
+    );
 
     const result = await onSubmit([{
       custom_name: selectedFood.name + (selectedFood.brand ? ` (${selectedFood.brand})` : ""),
       meal_type: mealType,
       amount_g_ml: manualAmount,
-      calculated_kcal: calculatedCalories,
-      calculated_protein: calculatedProtein,
-      calculated_carbs: calculatedCarbs,
-      calculated_fat: calculatedFat,
+      calculated_kcal: nutrition.kcal,
+      calculated_protein: nutrition.protein,
+      calculated_carbs: nutrition.carbs,
+      calculated_fat: nutrition.fat,
       source: "manual",
       food_id: selectedFood.id,
     }]);
@@ -292,7 +308,10 @@ export function UnifiedFoodDialog({
       resetDialog();
       onOpenChange(false);
     } else {
-      toast.error(t('dialogs.saveFailed') + ": " + result.error.message);
+      // Ham `error.message` kullanıcıya **gösterilmiyor** (PostgREST tablo/
+      // kısıt adlarını içerir). Ayrıntı konsola.
+      console.error("Food save failed:", result.error);
+      toast.error(t('dialogs.saveFailed'));
     }
   };
 
@@ -303,19 +322,42 @@ export function UnifiedFoodDialog({
       return;
     }
 
+    // **Miktar doğrulaması (P1).** `amount_g_ml` `Number(e.target.value)`
+    // ile doğrudan state'e yazılıyordu: alanı temizlemek `0`, "-5" yazmak
+    // `-5` üretiyordu. Bu değerler DB CHECK kısıtına takılıyor (400) ama
+    // o ana kadar `calculated_*` alanları **negatif** hesaplanıp önizlemede
+    // "-250 kcal" gösteriliyordu. Flutter'daki karşılığı
+    // `isUsableAmount` (A4r2, `recognition_confirm_dialog`).
+    const bad = selectedFoods.find((f) => !isUsableAmount(f.amount_g_ml));
+    if (bad) {
+      toast.error(t('dialogs.invalidAmount'));
+      return;
+    }
+
     setSaving(true);
 
-    const foodsToSave = selectedFoods.map(food => ({
-      custom_name: food.name || t('common.food'),
-      meal_type: mealType,
-      amount_g_ml: food.amount_g_ml,
-      calculated_kcal: Math.round((food.calories_per_100g / 100) * food.amount_g_ml),
-      calculated_protein: Math.round((food.protein_g_per_100g / 100) * food.amount_g_ml * 10) / 10,
-      calculated_carbs: Math.round((food.carbs_g_per_100g / 100) * food.amount_g_ml * 10) / 10,
-      calculated_fat: Math.round((food.fat_g_per_100g / 100) * food.amount_g_ml * 10) / 10,
-      source: imageData ? "photo" as const : "text" as const,
-      food_id: food.food_id || null,
-    }));
+    const foodsToSave = selectedFoods.map(food => {
+      const nutrition = calculateNutritionForAmount(
+        {
+          kcal: food.calories_per_100g,
+          protein: food.protein_g_per_100g,
+          carbs: food.carbs_g_per_100g,
+          fat: food.fat_g_per_100g,
+        },
+        food.amount_g_ml
+      );
+      return {
+        custom_name: food.name || t('common.food'),
+        meal_type: mealType,
+        amount_g_ml: food.amount_g_ml,
+        calculated_kcal: nutrition.kcal,
+        calculated_protein: nutrition.protein,
+        calculated_carbs: nutrition.carbs,
+        calculated_fat: nutrition.fat,
+        source: imageData ? "photo" as const : "text" as const,
+        food_id: food.food_id || null,
+      };
+    });
 
     const result = await onSubmit(foodsToSave);
     setSaving(false);
@@ -325,7 +367,13 @@ export function UnifiedFoodDialog({
       resetDialog();
       onOpenChange(false);
     } else {
-      toast.error(t('dialogs.saveFailed') + ": " + result.error.message);
+      // **Hata yutma + şema sızıntısı (P1).** `result.error.message`
+      // doğrudan kullanıcıya gösteriliyordu: PostgREST mesajı tablo,
+      // kolon ve kısıt adlarını içerir (`meal_entries_amount_g_ml_check`).
+      // Ayrıntı konsola gider, kullanıcıya sabit metin gösterilir
+      // (bkz. `useDataExport.importData` ve A1r4'ün edge function politikası).
+      console.error("Food save failed:", result.error);
+      toast.error(t('dialogs.saveFailed'));
     }
   };
 

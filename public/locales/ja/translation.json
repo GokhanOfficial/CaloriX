@@ -20,7 +20,9 @@
     "meal": "食事",
     "searchFood": "食品を検索",
     "searchPlaceholder": "食品を検索...",
-    "version": "バージョン"
+    "version": "バージョン",
+    "previousDay": "前の日",
+    "nextDay": "次の日"
   },
   "header": {
     "signedOut": "ログアウト済み",
@@ -126,7 +128,8 @@
       "title": "エントリーを編集",
       "updated": "エントリーを更新しました",
       "deleted": "エントリーを削除しました"
-    }
+    },
+    "invalidAmount": "有効な量を入力してください"
   },
   "export": {
     "success": "エクスポート完了",
@@ -291,7 +294,9 @@
       "passwordChanged": "パスワードを更新しました",
       "aiSuccess": "AI計算完了",
       "aiUpdate": "AIマクロ更新",
-      "error": "エラーが発生しました"
+      "error": "エラーが発生しました",
+      "aiFailedTitle": "目標を更新できませんでした",
+      "aiFailedDesc": "情報は保存されましたが、目標を再計算できませんでした。目標セクションの「再計算」をもう一度お試しください。"
     }
   },
   "dashboard": {

@@ -35,6 +35,26 @@ const readOptional = (p) => {
 
 const exists = (p) => fs.existsSync(path.join(ROOT, p));
 
+/**
+ * Bir kaynak dosyayı okur. `read` gibi **zorlayıcı** değildir: bulunamazsa
+ * `''` döner (bileşen silinmiş olabilir).
+ *
+ * `readOptional` yalnız tam yol verilebildiğinde çalışır; burada dosya
+ * adıyla aranır (`src/components/ui/macro-bar.tsx` gibi).
+ */
+const readAny = (name) => {
+  const roots = [
+    'src/components/ui',
+    'src/components/dashboard',
+    'src/components',
+  ];
+  for (const root of roots) {
+    const full = readOptional(`${root}/${name}`);
+    if (full !== null) return full;
+  }
+  return '';
+};
+
 // --- pubspec.yaml -----------------------------------------------------------
 const pubspec = read('flutter_app/pubspec.yaml');
 const versionLine = pubspec.match(/^version:\s*(\S+)/m);
@@ -176,6 +196,17 @@ const ratioOf = (src, re) => {
   const m = src.match(re);
   return m ? Number(m[1]) : null;
 };
+
+/**
+ * `10_000` gibi sayısal ayraçlı sabitleri okur.
+ * `ratioOf` `Number('10_000')` → `NaN` verir (JS'te sayısal ayraç yok).
+ */
+const numOf = (src, re) => {
+  const m = src.match(re);
+  if (!m) return null;
+  const n = Number(String(m[1]).replace(/_/g, ''));
+  return Number.isFinite(n) ? n : null;
+};
 /**
  * Flutter oranları ondalık (`0.30`), web yüzdeler (`30`). Karşılaştırma
  * öncesi **tek ölçüğe** indirgeniyor: ikisi de oran (0…1) olur.
@@ -187,10 +218,22 @@ const fRatios = {
   carbs: asRatio(ratioOf(FLUTTER_MACRO, /carbsRatio\s*=\s*([\d.]+)/)),
   fat: asRatio(ratioOf(FLUTTER_MACRO, /fatRatio\s*=\s*([\d.]+)/)),
 };
-// React: proteinPercent = 30, carbsPercent = 40, fatPercent = 30
-const rProtein = asRatio(ratioOf(reactSplit, /proteinPercent\s*=\s*([\d.]+)/));
-const rCarbs = asRatio(ratioOf(reactSplit, /carbsPercent\s*=\s*([\d.]+)/));
-const rFat = asRatio(ratioOf(reactSplit, /fatPercent\s*=\s*([\d.]+)/));
+// React: oranlar artık **tek kaynakta** (`PROTEIN_PERCENT = 30` …) ve
+// `calculateMacros` imzasında varsayılan olarak kullanılıyor
+// (`proteinPercent = PROTEIN_PERCENT`). Daha önce imzada literal `30`
+// yazılıydı; A5r8 oranları sabitlere taşıdı (yoksa `ratchet` gereksinimi
+// üç ayrı yerde aynı sayı tutmak olurdu).
+const rProtein = asRatio(ratioOf(reactSplit, /PROTEIN_PERCENT\s*=\s*([\d.]+)/));
+const rCarbs = asRatio(ratioOf(reactSplit, /CARBS_PERCENT\s*=\s*([\d.]+)/));
+const rFat = asRatio(ratioOf(reactSplit, /FAT_PERCENT\s*=\s*([\d.]+)/));
+// Sabitler tanımlıysa `calculateMacros` gerçekten onları **kullanıyor** mu?
+if (rProtein !== null && !/proteinPercent\s*=\s*PROTEIN_PERCENT/.test(reactSplit)) {
+  errors.push(
+    'src/lib/calculations.ts: `PROTEIN_PERCENT` tanımlı ama ' +
+      '`calculateMacros` imzasında kullanılmıyor — sabit güncellenince ' +
+      'hesap değişmez (ölü sabit)',
+  );
+}
 
 // Oranlar toplamı 1.0 olmalı — yoksa hedef kalori ile makro kalorisi
 // tutmaz ve dashboard'da "toplam" satırı tutarsız görünür.
@@ -362,12 +405,257 @@ for (const [goal, mod] of Object.entries(fGoals)) {
   }
 }
 
-// Minimum kalori tabanı da iki yerde yazılı (web: `Math.max(1200, ...)`).
+// Minimum kalori tabanı da iki yerde yazılı (web: `MIN_TARGET_CALORIES`).
+// Dart: `return value < 1200 ? 1200 : value;`
+// Web: `return value < MIN_TARGET_CALORIES ? MIN_TARGET_CALORIES : value;`
 const fFloor = FLUTTER_MACRO.match(/value\s*<\s*(\d+)\s*\?\s*(\d+)\s*:/);
-const rFloor = reactSplit.match(/Math\.max\(\s*(\d+)\s*,/);
-if (fFloor && rFloor && Number(fFloor[2]) !== Number(rFloor[1])) {
+// Web tabanı artık **adlandırılmış** sabitte (`MIN_TARGET_CALORIES = 1200`)
+// ve `calculateTargetCalories` onu kullanıyor. İkisi de gerekiyor:
+// sabit tanımlı ama kullanılmıyorsa kapı yanlış yeşil verir.
+const rFloorConst = ratioOf(reactSplit, /MIN_TARGET_CALORIES\s*=\s*(\d+)/);
+const rFloorUsed = /value\s*<\s*MIN_TARGET_CALORIES\s*\?/.test(reactSplit);
+const rFloor = rFloorConst;
+if (fFloor && rFloor !== null && Number(fFloor[2]) !== rFloor) {
   errors.push(
-    `minimum kalori tabanı ayrışmış: Flutter=${fFloor[2]} web=${rFloor[1]}`,
+    `minimum kalori tabanı ayrışmış: Flutter=${fFloor[2]} web=${rFloor}`,
+  );
+}
+if (rFloor !== null && !rFloorUsed) {
+  errors.push(
+    'src/lib/calculations.ts: `MIN_TARGET_CALORIES` tanımlı ama ' +
+      '`calculateTargetCalories` kullanmıyor — taban ölü sabit',
+  );
+}
+
+// --- Formül seviyesi denetim (Tur 8) ---------------------------------------
+//
+// Yukarıdaki kapılar **sabitleri** karşılaştırıyor. Asıl ayrışma riski
+// sabitlerde değil, **formülün kendisinde**: BMR'ın cinsiyet sabiti
+// (`+5` / `-161`), BMI'nin alt sınır kontrolü, yılın taban değeri vb.
+// 8 turda Flutter tarafında düzeltilen hesap hatalarının bir kısmı
+// (özellikle `Gender.other` 166 kcal farkı) yalnız **sabit** denetimiyle
+// yakalanamazdı — aynı sabit, farklı dallarda kullanılıyordu.
+//
+// Aşağıdaki kapılar **davranış sözleşmesini** metinden okur ve iki tarafı
+// karşılaştırır. Her biri "bu olmazsa iki istemci farklı sayı üretir" notuyla
+// yazılmıştır.
+
+// 1) BMR cinsiyet sabitleri — `Gender.other` farkının kaynağı.
+//
+// Dart: `final effective = gender == Gender.female ? base - 161 : base + 5;`
+// Web (düzeltilmiş): `genderForBmr(gender) === 'male' ? 5 : -161` ve
+// `genderForBmr`: `return gender === 'female' ? 'female' : 'male';`
+//
+// Sapma senaryosu: web tarafı `gender === 'male' ? +5 : -161` yazarsa
+// `other` **kadın** formülüne düşer → 166 kcal fark (P1).
+const fBmrF = ratioOf(FLUTTER_MACRO, /Gender\.female\s*\?\s*base\s*-\s*(\d+)/);
+const fBmrM = ratioOf(FLUTTER_MACRO, /:\s*base\s*\+\s*(\d+)/);
+// `fBmrF` regex'i `−161` **mutlak** değerini yakalar (`\d+` işareti
+// yutmaz) → fark hesabında işareti geri koy.
+const fBmrFemale = fBmrF === null ? null : -Math.abs(fBmrF);
+// Web: `+ (genderForBmr(gender) === 'male' ? 5 : -161)`
+const rBmrBranch = reactSplit.match(
+  /===\s*'male'\s*\?\s*(\d+)\s*:\s*-\s*(\d+)/,
+);
+const rBmrM = rBmrBranch ? Number(rBmrBranch[1]) : null;
+const rBmrF = rBmrBranch ? -Number(rBmrBranch[2]) : null;
+const rGenderRule = reactSplit.match(
+  /function\s+genderForBmr[\s\S]{0,400}?===\s*'female'\s*\?\s*'female'\s*:\s*'male'/,
+);
+
+if (fBmrF === null || fBmrM === null) {
+  errors.push(
+    'calculations.dart: BMR cinsiyet sabitleri okunamadı ' +
+      `(kadın -${fBmrF}, erkek +${fBmrM}) — formül imzası değişmiş olabilir`,
+  );
+}
+if (rBmrF === null || rBmrM === null) {
+  errors.push(
+    'src/lib/calculations.ts: BMR cinsiyet sabitleri okunamadı ' +
+      `(erkek +${rBmrM}, kadın ${rBmrF})`,
+  );
+}
+if (fBmrF !== null && fBmrM !== null && rBmrF !== null && rBmrM !== null) {
+  if (fBmrFemale !== rBmrF || fBmrM !== rBmrM) {
+    errors.push(
+      `BMR cinsiyet sabiti ayrışmış: Flutter erkek +${fBmrM}/kadın ${fBmrFemale} · ` +
+        `web erkek +${rBmrM}/kadın ${rBmrF}`,
+    );
+  }
+  // Fark `erkek − kadın` = `(+5) − (−161)` = 166 kcal.
+  const genderGap = fBmrM - fBmrFemale;
+  if (genderGap !== 166) {
+    warnings.push(
+      `Mifflin-St Jeor cinsiyet farkı ${genderGap} kcal (klasik: 166) — ` +
+        'formül kasıtlı olarak değiştirildiyse bu bir ürün kararıdır',
+    );
+  }
+}
+
+// `other` kuralı: Dart'ta **ternary** (`female ? A : B`), web'de
+// `genderForBmr` **fonksiyonu** üzerinden. Web'de kural kaybolursa
+// (`function genderForBmr` silinir veya `male`'e çevrilirse) `other`
+// sessizce kadın tarafına düşer.
+if (!rGenderRule) {
+  errors.push(
+    "src/lib/calculations.ts: `genderForBmr` kuralı yok veya değişmiş — " +
+      "'other'/null cinsiyet KADIN formülüne düşer " +
+      `(Flutter'da erkek formülüne düşüyor; 166 kcal fark)`,
+  );
+}
+
+// 2) BMI alt sınırı — negatif kilo/boy reddi.
+//
+// Dart (A3r6 düzeltmesi): `if (!heightCm.isFinite || heightCm <= 0) return 0;`
+//                         `if (!weightKg.isFinite) return 0;`  ← **ağırlık ≤ 0 YOK**
+// Web (düzeltilmiş):    `if (!Number.isFinite(weightKg) || weightKg <= 0) return 0;`
+//
+// Ağırlık kontrolü web'de **daha katı**. Bu kasıtlı: Dart'ın
+// `bmi(70, -180) = 24.2` hatasını (kare pozitif) web'de kapatıyor.
+// Ayrışma **kabul edilir** ama kaydedilir ki bir sonraki tur "parite
+// bozuldu" sanıp geri almasın.
+const fBmiWeightGuard = /if\s*\(!weightKg\.isFinite\s*\|\|\s*weightKg\s*<=\s*0\)/.test(
+  FLUTTER_MACRO,
+);
+const rBmiWeightGuard = /if\s*\(!Number\.isFinite\(weightKg\)\s*\|\|\s*weightKg\s*<=\s*0\)/.test(
+  reactSplit,
+);
+if (fBmiWeightGuard !== rBmiWeightGuard) {
+  warnings.push(
+    'BMI ağırlık alt sınırı iki tarafta farklı: ' +
+      `Dart ${fBmiWeightGuard ? 'weightKg <= 0 → 0' : 'yalnız isFinite kontrolü'} · ` +
+      `web ${rBmiWeightGuard ? 'weightKg <= 0 → 0' : 'yalnız isFinite kontrolü'}. ` +
+      'Dart tarafındaki eksik kontrol `bmi(70, -180) = 24.2` hatasını ' +
+      'üretiyor (bkz. TRANSFER-defteri T6).',
+  );
+}
+if (!rBmiWeightGuard) {
+  errors.push(
+    'src/lib/calculations.ts: `calculateBMI` negatif ağırlığı reddetmiyor — ' +
+      'kare pozitif olduğu için imkânsız kayıt "normal BMI" görünür',
+  );
+}
+
+// 3) Su hedefi çarpanı — `kg * 33` iki tarafta ayrı ayrı yazılı.
+//
+// Dart: `(weightKg * 33).round()`; Web: `Math.round(weightKg * 33)`.
+const fWaterMult = ratioOf(FLUTTER_MACRO, /weightKg\s*\*\s*([\d.]+)\)\.round/);
+const rWaterMult = ratioOf(reactSplit, /weightKg\s*\*\s*([\d.]+)\)/);
+if (fWaterMult === null || rWaterMult === null) {
+  errors.push(
+    'su hedefi çarpanı okunamadı ' +
+      `(Flutter=${fWaterMult}, web=${rWaterMult}) — waterTargetMl imzası değişmiş`,
+  );
+} else if (Math.abs(fWaterMult - rWaterMult) > 1e-9) {
+  errors.push(
+    `su hedefi çarpanı ayrışmış: Flutter=${fWaterMult} ml/kg web=${rWaterMult} ml/kg`,
+  );
+}
+
+// 4) Yıl tabanı ve üst sınır — `calculateAge` / `Calculations.age`.
+//
+// Dart: `maxAge = 120` ve `if (years > maxAge) return maxAge;`
+// Web:  `MAX_AGE = 120` ve `Math.min(age, MAX_AGE)`.
+const fMaxAge = ratioOf(FLUTTER_MACRO, /maxAge\s*=\s*(\d+)/);
+const rMaxAge = ratioOf(reactSplit, /MAX_AGE\s*=\s*(\d+)/);
+if (fMaxAge === null || rMaxAge === null) {
+  errors.push(
+    `yaş üst sınırı okunamadı (Flutter=${fMaxAge}, web=${rMaxAge})`,
+  );
+} else if (fMaxAge !== rMaxAge) {
+  errors.push(
+    `yaş üst sınırı ayrışmış: Flutter=${fMaxAge} web=${rMaxAge} — ` +
+      '1800 doğum yılı gibi bir kayıt BMR\'yi çarpık değerlere sürükler',
+  );
+}
+
+// `maxAge` **kullanılıyor mu?** Sabit tanımlı ama hiç uygulanmıyorsa
+// yine de ayrışma vardır (web'de üst sınır uygulanmıyordu).
+const fAgeClamp = /years\s*>\s*maxAge/.test(FLUTTER_MACRO);
+const rAgeClamp = /Math\.min\(\s*age\s*,\s*MAX_AGE\s*\)/.test(reactSplit);
+if (fAgeClamp !== rAgeClamp) {
+  errors.push(
+    'yaş üst sınırı **uygulanmıyor** (sabit tanımlı ama kırpma yok): ' +
+      `Dart=${fAgeClamp ? 'var' : 'yok'} web=${rAgeClamp ? 'var' : 'yok'}`,
+  );
+}
+
+// 5) Öğün miktarı üst sınırı — DB CHECK ile iki istemci aynı sınırlı mı?
+//
+// DB: `meal_entries.amount_g_ml > 0 AND amount_g_ml <= 10000`
+// Web (Tur 8): `MAX_MEAL_AMOUNT = 10_000` + `isUsableAmount`
+// Flutter: repository katmanında (bu kapı metinden okuyamaz — kapsam dışı).
+const rMealMax = numOf(reactSplit, /MAX_MEAL_AMOUNT\s*=\s*([\d_]+)/);
+if (rMealMax === null) {
+  warnings.push(
+    'src/lib/calculations.ts: `MAX_MEAL_AMOUNT` bulunamadı — miktar üst ' +
+      'sınırı sözleşmesi (DB CHECK: ≤ 10000) kilitlenemiyor',
+  );
+} else if (rMealMax !== 10000) {
+  errors.push(
+    `öğün miktarı üst sınırı DB CHECK ile ayrışmış: web=${rMealMax} ` +
+      'DB kabul ediyor: 10000',
+  );
+}
+if (!/function\s+isUsableAmount/.test(reactSplit)) {
+  errors.push(
+    'src/lib/calculations.ts: `isUsableAmount` yok — üç yol (elle ekleme, ' +
+      'düzenleme, AI tanıma) miktar doğrulamasını atlıyor',
+  );
+}
+
+// 6) İlerleme yüzdesi — Flutter `Calculations.progress` zaten korumalı,
+// web'de **hiç kullanılmıyordu** (bileşenler kendi bölmesini yapıyordu).
+const fProgressGuard = /if\s*\(!target\.isFinite\s*\|\|\s*target\s*==\s*0\)/.test(
+  FLUTTER_MACRO,
+);
+const rProgressGuard = /!Number\.isFinite\(target\)[\s\S]{0,80}?target\s*<=\s*0/.test(
+  reactSplit,
+);
+if (!fProgressGuard || !rProgressGuard) {
+  errors.push(
+    'ilerleme yüzdesi sıfıra bölme koruması eksik: ' +
+      `Flutter=${fProgressGuard ? 'var' : 'yok'} web=${rProgressGuard ? 'var' : 'yok'} ` +
+      '— hedef 0 iken çubuk ya hiç çizilmiyor ya da tamamen dolu görünüyor',
+  );
+}
+// Koruma `calculateProgress` içindeyse, **bileşenler** de onu kullanmalı;
+// yoksa fonksiyon ölü kod ve koruma işe yaramıyor (Tur 8'deki hatanın
+// tam kendisi).
+// Koruma `calculateProgress` içindeyse, **bileşenler** de onu kullanmalı;
+// yoksa fonksiyon ölü kod ve koruma işe yaramıyor. Tur 8'deki hatanın
+// tam kendisi: `calculateProgress` 3 katmanlı savunma yapıyordu ama
+// **hiçbir bileşen onu çağırmıyordu** — üç bileşen kendi bölmesini
+// yapıyordu. Bu yüzden kapı "en az 2" değil **"hepsi"** ister.
+//
+// Yorum satırları **temizlenir** ve **çağrı** aranır (import yeterli
+// değil): bileşenlerin açıklamaları `calculateProgress` kelimesini
+// geçiriyor, yalın `includes()` çağrısı yorumu "kullanım" sanar; import
+// satırı ise çağrı **kaldırıldığında** da dosyada kalır (ölü import).
+// 2026-09-28'de ikisi de ölçüldü.
+const stripComments = (src) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+
+const PROGRESS_CONSUMERS = [
+  ['macro-bar.tsx', 'src/components/ui'],
+  ['circular-progress.tsx', 'src/components/ui'],
+  ['WaterTracker.tsx', 'src/components/dashboard'],
+];
+const usesProgress = ([f, root]) => {
+  const raw = readOptional(`${root}/${f}`);
+  if (!raw) return false;
+  const code = stripComments(raw)
+    .replace(/^\s*import[\s\S]*?;\s*$/gm, '')
+    .replace(/from\s+["'][^"']+["'];?/g, '');
+  return /\bcalculateProgress\s*\(/.test(code);
+};
+const usersOfProgress = PROGRESS_CONSUMERS.filter(usesProgress);
+if (usersOfProgress.length < PROGRESS_CONSUMERS.length) {
+  const missing = PROGRESS_CONSUMERS.filter((c) => !usesProgress(c)).map(([f]) => f);
+  errors.push(
+    '`calculateProgress` var ama ' + missing.join(', ') + ' **çağırmıyor** — ' +
+      'sıfıra bölme koruması bu bileşenlerde etkisiz ' +
+      '(hedef 0 iken çubuk kaybolur ya da tamamen dolar)',
   );
 }
 

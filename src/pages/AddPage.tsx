@@ -15,7 +15,7 @@ import { useDailyData } from "@/hooks/useDailyData";
 import { useFavoriteFoods } from "@/hooks/useFavoriteFoods";
 import { useRecentFoods } from "@/hooks/useRecentFoods";
 import { useFoodSearch } from "@/hooks/useFoodSearch";
-import { format } from "date-fns";
+import { formatLocalDate } from "@/lib/dates";
 import { toast } from "sonner";
 
 interface SelectedFood {
@@ -46,6 +46,23 @@ const AddPage = () => {
   const { recentFoods, loading: recentLoading } = useRecentFoods();
   const { results: searchResults, loading: searchLoading } = useFoodSearch(searchQuery);
 
+  /**
+   * `addMealEntry` **fırlatmaz**; `{ error }` nesnesi döndürür.
+   *
+   * `Index.tsx` bu sözleşmeyi doğru kullanıyor (dönüşü `await` edip
+   * `error`'a bakıyor), ama `AddPage`'deki üç çağrı `try/catch` ile
+   * sarılmıştı → `catch` bloğu **hiç çalışmıyor**, `{ error: null }`
+   * dönüyor ve **hiçbir öğün yazılmadığı halde** "eklendi" toast'u
+   * gösteriliyordu (AI tanımanın ürettiği geçersiz miktar ile kolayca
+   * tetikleniyordu: DB 400 döner, kullanıcı ekranda hiçbir şey olmadığını
+   * sanıyor). Aynı hata sınıfı A4r3'ün Flutter'da düzelttiği
+   * "hata `catch`'e düşmüyor" kalıbıdır.
+   */
+  const addEntryOrThrow = async (entry: Parameters<typeof addMealEntry>[0]) => {
+    const { error } = await addMealEntry(entry);
+    if (error) throw error;
+  };
+
   const handleUnifiedSubmit = async (foods: Array<{
     custom_name: string;
     meal_type: MealType;
@@ -57,19 +74,23 @@ const AddPage = () => {
     source: "photo" | "text" | "manual";
     food_id?: string | null;
   }>) => {
-    try {
-      for (const food of foods) {
-        await addMealEntry({
+    // Kısmi yazma: bir kayıt reddedilirse o ana kadar yazılanlar geri
+    // alınmaz (Flutter'ın telafi yaklaşımı da aynı — bkz. AKTARIM).
+    // En azından **kullanıcıya doğru** bildirilir.
+    for (const food of foods) {
+      try {
+        await addEntryOrThrow({
           ...food,
           food_id: food.food_id || null,
-          entry_date: format(new Date(), "yyyy-MM-dd"),
+          entry_date: formatLocalDate(new Date()),
           note: null,
         });
+      } catch (err) {
+        toast.error(t('addFood.toasts.error'));
+        return { error: err as Error };
       }
-      return { error: null };
-    } catch (err) {
-      return { error: err as Error };
     }
+    return { error: null };
   };
 
   const handleFoodSelect = (food: {
@@ -130,10 +151,10 @@ const AddPage = () => {
     calculated_fat: number;
   }) => {
     try {
-      await addMealEntry({
+      await addEntryOrThrow({
         ...entry,
         source: "manual",
-        entry_date: format(new Date(), "yyyy-MM-dd"),
+        entry_date: formatLocalDate(new Date()),
         note: null,
       });
 
@@ -155,11 +176,11 @@ const AddPage = () => {
     calculated_fat: number;
   }) => {
     try {
-      await addMealEntry({
+      await addEntryOrThrow({
         ...data,
         food_id: null,
         source: "manual",
-        entry_date: format(new Date(), "yyyy-MM-dd"),
+        entry_date: formatLocalDate(new Date()),
         note: null,
       });
 

@@ -20,7 +20,9 @@
     "meal": "Mahlzeit",
     "searchFood": "Lebensmittel suchen",
     "searchPlaceholder": "Lebensmittel suchen...",
-    "version": "Version"
+    "version": "Version",
+    "previousDay": "Vorheriger Tag",
+    "nextDay": "Nächster Tag"
   },
   "header": {
     "signedOut": "Abgemeldet",
@@ -126,7 +128,8 @@
       "title": "Eintrag bearbeiten",
       "updated": "Eintrag aktualisiert",
       "deleted": "Eintrag gelöscht"
-    }
+    },
+    "invalidAmount": "Bitte eine gültige Menge eingeben"
   },
   "export": {
     "success": "exportiert",
@@ -291,7 +294,9 @@
       "passwordChanged": "Passwort aktualisiert",
       "aiSuccess": "KI-Berechnung abgeschlossen",
       "aiUpdate": "KI-Makro-Update",
-      "error": "Ein Fehler ist aufgetreten"
+      "error": "Ein Fehler ist aufgetreten",
+      "aiFailedTitle": "Ziele konnten nicht aktualisiert werden",
+      "aiFailedDesc": "Deine Daten wurden gespeichert, aber die Ziele konnten nicht neu berechnet werden. Versuche es erneut mit \"Neu berechnen\" im Bereich Ziele."
     }
   },
   "dashboard": {

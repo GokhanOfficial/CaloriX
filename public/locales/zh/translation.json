@@ -20,7 +20,9 @@
     "meal": "餐次",
     "searchFood": "搜索食物",
     "searchPlaceholder": "搜索食物...",
-    "version": "版本"
+    "version": "版本",
+    "previousDay": "前一天",
+    "nextDay": "后一天"
   },
   "header": {
     "signedOut": "已登出",
@@ -126,7 +128,8 @@
       "title": "编辑条目",
       "updated": "条目已更新",
       "deleted": "条目已删除"
-    }
+    },
+    "invalidAmount": "请输入有效的数量"
   },
   "export": {
     "success": "已导出",
@@ -291,7 +294,9 @@
       "passwordChanged": "密码已更新",
       "aiSuccess": "AI计算完成",
       "aiUpdate": "AI宏量营养素更新",
-      "error": "发生错误"
+      "error": "发生错误",
+      "aiFailedTitle": "无法更新目标",
+      "aiFailedDesc": "您的信息已保存，但无法重新计算目标。请在“目标”部分点击“重新计算”重试。"
     }
   },
   "dashboard": {
