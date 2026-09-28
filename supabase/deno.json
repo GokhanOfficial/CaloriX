@@ -1,4 +1,21 @@
 {
+  // Edge function'larin bagimlilik kilidi. `lock` YOLU calisma dizinine gore
+  // cozulur; CI'da `working-directory: supabase` oldugu icin bu deger
+  // `supabase/deno.lock` demektir. Yol, kokten goreceli (`../deno.lock`) DEGIL:
+  // Deno kokteki kilidi okumaz (olculdu — bkz. RAPOR-A6r9-denolock-tur10).
+  //
+  // Neden supabase/ altinda, kokte degil (Tur 10, A6r9 olcumu):
+  // 1. `deno` calisma dizini `supabase/` oldugu icin kilidi yalniz burada
+  //    uretip okuyabilir; kokteki dosya hicbir komut tarafindan dokunulmaz.
+  // 2. `nodeModulesDir: "none"` + buradaki kilit, edge grafigini TUMUYLE
+  //    icerir ve React'in 70 npm bagimlisigini icermez (8382 -> 4920 bayt).
+  // 3. `denoland/setup-deno` `cache: true` anahtari `**/deno.lock` glob'uyla
+  //    hesaplanir; dosya repoda oldugu icin ilk calismadan itibaren ise yarar.
+  //
+  // Bu kilidi yenilemek icin (bagimlilik degistiginde):
+  //   cd supabase && deno cache functions/   (veya check/test calistir)
+  // Degisikligi `--frozen=true` ile dogrula; CI her ikisini de frozen modunda
+  // calistirir, bu yuzden guncel degilse CI kirmizi verir.
   "lock": "deno.lock",
   "nodeModulesDir": "none"
 }

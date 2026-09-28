@@ -18,16 +18,18 @@ name: Supabase Edge CI
 # edge function değişikliği `deno check`/`deno test` kapısını atlıyordu.
 # `paths` filtresi sayesinde `supabase/**` dışındaki değişiklikler
 # tetiklemez.
+# Kilit yolu `supabase/deno.lock`'dir (bkz. `supabase/deno.json` ve
+# RAPOR-A6r9-denolock-tur10): `deno` calisma dizinine gore cozuyor, CI'da
+# calisma dizini `supabase`. Onceki `deno.lock` (kok) tetiklemesi olu koddu —
+# o dosya hicbir `deno` komutu tarafindan okunmuyordu.
 on:
   push:
     paths:
       - "supabase/**"
-      - "deno.lock"
       - ".github/workflows/supabase.yml"
   pull_request:
     paths:
       - "supabase/**"
-      - "deno.lock"
       - ".github/workflows/supabase.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
@@ -80,11 +82,12 @@ jobs:
         with:
           deno-version: ${{ env.DENO_VERSION }}
           # `cache: true` varsayılan cache anahtarı `**/deno.lock` dosyasının
-          # hash'ini kullanır. Repo kökündeki `deno.lock` (sürüm 5) edge
-          # bağımlılıklarını kilitler ve **repoda takip edilir**; yerel
-          # `deno test` de aynı lock'u kullanır → CI ile lokal aynı grafiği
-          # çözer, sürüm sürgüsü (floating `esm.sh/@supabase/supabase-js@2`)
-          # CI'da görünmez.
+          # hash'ini kullanır. Kilit **`supabase/deno.lock`** (repoda takip
+          # edilir): `supabase/deno.json` → `"lock": "deno.lock"` ve `deno` bu
+          # yolu **çalışma dizinine göre** çözer, CI'da çalışma dizini
+          # `supabase`. Glob `**/deno.lock` olduğu için konum ne olursa olsun
+          # eşleşir; dosya repoda olduğu için `DENO_DIR` ilk çalışmadan itibaren
+          # yeniden kullanılır.
           cache: true
 
       - name: Show toolchain
@@ -96,17 +99,29 @@ jobs:
       # koşar). Bu adım `deno test`'ten **önce** gelir: tip hatası derleme
       # aşamasında daha okunabilir bir mesaj verir ve test adımına
       # ulaşılmaz.
+      #
+      # `--frozen=true`: kilit güncel değilse CI **kırmızı** olur, kilit
+      # sessizce yenilenmez. Ölçüldü (Tur 10): yeni bir uzak import eklendiğinde
+      # "The lockfile is out of date" + exit 1. Ölçülen ikinci olgu: yalnızca
+      # `deno check` çalıştırıldığında kilit **kısmi** kalıyor (25/36 remote),
+      # `deno test` onu 36'ya tamamlıyordu — yani kilidi tazelemek için
+      # `deno check`'e güvenmek yanıltıcıydı. Frozen kapısı bu yüzden **her iki**
+      # adımda da açıktır.
       - name: Type check edge functions
-        run: deno check functions/
+        run: deno check --frozen=true functions/
 
-      # 54 test. `--allow-env` gerekir: `rate_limit_test.ts` ve
+      # 124 test. `--allow-env` gerekir: `rate_limit_test.ts` ve
       # `web_push_crypto_test.ts` `Deno.env.get` okur; `--allow-read` test
       # dosyalarının `index.ts` kaynağını okuduğu senkronizasyon testleri
       # için; `--allow-net` uzak bağımlılıkların (esm.sh) indirilmesi ve
       # WebCrypto tabanlı testler için. Aynı bayraklar lokalde kullanılan
       # komutla birebir aynıdır.
+      #
+      # `--frozen=true` gerekçesi yukarıda; ikinci adımda da kilit kısmi
+      # kalmasın diye tekrarlanır (yoksa `deno test` onu sessizce tamamlardı
+      # ve CI farkı görmezdi).
       - name: Test edge functions
-        run: deno test --allow-env --allow-read --allow-net functions/
+        run: deno test --frozen=true --allow-env --allow-read --allow-net functions/
 
       # Migration dosya adlarının sırası ve biçimi ucuz bir denetimle
       # denetlenir: Supabase migration'ları **kronolojik olarak** uygular

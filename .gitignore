@@ -54,7 +54,11 @@ key.properties
 *.vs
 
 # Supabase
-supabase/functions/*/deno.lock
+# Kilit `supabase/deno.lock` (tek dosya, `supabase/deno.json` -> "lock") ve
+# **takip edilir** — burada ignore edilmez. `supabase/functions/*/deno.lock`
+# kuralı (Tur 10 öncesi) yanlış bir izlenmeme yanılsaması doğuruyordu: her edge
+# function'ın kendi calisma dizini yok, Deno kilidi `supabase/` altina yaziyor;
+# bu glob o dosyayi hicbir zaman yakalamiyordu. Fonksiyon basina kilit uretilmez.
 supabase/.temp
 supabase/.branches
 supabase/.env
