@@ -42,6 +42,27 @@ export const NOTIFICATION_LABELS: Record<NotificationType, { title: string; desc
   weekly_summary: { title: 'Haftalık Özet', description: 'Haftalık ilerleme raporu' },
 };
 
+/**
+ * Kullanıcıya **görünür** hata durumu.
+ *
+ * A6r3 aktarımı: `fetchPreferences`/`subscribeToPush` hata halinde
+ * `console.error` + `return` yapıyordu → ekranda eski veri kalıyor,
+ * kullanıcı hatayı göremiyor, push aboneliği sessizce başarısız oluyordu.
+ * Bu tip hem "hangi işlem" bilgisini (etiket + mesaj) hem de
+ * `retry`'yi taşır; çağıran ekran `error` + `retry` gösterir.
+ */
+export interface NotificationError {
+  /** Hata üreten işlem. Kullanıcıya gösterilir (iç ayrıntı taşımaz). */
+  operation: 'preferences' | 'notifications' | 'push';
+  /** İçerik sızdırmayan tek satırlık açıklama. */
+  message: string;
+  /**
+   * Kullanıcıya **gösterilmeyen** ayrıntı (konsola gider). Tablo/kolon
+   * adları ve kısıt adları burada bulunabilir.
+   */
+  detail?: unknown;
+}
+
 export function useNotifications() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -50,6 +71,14 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
+  /**
+   * Görünür hata. `null` → sorun yok.
+   *
+   * Önceki davranış: `console.error` + `return` → kullanıcı eski (ya da
+   * hiç yüklenmemiş) veriyi "güncel" sanıyordu, ayar kaydedemiyordu ve
+   * nedenini öğrenemiyordu.
+   */
+  const [error, setError] = useState<NotificationError | null>(null);
 
   // Check push notification permission
   useEffect(() => {
@@ -61,11 +90,15 @@ export function useNotifications() {
   // Subscribe to push notifications.
   // `useRef` ile paylaşılır: hem `requestPushPermission` hem de dışarıdan
   // tetiklenebilen yollar aynı örneği kullanmalı (fonk. referansı değil).
-  const subscribeToPushRef = useRef<() => Promise<void>>(async () => {});
+  const subscribeToPushRef = useRef<() => Promise<boolean>>(async () => false);
 
   // Request push notification permission
   const requestPushPermission = useCallback(async () => {
     if (!('Notification' in window)) {
+      setError({
+        operation: 'push',
+        message: 'Tarayıcınız bildirimleri desteklemiyor.',
+      });
       toast({ title: 'Hata', description: 'Tarayıcınız bildirimleri desteklemiyor', variant: 'destructive' });
       return false;
     }
@@ -74,16 +107,31 @@ export function useNotifications() {
     setPushPermission(permission);
 
     if (permission === 'granted') {
-      await subscribeToPushRef.current();
-      return true;
+      // Abonelik gerçekten kuruldu mu? `subscribeToPush` artık
+      // başarısızlığı **görünür** kılıyor; eskiden `requestPushPermission`
+      // izni aldığı için `true` dönüyor, abonelik sessizce başarısız
+      // olsa bile anahtar "açık" görünüyordu.
+      return await subscribeToPushRef.current();
     }
 
+    setError({
+      operation: 'push',
+      message: 'Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsiniz.',
+    });
     return false;
   }, [toast]);
 
   // Subscribe to push notifications
   const subscribeToPush = useCallback(async () => {
-    if (!user || !('serviceWorker' in navigator)) return;
+    if (!user || !('serviceWorker' in navigator)) {
+      // Sessiz `return` yerine görünür hata: "push açıldı" görünen bir
+      // anahtar, aboneliğin hiç oluşmadığı anlamına gelmemeli.
+      setError({
+        operation: 'push',
+        message: 'Bu tarayıcıda push bildirimleri desteklenmiyor.',
+      });
+      return false;
+    }
 
     try {
       const registration = await navigator.serviceWorker.ready;
@@ -92,8 +140,14 @@ export function useNotifications() {
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
       if (!vapidPublicKey) {
-        console.warn('VAPID public key not configured');
-        return;
+        // Daha önce `console.warn` + `return`: kullanıcı anahtarı açıyor,
+        // abonelik hiç oluşmuyor, hiçbir bildirim gelmiyor ve **neden
+        // belli olmuyor**. Şimdi ayar hatası olarak görünür.
+        setError({
+          operation: 'push',
+          message: 'Push bildirimleri için VAPID anahtarı tanımlı değil (VITE_VAPID_PUBLIC_KEY).',
+        });
+        return false;
       }
 
       const subscription = await registration.pushManager.subscribe({
@@ -114,8 +168,19 @@ export function useNotifications() {
       });
 
       if (error) throw error;
-    } catch (error) {
-      console.error('Error subscribing to push:', error);
+      setError(null);
+      return true;
+    } catch (err) {
+      // `console.error` **korunuyor** (ayrıntı oraya), ama artık
+      // kullanıcı da bilgilendiriliyor: abonelik sessizce başarısız
+      // olduğunda "bildirim gelmiyor" şikâyeti çözülemez durumdaydı.
+      console.error('Error subscribing to push:', err);
+      setError({
+        operation: 'push',
+        message: 'Push aboneliği oluşturulamadı. Tekrar deneyebilirsiniz.',
+        detail: err,
+      });
+      return false;
     }
   }, [user]);
 
@@ -127,16 +192,25 @@ export function useNotifications() {
 
   // Fetch notification preferences
   const fetchPreferences = useCallback(async () => {
-    if (!user) return;
+    if (!user) return false;
 
-    const { data, error } = await supabase
+    const { data, error: queryError } = await supabase
       .from('notification_preferences')
       .select('*')
       .eq('user_id', user.id);
 
-    if (error) {
-      console.error('Error fetching preferences:', error);
-      return;
+    if (queryError) {
+      // Eski davranış: `console.error` + `return` → `preferences`
+      // **eskiden yüklenen** (ya da hiç yüklenmemiş) değerde kalıyordu ve
+      // ayar ekranı bunu "başarılı" gösteriyordu. Kullanıcı değişikliği
+      // kaydedip kaydetmediğini öğrenemiyordu.
+      console.error('Error fetching preferences:', queryError);
+      setError({
+        operation: 'preferences',
+        message: 'Bildirim tercihleri yüklenemedi. Ayarları kaydetmeye çalışmadan önce tekrar deneyin.',
+        detail: queryError,
+      });
+      return false;
     }
 
     // Merge with defaults for any missing types
@@ -154,39 +228,48 @@ export function useNotifications() {
     });
 
     setPreferences(mergedPrefs);
+    setError((prev) => (prev?.operation === 'preferences' ? null : prev));
+    return true;
   }, [user]);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+    if (!user) return false;
 
-    const { data, error } = await supabase
+    const { data, error: queryError } = await supabase
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
 
-    if (error) {
-      console.error('Error fetching notifications:', error);
-      return;
+    if (queryError) {
+      console.error('Error fetching notifications:', queryError);
+      setError({
+        operation: 'notifications',
+        message: 'Bildirimler yüklenemedi.',
+        detail: queryError,
+      });
+      return false;
     }
 
     setNotifications(data || []);
     setUnreadCount(data?.filter(n => !n.is_read).length || 0);
+    setError((prev) => (prev?.operation === 'notifications' ? null : prev));
+    return true;
   }, [user]);
 
   // Update preference
   const updatePreference = useCallback(async (
     type: NotificationType,
     updates: Partial<NotificationPreference>
-  ) => {
-    if (!user) return;
+  ): Promise<boolean> => {
+    if (!user) return false;
 
     const existing = preferences.find(p => p.notification_type === type);
 
     // Use upsert to handle both insert and update atomically
-    const { data, error } = await supabase
+    const { data, error: writeError } = await supabase
       .from('notification_preferences')
       .upsert({
         user_id: user.id,
@@ -200,11 +283,18 @@ export function useNotifications() {
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating preference:', error);
+    if (writeError) {
+      console.error('Error updating preference:', writeError);
+      setError({
+        operation: 'preferences',
+        message: 'Ayarlar kaydedilemedi. Değişikliğiniz DB\'ye ulaşmadı.',
+        detail: writeError,
+      });
       toast({ title: 'Hata', description: 'Ayarlar kaydedilemedi', variant: 'destructive' });
-      return;
+      return false;
     }
+
+    setError((prev) => (prev?.operation === 'preferences' ? null : prev));
 
     // Update local state with returned data
     if (data) {
@@ -218,12 +308,14 @@ export function useNotifications() {
           return [...prev, data as NotificationPreference];
         }
       });
+      return true;
     }
 
     // Optimistic update
     setPreferences(prev => prev.map(p =>
       p.notification_type === type ? { ...p, ...updates } : p
     ));
+    return true;
   }, [user, preferences, toast]);
 
   // Mark notification as read
@@ -278,6 +370,53 @@ export function useNotifications() {
     }
   }, [user]);
 
+  /**
+   * Tüm hata halinde görünür hata durumunu temizler (yeniden denemeden
+   * önce çağrılır; aksi hâlde eski hata ekranda kalır).
+   */
+  const clearError = useCallback(() => setError(null), []);
+
+  /**
+   * Hatalı işlemi tekrar dener.
+   *
+   * `preferences` → tercihleri yeniden çeker **ve** bildirim listesini
+   *   de tazeler (biri yüklendiğinde diğerinin göstergesi yanıltıcı olur).
+   * `notifications` → yalnızca listeyi tazeler.
+   * `push` → abonelik işlemini yeniden dener; tarayıcı izni vermediyse
+   *   önce izin istenir.
+   */
+  const retry = useCallback(async () => {
+    if (!user) return;
+    const operation = error?.operation ?? 'preferences';
+    setError(null);
+
+    if (operation === 'push') {
+      if (!('Notification' in window)) {
+        setError({ operation: 'push', message: 'Tarayıcınız bildirimleri desteklemiyor.' });
+        return;
+      }
+      if (Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission();
+        setPushPermission(permission);
+        if (permission !== 'granted') {
+          setError({
+            operation: 'push',
+            message: 'Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsiniz.',
+          });
+          return;
+        }
+      }
+      await subscribeToPushRef.current();
+      return;
+    }
+
+    if (operation === 'notifications') {
+      await fetchNotifications();
+      return;
+    }
+    await Promise.all([fetchPreferences(), fetchNotifications()]);
+  }, [user, error, fetchPreferences, fetchNotifications]);
+
   // Initial fetch
   useEffect(() => {
     if (user) {
@@ -285,6 +424,13 @@ export function useNotifications() {
       Promise.all([fetchPreferences(), fetchNotifications()]).finally(() => {
         setLoading(false);
       });
+    } else {
+      // Oturum kapandı: eski kullanıcının tercihleri ekranda kalıyordu.
+      setLoading(false);
+      setPreferences([]);
+      setNotifications([]);
+      setUnreadCount(0);
+      setError(null);
     }
   }, [user, fetchPreferences, fetchNotifications]);
 
@@ -293,6 +439,9 @@ export function useNotifications() {
     notifications,
     unreadCount,
     loading,
+    error,
+    clearError,
+    retry,
     pushPermission,
     requestPushPermission,
     updatePreference,

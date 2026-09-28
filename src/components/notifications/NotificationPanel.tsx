@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Check, CheckCheck, Trash2, X, Scale, Droplets, Utensils, Trophy, BarChart3 } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, X, Scale, Droplets, Utensils, Trophy, BarChart3, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -103,7 +103,16 @@ function NotificationItem({ notification, onMarkRead, onDelete }: NotificationIt
 export function NotificationPanel() {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    loading,
+    error,
+    retry,
+  } = useNotifications();
   const currentLocale = locales[i18n.language.split('-')[0]] || enUS;
 
   return (
@@ -139,7 +148,28 @@ export function NotificationPanel() {
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-100px)] mt-4 pr-4">
-          {loading ? (
+          {/* Yükleme hatası artık "boş liste" gibi görünmez: eski
+              davranışda `console.error` + `return` yüzünden hata halinde
+              "hiç bildirim yok" yazıyordu. */}
+          {error?.operation === 'notifications' ? (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="flex flex-col items-center justify-center gap-3 h-32 text-center"
+            >
+              <AlertCircle className="h-8 w-8 text-destructive opacity-70" />
+              <p className="text-sm text-destructive">{error.message}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void retry();
+                }}
+              >
+                {t('common.retry', 'Tekrar Dene')}
+              </Button>
+            </div>
+          ) : loading ? (
             <div className="flex items-center justify-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>

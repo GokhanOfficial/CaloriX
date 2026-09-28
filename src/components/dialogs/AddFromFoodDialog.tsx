@@ -105,11 +105,14 @@ export function AddFromFoodDialog({
             )}
           </div>
 
-          {/* Meal Type */}
+          {/* Meal Type
+              `SelectTrigger` bir `<button>` olduğu için `htmlFor`/`id`
+              çifti **işlevsel olarak** etiket bağı kurar: ekran okuyucu
+              "Öğün, seçim düğmesi" diye okur. Önceden `id` yoktu. */}
           <div className="space-y-1.5">
-            <Label>Öğün</Label>
+            <Label htmlFor="add-from-food-meal-type">Öğün</Label>
             <Select value={mealType} onValueChange={(v) => setMealType(v as MealType)}>
-              <SelectTrigger className="h-11 bg-secondary">
+              <SelectTrigger id="add-from-food-meal-type" className="h-11 bg-secondary">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -129,8 +132,9 @@ export function AddFromFoodDialog({
 
           {/* Amount */}
           <div className="space-y-1.5">
-            <Label>Miktar (g)</Label>
+            <Label htmlFor="add-from-food-amount">Miktar (g)</Label>
             <Input
+              id="add-from-food-amount"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}

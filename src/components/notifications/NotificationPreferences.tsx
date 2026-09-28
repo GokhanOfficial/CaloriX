@@ -177,7 +177,15 @@ function PreferenceItem({ type, preference, onUpdate, pushPermission, onRequestP
 }
 
 export function NotificationPreferences() {
-  const { preferences, updatePreference, pushPermission, requestPushPermission, loading } = useNotifications();
+  const {
+    preferences,
+    updatePreference,
+    pushPermission,
+    requestPushPermission,
+    loading,
+    error,
+    retry,
+  } = useNotifications();
 
   if (loading) {
     return (
@@ -191,6 +199,30 @@ export function NotificationPreferences() {
 
   return (
     <div className="space-y-4">
+      {/* Görünür hata + retry. A6r3 aktarımı: hook hata halinde
+          `console.error` + `return` yapıyordu, ekranda eski veri kalıyor
+          ve kullanıcı hatayı göremiyordu. */}
+      {error && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm"
+        >
+          <p className="font-medium text-destructive">Bildirimler yüklenemedi</p>
+          <p className="text-xs mt-1 text-destructive/90">{error.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => {
+              void retry();
+            }}
+          >
+            Tekrar Dene
+          </Button>
+        </div>
+      )}
+
       {pushPermission === 'denied' && (
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
           <p className="font-medium">Push bildirimleri engellendi</p>
