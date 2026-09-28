@@ -143,6 +143,36 @@ reminders) has no JWT, so it needs an explicit token:
 
 Full list and production instructions: [`supabase/.env.example`](supabase/.env.example).
 
+#### Web Push: `VITE_VAPID_PUBLIC_KEY` (client side)
+
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `VITE_VAPID_PUBLIC_KEY` | `.env` (build time) | `applicationServerKey` for `pushManager.subscribe()`. **Not an edge function secret** — Vite embeds it in the client bundle and it is not confidential. Must be the same key pair as `VAPID_PUBLIC_KEY`. |
+
+If `VITE_VAPID_PUBLIC_KEY` is unset, the push subscription cannot be
+created. The React client no longer swallows this silently (the "Enable Push
+Notifications" button used to do nothing at all); a visible error with a
+"Retry" action is shown instead
+(`src/hooks/useNotifications.ts` → `error.operation === 'push'`).
+
+### 🔐 Security note — the session token lives in `localStorage`
+
+The React PWA creates the `@supabase/supabase-js` client with
+`storage: localStorage` (`src/integrations/supabase/client.ts`). That keeps
+the Supabase session (access + refresh token) **persistently on disk** in the
+browser.
+
+| Concern | Reality |
+|---------|---------|
+| Why it is hard to avoid | This is a **CSR (client-side rendering)** PWA. Moving to `document.cookie` requires SSR or a BFF layer; this repo builds a single-client static Vite bundle, and the edge functions only cover `ai-chat` / `calculate-macros` / `check-reminders` / `send-notification` / `delete-account` — they are not a general proxy. |
+| Impact | An **XSS** running on the same origin can read the token from `localStorage` and act as the user. An `httpOnly` cookie is not reachable from XSS. |
+| Mitigations | Supabase RLS scopes every table to `auth.uid()`; the `anon` key alone reads no rows. Edge functions independently verify the JWT. No `service_role` key is ever bundled into the client. |
+| Roadmap | Move session handling to SSR/BFF. This follows from the React PWA being in **maintenance mode** (`PROTOKOL.md` §0); the primary app is Flutter, which keeps its token in the **Keychain/Keystore**. |
+
+`VITE_SUPABASE_PUBLISHABLE_KEY` (anon) is intentionally shipped to the
+client and is **not** a secret; all authorisation lives in RLS and in
+edge-function JWT verification.
+
 4. **Start the development server**
 ```bash
 bun dev

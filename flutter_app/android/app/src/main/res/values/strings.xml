@@ -4,6 +4,10 @@
   metinleri (başlıklar, "kalan", makro değerleri) Dart tarafında çevrilip
   veri kanalıyla gelir; burada yalnızca launcher'ın gösterdiği etiketler ve
   erişilebilirlik açıklamaları yer alır.
+
+  Kaynak dosya **tek tanedir**: `values/strings.xml` (Türkçe = varsayılan).
+  `values-<lang>/strings.xml` çeviri dosyası **kasıtlı olarak yoktur**
+  (Tur 5 kararı, gerekçe aşağıda).
 -->
 <resources>
     <string name="widget_daily_label">Günlük Özet</string>

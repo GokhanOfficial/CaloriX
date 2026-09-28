@@ -106,6 +106,133 @@ gelen düzeltmeler; `pubspec.yaml`'da hâlâ `1.3.0+4`.
 - `ar.json` `dashboard.remaining`: `"kcal متبقية"` (İngilizce "remaining kcal"
   kalıbı harf harfine bırakılmış) → `"متبقٍّ (kcal)"`.
 
+### Fixed — Yedek içe/dışa aktarma (React PWA, `src/lib/import/**`)
+Web tarafı, Flutter'da Tur 4'te düzeltilen **aynı** yedek hatalarını
+taşıyordu. Bu turda akış baştan yazıldı: `src/lib/import/backupImport.ts`
+(saf katman: doğrulama + plan) ve `src/lib/import/backupRestore.ts`
+(ağ katmanı: varlık kontrolü + yazma + telafi).
+
+- **Kısmi import (P1).** `importData` satır satır yazıyordu; bir CHECK
+  ihlalinde `foods` + besin + o ana kadarki tüm öğünler **yazılmış** kalıyor,
+  kullanıcı "hata" görüyor, hangi kayıtların geldiğini öğrenemiyordu.
+  Artık üç faz: **ön-uçu doğrulama (ağ yok) → varlık kontrolü (yalnız GET) →
+  toplu + telafili yazma**. Tek bir ölümcül ihlalde **hiçbir istek
+  atılmaz**; yazma hatasında o turda yazılanlar `id` ile fiziksel olarak
+  silinir ve `counts` **her zaman** dolu döner.
+- **Sessiz yanlış besin değeri (P1).** `Number(nutrition.kcal) || 0`
+  ifadesi, sayı olmayan zorunlu bir alanı `0`'a çevirip **yanlış besin
+  değeri** kaydediyordu. Artık ölümcül ihlal: "hiçbir kayıt eklenmedi".
+- **`amount_ml`/`weight_kg` geçersizde `0` (P1).** DB
+  `water_entries_amount_positive` / `weight_entries_weight_range` CHECK'leri
+  400 döndürüyor ve import **tüm öğünler yazıldıktan sonra** ölüyordu.
+  Artık ön-uçu doğrulamada ölümcül; küsüratlı `amount_ml` yuvarlanıp
+  `coerced` ile bildiriliyor.
+- **Ölümcül olmayan enum düzeltmeleri görünür.** Geçersiz `meal_type`
+  (`'brunch'`) DB CHECK'i patlatıp **tüm import'u** düşürüyordu; artık
+  `'snack'`'a çekiliyor ve `coerced` sayacıyla "N satırda brunch → snack
+  yapıldı" bilgisi kullanıcıya gösteriliyor.
+- **Yumuşak silinen kayıtlar canlanmıyor (P1).** Yedekte `deleted_at` dolu
+  satırlar **dışa aktarılmaz**; elle düzenlenmiş bir yedekte varsa içe
+  aktarımda yok sayılır. Önceden kullanıcının sildiği öğün yeni `id` ile
+  geri geliyordu.
+- **Su dedup'ı artık epoch üzerinden.** `+00:00` ↔ `Z` aynı kayıt sayılıyor
+  (dize karşılaştırması aynı su kaydını iki kez ekliyordu). `entry_time`
+  yoksa gün başlangıcı türetilir ve bu türetme **sayılır** (sessiz veri
+  kaybı yok).
+- **`favorite_foods`/`recent_foods` artık içe aktarılıyor (P1).** Dışa
+  aktarılıyordu ama içe aktarılmıyordu → yedek→geri yüklemede favoriler
+  kayboluyordu. `UNIQUE(user_id, food_id)` üzerinden `upsert`
+  (`ignoreDuplicates`) ile yazılıyor; gıda eşlemesi **ad** üzerinden yapılıyor
+  (yedekteki eski `id` başka kullanıcıya ait bir UUID'dir, `food_id` olarak
+  yazılırsa FK ihlali olurdu).
+- **Ölçek: 4506 → 37 istek (P1).** Satır satır yazım yerine 500'lük
+  toplu `insert` (`PGRST102` anahtar kümesi sözleşmesi korunur) ve 100'lük
+  dilimlenmiş `in` sorguları (2000 kayıtta tek `in` listesi ~78 KB → 414).
+- **`created_at` yedeğin damgasıyla taşınıyor.** Toplu yazımda satır
+  sırası `created_at`'i taşımadığı için tüm öğünler aynı `now()`'u alıyordu
+  ve "ekleme sırası" koruması kayboluyordu. Gerçekçi olmayan damgalar
+  (2000 öncesi, gelecek) yok sayılır.
+- **Hata mesajı kullanıcıya ne olduğunu söylüyor.** Üç ayrı kol:
+  biçim hatası / doğrulama hatası ("hiçbir kayıt eklenmedi") / yazma
+  hatası ("N kayıt eklenmişti, geri alındı | geri alınamadı"). Sunucu
+  hata metni (tablo/kolon/kısıt adı) yalnızca konsola gider.
+- **Dışa aktarma hataları yutulmuyor.** 8 paralel sorgudan biri hata
+  verirse kullanıcıya "Dışa Aktarma Eksik — şu bölümler okunamadı"
+  uyarısı gösteriliyor; eskiden `|| []` ile boş liste dönüp eksiksiz bir
+  yedekmiş gibi görünüyordu.
+
+### Fixed — Bildirimler (`useNotifications`, P2)
+- **Sessiz hata (A6r3 aktarımı).** `fetchPreferences` / `fetchNotifications` /
+  `subscribeToPush` hata halinde `console.error` + `return` yapıyordu:
+  ekranda **eski veri kalıyor**, kullanıcı hatayı göremiyor, push
+  aboneliği sessizce başarısız oluyordu. Artık `error`
+  (`operation` + görünür mesaj + konsola ayrıntı) ve `retry` durumu var;
+  ayar ekranı ile bildirim paneli hata + "Tekrar Dene" gösteriyor.
+- **VAPID anahtarı yoksa `console.warn` + `return`.** "Push Bildirimlerini
+  Etkinleştir" düğmesi basılı kalıyor, hiçbir şey olmuyordu. Artık
+  "Push bildirimleri için VAPID anahtarı tanımlı değil" görünür hatası.
+- **İzin alındı ama abonelik kurulamadıysa `true` dönüyordu.**
+  `requestPushPermission` artık gerçek sonucu döndürüyor.
+- **Kullanıcı değişince eski tercihler ekranda kalıyordu.** Oturum
+  kapandığında tercihler/bildirimler/okunmamış sayısı sıfırlanıyor.
+- **Ayarlar kaydedilemeyince "başarılı" izlenimi.** `updatePreference`
+  artık `boolean` döndürüyor ve hata halinde `error` durumunu güncelliyor.
+
+### Fixed — CI ve denetleyiciler
+- **Web testleri CI'da koşmuyordu.** Yeni `npm test` (Node'un yerleşik
+  `node:test` + `--experimental-strip-types`, **yeni bağımlılık yok**)
+  40 mantık testi çalıştırır; `react.yml`'a eklendi. `check_versions.cjs`
+  de React CI'a girdi.
+- **`deno.lock` takip ediliyor (P3 kararı).** Edge function'ların
+  bağımlılıkları kısmen sürümsüz (`esm.sh/@supabase/supabase-js@2` →
+  2.117.2'ye yönlendiriliyor, `deno.land/std@0.168.0` sabit). Repo kökündeki
+  `deno.lock` bu çözümlemeyi **sabitler**. Ölçüldü: `deno.lock` yokken
+  `esm.sh` en son sürüme (`@2.180.x`) yönlendiriyordu, varken **2.117.2**
+  kullanılıyor — CI'nın sürüm sürgüsü görünmez hâle geldi ve
+  `setup-deno`'nun `cache: true` anahtarı (`**/deno.lock`) ilk çalışmadan
+  itibaren anlamlı.
+- **`supabase/deno.json` eklendi.** `nodeModulesDir: "none"` + `lock`
+  yönlendirmesi: kökteki `deno.lock` içine React'ın **70 npm
+  bağımlılığı** karışıyordu (web paketinin toplamı 8382 → edge için 3285
+  bayt). `deno` çalışma dizini `supabase/` olduğu için lock artık yalnız
+  edge grafiğini içeriyor.
+- **`flutter.yml` / `supabase.yml` / `react.yml` `push` tetiklemesi tüm
+  branch'lere açıldı.** Önceden `[main, "feature/**"]` idi: bir `fix/...`
+  branch'ine yapılan push denetim çalıştırmıyordu, kırık kod PR açılana
+  kadar birikiyordu. `paths` filtresi korunuyor (konfigürasyon değişikliği
+  tetiklemez), `concurrency` art arda push'ları iptal ediyor.
+- **`react.yml` `tool/**` + `CHANGELOG.md` yollarını izliyor** —
+  `check_versions.cjs` bu dosyaları okuyor.
+
+### Docs
+- **README.md / README_EN.md**: `VITE_VAPID_PUBLIC_KEY` (istemci tarafı,
+  edge function değil) kurulum tablosuna eklendi ve "push açık ama bildirim
+  gelmiyor" durumunun artık görünür hata verdiği belirtildi.
+- **README.md / README_EN.md — güvenlik notu:** React PWA oturum token'ını
+  `localStorage`'da tutuyor (`storage: localStorage`). CSR mimarisinde
+  kaçınılmaz olduğu, XSS etkisi, RLS/JWT azaltıcıları ve SSR/BFF yol
+  haritası belgelendi. Flutter tarafı token'ı Keychain/Keystore'ta tutar.
+- **`.env.example`**: `VITE_VAPID_PUBLIC_KEY` gerekçesiyle eklendi
+  (tanımlanmazsa abonelik oluşmuyor, sessiz hata → artık görünür).
+- **`flutter_app/android/.../values/strings.xml`**: 5 widget etiketi için
+  `values-<lang>/` çeviri dosyaları **kasıtlı olarak eklenmedi**. Gerekçe
+  dosyanın başına yazıldı: (a) yalnız launcher etiketleri ve
+  `contentDescription` referansı, (b) uygulama metinleri `str.*` anahtarlarıyla
+  Dart tarafından geliyor, (c) çevrilebilir widget metni
+  `weekly.labels` 12 dilde zaten çevrili. **Kanıt:** `AndroidManifest.xml`
+  2 widget etiketi, 2 info XML'de 2 `description`, 1 layout'ta 1
+  `contentDescription` referansı — toplam 5, hepsi `@string/…` ve hepsi
+  `values/strings.xml`'de tanımlı. 11 yeni çeviri dosyası eklemek yalnız
+  widget adını başka dile çevirirdi, içeriği çevirmezdi (yanlış çözüm).
+
+### Tests
+- `tool/test_backup_import.mjs` — 40 test: yedek içe aktarımının saf
+  katmanı. Doğrulama hatasında hiç yazma olmaması, ölümcül sayısal
+  sözleşme, `deleted_at` canlanmaması, epoch dedup, `PGRST102` anahtar
+  kümesi, `created_at` taşınması, beyaz liste (kullanıcı/sistem alanları
+  kopyalanmaz), favoriler/son kullanılanlar, 8 KB `in` URL tavanı, 2000
+  öğün ölçeği, bozuk girdi dayanıklılığı. `npm test` ile koşar.
+
 ---
 
 # Flutter App

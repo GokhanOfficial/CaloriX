@@ -146,6 +146,36 @@ Ancak **cron** ile tetiklenen akışın (öğün hatırlatıcıları) JWT'si yok
 | `VAPID_PUBLIC_KEY` | Önerilir | Boş bırakılırsa private key'den türetilir. İstemci tarafı `VITE_VAPID_PUBLIC_KEY` ile okur. |
 | `OPENAI_API_KEY` | AI özellikleri için | Edge function'lar sunucu tarafında okur. |
 
+#### Web Push: `VITE_VAPID_PUBLIC_KEY` (istemci tarafı)
+
+| Değişken | Nerede | Açıklama |
+|----------|--------|----------|
+| `VITE_VAPID_PUBLIC_KEY` | `.env` (derleme zamanı) | `pushManager.subscribe()` için `applicationServerKey`. **Edge function değildir**; Vite ile istemciye gömülür ve gizli değildir. `VAPID_PUBLIC_KEY` ile aynı çift olmalı. |
+
+`VITE_VAPID_PUBLIC_KEY` tanımlı değilse push aboneliği kurulamaz.
+React istemcisi bu durumu artık **sessizce yutmaz** ("Push Bildirimlerini
+Etkinleştir" düğmesi basılı kalır ama hiçbir şey olmaz); ayar ekranında
+görünür bir hata ve "Tekrar Dene" gösterilir
+(`src/hooks/useNotifications.ts` → `error.operation === 'push'`).
+
+### 🔐 Güvenlik notu — oturum token'ı `localStorage`'da
+
+React PWA, `@supabase/supabase-js` istemcisini
+`storage: localStorage` ile kurar (`src/integrations/supabase/client.ts`).
+Bu, Supabase oturumunu (access + refresh token) **kalıcı olarak** tarayıcı
+diskinde tutar.
+
+| Konu | Gerçek |
+|------|--------|
+| Neden kaçınılmaz | Bu bir **CSR (client-side rendering)** PWA'sı. `localStorage`'ı `document.cookie`'ye çevirmek için SSR ya da ek bir BFF katmanı gerekir; bu repo tek istemcili statik Vite build'idir ve edge function'lar yalnızca `ai-chat` / `calculate-macros` / `check-reminders` / `send-notification` / `delete-account` içindir — genel bir proxy görevi görmezler. |
+| Etki | Aynı origin'de çalışan bir **XSS**, `localStorage`'daki token'ı okuyup kullanıcı olarak işlem yapabilir. `httpOnly` cookie'de XSS erişemez. |
+| Azaltıcılar | Supabase RLS tüm tablolarda `auth.uid()` ile sınırlıdır; `anon` anahtarı tek başına hiçbir satırı okuyamaz. Edge function'lar ayrıca JWT'yi sunucuda doğrular. İstemci bundle'ına **hiçbir** `service_role` anahtarı gömülmez. |
+| Öneri (yol haritası) | Oturum yönetimini SSR/BFF'ye taşımak. Bu, React PWA'nın **bakım modunda** olmasının (`PROTOKOL.md` §0) bir sonucudur; ana uygulama Flutter'dır ve token'ı **Keychain/Keystore**'ta tutar. |
+
+`VITE_SUPABASE_PUBLISHABLE_KEY` (anon) kasıtlı olarak istemciye gider ve
+gizli **değildir**; tüm yetkilendirme RLS'te ve edge function JWT
+doğrulamasındadır.
+
 
 4. **Geliştirme sunucusunu başlatın**
 ```bash
