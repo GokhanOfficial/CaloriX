@@ -106,3 +106,64 @@ export function isAllowedPushEndpoint(endpoint: string): boolean {
     return false;
   }
 }
+
+// ===========================================================================
+// KANAL ETKİNLİĞİ — master anahtar + tip tercihi birleştirme (A1r10)
+// ===========================================================================
+// ⭐ BUGÜN DÜZELTİLEN AÇIK (P1, A4r8'in bulduğu hatanın **sunucu tarafı**)
+// ---------------------------------------------------------------------------
+// `send-notification` kanal kararını şöyle veriyordu:
+//
+//   const pushEnabled  = preference?.push_enabled  ?? profile.push_notifications_enabled  ?? true;
+//   const emailEnabled = preference?.email_enabled ?? profile.email_notifications_enabled ?? true;
+//
+// `??` **yalnız `null`/`undefined` üstüne** düşer. `notification_preferences`'a
+// yazan **ilk istemci** (`check-reminders`'ın "satır yoksa kapalı" davranışını
+// düzeltmek için Flutter/web "her tip için satır yaz" yaptı) `push_enabled`
+// kolonunu **dolu** (true) yazar. `BOOLEAN DEFAULT true` + NOT NULL olmayan
+// kolon yazılmadığında zaten `true` olur.
+//
+// Sonuç: **profil master anahtarı hiç okunmaz.** Kullanıcı üstteki "Push
+// Bildirimleri" anahtarını kapatır, tip bazlı `true` satırları yazılı kalır
+// ve bildirimler **yine gider**. Kullanıcının güvenlik/opsiyon tercihi
+// ihlal edilir.
+//
+// A4r8 bu açığı **istemci tarafında** `applyMasterSwitches` ile kapattı
+// (satırları AND'leyerek yazmak). Bu, savunmanın **tek katmanıdır**: DB'de
+// zaten yazılmış satırlar (yedek içe aktarım, eski istemci, elle SQL) master
+// anahtara rağmen gönderimi engellemez. Doğru bileşim **AND**'dir ve
+// **sunucuda** uygulanmalıdır — istemciye güvenilemez (istemci tabanlı
+// bildirim tercihi bir güvenlik sınırı değildir).
+//
+// Karar kuralı: `master && tipTercihi`, ikisi de yoksa `true` (geriye uyum).
+
+/** Kanal kararının girdileri. `null`/`undefined` = "bu katmanda karar yok". */
+export interface ChannelSwitchInput {
+  /** `notification_preferences.push_enabled` (satır yoksa `null`). */
+  preferenceEnabled?: boolean | null;
+  /** `profiles.push_notifications_enabled` (master; NULL olabilir). */
+  masterEnabled?: boolean | null;
+  /** Katmanların ikisi de yoksa kullanılan varsayılan. */
+  fallback?: boolean;
+}
+
+/**
+ * Push/e-posta kanalının açık olup olmadığını **AND** mantığıyla çözer.
+ *
+ * - master `false` → **her zaman** `false` (kapalı master, tip açık olsa bile).
+ * - master `true`/`null` → tip tercihine düşer.
+ * - tip `null` → master'a düşer.
+ * - ikisi de `null` → `fallback` (varsayılan `true`, geriye uyum).
+ */
+export function resolveChannelEnabled(input: ChannelSwitchInput): boolean {
+  const fallback = input.fallback ?? true;
+  const master = input.masterEnabled;
+  const preference = input.preferenceEnabled;
+  // Master kapatmışsa tip ne derse desin kanal kapalı.
+  if (master === false) return false;
+  // Master açık (veya bilinmiyor) → tip tercihi belirleyici.
+  if (typeof preference === "boolean") return preference;
+  // Tip satırı yok → master belirleyici; master de yoksa varsayılan.
+  if (typeof master === "boolean") return master;
+  return fallback;
+}

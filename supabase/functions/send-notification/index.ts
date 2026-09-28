@@ -12,7 +12,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
-import { errorResponse, isAllowedPushEndpoint, jsonResponse, preflightResponse } from "../_shared/http.ts";
+import { errorResponse, isAllowedPushEndpoint, jsonResponse, preflightResponse, resolveChannelEnabled } from "../_shared/http.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 import { ValidationError, requireEnum, requireUuid } from "../_shared/validate.ts";
 import {
@@ -419,9 +419,26 @@ async function processNotification(
     .eq("notification_type", type)
     .maybeSingle();
 
-  // Use defaults if no preference found
-  const pushEnabled = preference?.push_enabled ?? profile.push_notifications_enabled ?? true;
-  const emailEnabled = preference?.email_enabled ?? profile.email_notifications_enabled ?? true;
+  // ⭐ Kanal kararı **AND** mantığıyla (A1r10, P1 düzeltmesi).
+  //
+  // Eski karar `preference?.push_enabled ?? profile.push_notifications_enabled
+  // ?? true` idi. `??` yalnız `NULL` üstüne düştüğü için, `notification_
+  // preferences`'a satır yazan ilk istemciden sonra **profil master anahtarı
+  // hiç okunmuyordu**: kullanıcı üstteki "Push Bildirimleri" anahtarını
+  // kapatırsa bile tip bazlı `true` satırları bildirimi göndermeye devam eder.
+  //
+  // A4r8 bunu **istemci tarafında** `applyMasterSwitches` ile kapattı; bu tek
+  // katmandır ve DB'de zaten yazılmış satırları (yedek içe aktarım, eski
+  // istemci, elle SQL) engellemez. İstemci tabanlı bildirim tercihi bir
+  // güvenlik sınırı **değildir** — karar sunucuda verilir.
+  const pushEnabled = resolveChannelEnabled({
+    preferenceEnabled: preference?.push_enabled,
+    masterEnabled: profile.push_notifications_enabled,
+  });
+  const emailEnabled = resolveChannelEnabled({
+    preferenceEnabled: preference?.email_enabled,
+    masterEnabled: profile.email_notifications_enabled,
+  });
 
   let pushSent = false;
   let emailSent = false;

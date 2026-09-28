@@ -240,16 +240,30 @@ const handler = async (req: Request): Promise<Response> => {
     // sessizce yutulurdu, sonuç kullanıcıya günde ~12 kez aynı bildirim gider.
     // Artık hem loglanır hem de koşu özetine yansır → izlenebilir.
     const stampFailures: Array<{ userId: string; column: string }> = [];
+    // A1r10: master anahtarları kapalı olduğu için **hiç değerlendirilmeyen**
+    // kullanıcı sayısı. Sessiz `continue` "kontrol edilmedi" izlenimi yaratır;
+    // sayı koşu özetine yansır (A1r3'ün "sessiz hata yutma" ilkesi).
+    let skippedByMaster = 0;
 
     console.log(`Hatırlatıcı kontrolü: ${now.toISOString()} (saat/gün profilden)`);
 
     // Get all users with notifications enabled
     // `timezone` artık SELECT'e dahil: sabit `UTC+3` yerine kullanıcının
     // kendi saat dilimi kullanılır (A1r4).
+    // ⭐ A1r10: **master anahtarlar da** SELECT'e eklendi. `profiles
+    // .push_notifications_enabled` / `.email_notifications_enabled` kullanıcının
+    // üst düzey "hiçbir şey gönderme" tercihidir. `check-reminders` bunları
+    // hiç okumuyordu → master `false` olan kullanıcı için de her koşuda
+    // `send-notification`'a HTTP çağrısı yapılıyordu. `send-notification`
+    // artık AND mantığıyla kapatıyor (bkz. `resolveChannelEnabled`), yani
+    // **bildirim gitmiyor**; ama gereksiz HTTP + `notifications` INSERT'i +
+    // `rate_limit_hit` sayımı yapılıyordu. Burada filtrelemek:
+    //   * hatırlatma gönderilmez (davranış zaten doğruydu, **görünür** kılındı)
+    //   * gereksiz çağrı hiç yapılmaz (maliyet + gizlilik)
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, timezone, daily_water_target_ml, weigh_in_frequency_days, last_weigh_in_reminder, last_water_reminder, last_daily_log_reminder, last_weekly_summary, onboarding_completed",
+        "id, display_name, timezone, daily_water_target_ml, weigh_in_frequency_days, last_weigh_in_reminder, last_water_reminder, last_daily_log_reminder, last_weekly_summary, onboarding_completed, push_notifications_enabled, email_notifications_enabled",
       )
       .eq("onboarding_completed", true);
 
@@ -262,6 +276,25 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Kontrol edilecek profil sayısı: ${profileList.length}`);
 
     for (const profile of profileList) {
+      // ⭐ A1r10: master anahtar kapısı. Kullanıcı hem push hem e-posta
+      // master anahtarını kapatmışsa **hiçbir hatırlatma üretilmez**.
+      // Gerekçe: `check-reminders` bu anahtarları hiç okumuyordu, yani
+      // kapalı kullanıcı için de her koşuda 4 blok değerlendirilir ve
+      // `send-notification`'a HTTP çağrısı yapılırdı. Bildirim `send-notification`
+      // tarafından zaten engelleniyordu (A1r10 `resolveChannelEnabled`), ama:
+      //   * gereksiz HTTP + DB sorgusu (maliyet),
+      //   * `rate_limit_hit` sayımının tükenmesi,
+      //   * gereksiz `notifications` INSERT'i yapılıyordu.
+      // `null` master "belirsiz" demektir → **kapatmış sayılmaz** (geriye
+      // uyum: profili hiç doldurmamış kullanıcı hatırlatma almaya devam eder).
+      const masterPush = profile.push_notifications_enabled;
+      const masterEmail = profile.email_notifications_enabled;
+      if (masterPush === false && masterEmail === false) {
+        // Sessizce atlanır ama **sayılır** (izlenebilirlik, A1r3 ilkesi).
+        skippedByMaster += 1;
+        continue;
+      }
+
       // Saat dilimi (A1r4): `now` sabit `UTC+3` ile kaydırılmıyor artık.
       // Kullanıcının `profiles.timezone` değeri **kendi gün ve saat parçalarını**
       // üretir; geçersiz/boş değerde `Intl` RangeError fırlatmasın diye
@@ -661,6 +694,9 @@ const handler = async (req: Request): Promise<Response> => {
       sent: sentThisRun.length,
       // Sıfırdan farklıysa cron alarmı üretir; normalde 0.
       stampFailures: stampFailures.length,
+      // A1r10: master anahtarları kapalı olduğu için atlanan profil sayısı.
+      // Yüksekse bu, **kasıtlı** bir davranıştır (kullanıcı istedi).
+      skippedByMaster,
     });
   } catch (error: unknown) {
     console.error("check-reminders hatası:", error);
