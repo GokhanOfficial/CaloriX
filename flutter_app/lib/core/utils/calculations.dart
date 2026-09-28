@@ -34,12 +34,26 @@ abstract final class Calculations {
   /// uygulanır. Web parity'si nominal pozitif girdilerde bozulmaz.
   static ({int protein, int carbs, int fat}) macros(int targetCalories) {
     if (targetCalories <= 0) return (protein: 0, carbs: 0, fat: 0);
+    // Oranlar **tek yerde** tanımlı; `tool/check_versions.cjs` bu sabitleri
+    // web `calculateMacros` varsayılanlarıyla (`proteinPercent = 30` vb.)
+    // karşılaştırıyor. Değerler burada değiştirilirse web tarafı
+    // `src/lib/calculations.ts` ile birlikte güncellenmelidir.
     return (
-      protein: ((targetCalories * 0.30) / 4).round(),
-      carbs: ((targetCalories * 0.40) / 4).round(),
-      fat: ((targetCalories * 0.30) / 9).round(),
+      protein: ((targetCalories * proteinRatio) / proteinKcalPerG).round(),
+      carbs: ((targetCalories * carbsRatio) / carbsKcalPerG).round(),
+      fat: ((targetCalories * fatRatio) / fatKcalPerG).round(),
     );
   }
+
+  /// Makro dağılım oranları (toplam 1.0) — web `calculateMacros` ile aynı.
+  static const double proteinRatio = 0.30;
+  static const double carbsRatio = 0.40;
+  static const double fatRatio = 0.30;
+
+  /// Gram başına kalori (atwater) — fizyolojik sabit.
+  static const int proteinKcalPerG = 4;
+  static const int carbsKcalPerG = 4;
+  static const int fatKcalPerG = 9;
 
   /// Vücut kitle indeksi (1 ondalık).
   ///

@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:home_widget/home_widget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 import '../../data/models/profile.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/diary_repository.dart';
 import '../../data/repositories/profile_repository.dart';
 import '../observability/app_logger.dart';
@@ -28,6 +30,13 @@ class WidgetBridge {
 
   /// `DailyWidgetProvider.ACTION_REFRESH` ile aynı olmalı.
   static const String refreshAction = 'com.calorix.app.action.WIDGET_REFRESH';
+
+  /// `widget.state` anahtarının değerleri — `buildStateSnapshot` ile aynı
+  /// sözleşme. `WidgetData.kt` yalnızca bu üç değeri tanır (`STATE_NO_CONFIG`
+  /// dahil), başka bir değer görürse nötr duruma düşer.
+  static const String stateReady = 'ready';
+  static const String stateSignedOut = 'signedOut';
+  static const String stateNoConfig = 'noConfig';
 
   /// Native provider sınıf adları — `home_widget` bunları manifest'te arar
   /// (`androidName` bir WidgetProvider sınıf adı olmalıdır).
@@ -151,37 +160,149 @@ abstract final class HomeWidgetSave {
 /// Widget köprüsünü uygulamanın veri akışına bağlar.
 ///
 /// `MaterialApp.router` altına sarılır. Günlük veri her değiştiğinde
-/// (öğün ekle/sil, su, kilo) ve ayar değiştiğinde native widget'lar tazelenir.
-class WidgetBridgeScope extends ConsumerWidget {
+/// (öğün ekle/sil, su, kilo), oturum değiştiğinde ve ayar değiştiğinde
+/// native widget'lar tazelenir.
+class WidgetBridgeScope extends ConsumerStatefulWidget {
   const WidgetBridgeScope({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Günlük veri değiştikçe günlük widget'ı yeniden yayınla.
+  ConsumerState<WidgetBridgeScope> createState() => _WidgetBridgeScopeState();
+}
+
+class _WidgetBridgeScopeState extends ConsumerState<WidgetBridgeScope> {
+  /// Yayınlanan son günün veri imzası.
+  ///
+  /// `AsyncValue` referans eşitliği güvenilir değil: `AsyncLoading` →
+  /// `AsyncData` → `AsyncData(yeni veri)` geçişlerinde provider her seferinde
+  /// yeni bir `AsyncData` üretir ama `==` ile karşılaştırılabilir. Aynı veri
+  /// için **tekrar yayın yapmamak**, kullanıcı ayar değiştirdiğinde widget'ın
+  /// gereksiz yere yeniden çizilmesini (ve `home_widget` platform çağrısını)
+  /// engeller.
+  DailyData? _lastPublishedDaily;
+
+  /// Oturum durumu yayınlandı mı? (nötr duruma geçiş yalnızca bir kez)
+  String? _lastPublishedState;
+
+  /// Günlük veri yayınlandı mı? (aynı örnek için tekrar yayın yapılmaz)
+  ///
+  /// NOT: `WidgetRef.listen` ilk değeri **tetiklemez** (aşağıdaki blokta
+  /// gerekçesi var); bu bayrak "0) ilk değer" bloğunun yalnızca bir kez
+  /// çalıştığını garanti eder.
+  bool _dailyPublished = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final localeCode = _localeCode(context);
+
+    // --- 0) İlk değer yayını (P0 düzeltmesi, 2026-09-28).
+    //
+    // `WidgetRef.listen` **ilk değeri tetiklemez.** Kaynak bunu açıkça
+    // belirtiyor (flutter_riverpod-2.6.1/lib/src/consumer.dart:604):
+    //   "We can't implement a fireImmediately flag because we wouldn't know
+    //    which listen call was preserved between widget rebuild…"
+    // Yani `build` içindeki `ref.listen` yalnızca **sonraki** değişikliklerde
+    // çalışır.
+    //
+    // Gerçek etki: uygulama açıldığında widget'ın `HomeWidgetPreferences`
+    // deposunda veri **yoksa** hiçbir şey yazılmıyordu — ana ekran
+    // widget'ları "veri yok" durumunda kalıyor, günlük veri geldiğinde
+    // `AsyncLoading` → `AsyncData` geçişi ise *muhakkak* bir değişiklik
+    // sayıldığı için yakalanıyordu. Sorun, verinin **zaten önbellekte
+    // hazır** olduğu (ya da oturumdan hiç okunmadan `ref.read` ile
+    // senkron değer döndüğü) durumdu: `published` boş kalıyordu.
+    //
+    // Aşağıdaki blok `build` sırasında `ref.read` ile **mevcut** değeri
+    // alıp aynı yayın yolundan geçirir. Böylece "provider HENÜZ okunmamışken
+    // de ilk yayın yapılır" sözleşmesi gerçekten sağlanır; sonraki
+    // değişiklikler `ref.listen` ile gelir ve `_lastPublished*` sayaçları
+    // çift yayını engeller.
+    if (!_dailyPublished) {
+      final initial = ref.read(dailyDataProvider);
+      final data = initial.valueOrNull;
+      if (data != null) {
+        _publishDaily(data, localeCode);
+      }
+    }
+    if (_lastPublishedState == null) {
+      // `currentUserProvider` zinciri `authRepositoryProvider` →
+      // `Supabase.instance` üzerinden geçiyor; **exceptionsız** okunmalı
+      // (`ref.read` aksi hâlde widget'ın build'ini patlatıyor — Supabase
+      // başlatılmamışsa assertion fırlatıyor). Oturum durumu zaten 1)
+      // bloğundaki `ref.listen` ile gelir; bu satır yalnızca "abone
+      // olduğumuz provider'ın değeri hâlihazırda hazırsa" ilk yayını
+      // tetikler.
+      User? initialUser;
+      try {
+        initialUser = ref.read(currentUserProvider);
+      } catch (_) {
+        initialUser = null;
+      }
+      _publishState(initialUser == null, localeCode);
+    }
+
+    // --- 1) Günlük veri: her değiştiğinde günlük widget'ı yeniden yayınla.
     ref.listen<AsyncValue<DailyData>>(dailyDataProvider, (previous, next) {
       final data = next.valueOrNull;
       if (data == null) return;
+      _publishDaily(data, localeCode);
+    });
+
+    // --- 2) Oturum durumu: çıkışta widget'ı nötr duruma al.
+    //
+    // `dailyDataProvider` `currentUserProvider`'a bağlı; kullanıcı çıkış
+    // yapınca `DailyData.empty` döner ve **eski kaloriler widget'ta kalırdı**
+    // (`publishState` hiç çağrılmıyordu → şifreli ekranda başkasının
+    // kalori görünür). Burada durum değişimi nötr snapshot'a çevrilir.
+    ref.listen<User?>(currentUserProvider, (previous, next) {
+      _publishState(next == null, localeCode);
+    });
+
+    // --- 3) Ayar değişiklikleri yalnızca görünürlük anahtarlarını etkiler.
+    ref.listen<WidgetSettings>(widgetSettingsProvider, (previous, next) {
+      if (previous == null || previous == next) return;
       unawaited(
-        WidgetBridge.publishDaily(
-          daily: data,
-          profile: ref.read(profileProvider).valueOrNull,
-          settings: ref.read(widgetSettingsProvider),
-          strings: WidgetStrings.current(),
-          now: DateTime.now(),
-          localeCode: _localeCode(context),
-        ),
+        refreshVisibility(settings: next, localeCode: localeCode),
       );
     });
 
-    // Ayar değişiklikleri widget görünürlüğünü değiştirir → yeniden yayın.
-    ref.listen<WidgetSettings>(widgetSettingsProvider, (previous, next) {
-      if (previous == null || previous == next) return;
-      unawaited(refreshVisibility(settings: next, localeCode: _localeCode(context)));
-    });
+    return widget.child;
+  }
 
-    return child;
+  /// Günlük snapshot'ı yayınlar. Aynı `DailyData` örneği için tekrar
+  /// yayın yapmaz (`ref.invalidate` sonrası özdeş veri geldiğinde gereksiz
+  /// `home_widget` platform çağrısı olmasın).
+  void _publishDaily(DailyData data, String localeCode) {
+    if (_dailyPublished && identical(_lastPublishedDaily, data)) return;
+    _dailyPublished = true;
+    _lastPublishedDaily = data;
+    unawaited(
+      WidgetBridge.publishDaily(
+        daily: data,
+        profile: ref.read(profileProvider).valueOrNull,
+        settings: ref.read(widgetSettingsProvider),
+        strings: WidgetStrings.current(),
+        now: DateTime.now(),
+        localeCode: localeCode,
+      ),
+    );
+  }
+
+  /// Oturum durumunu (nötr ya da hazır) yayınlar; aynı durum için tekrar
+  /// yayın yapmaz.
+  void _publishState(bool signedOut, String localeCode) {
+    final state =
+        signedOut ? WidgetBridge.stateSignedOut : WidgetBridge.stateReady;
+    if (_lastPublishedState == state) return;
+    _lastPublishedState = state;
+    unawaited(
+      WidgetBridge.publishState(
+        state: state,
+        strings: WidgetStrings.current(),
+        localeCode: localeCode,
+      ),
+    );
   }
 
   static String _localeCode(BuildContext context) {
