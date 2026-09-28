@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { tr } from "date-fns/locale";
 
 export interface DailyStats {
@@ -117,8 +117,24 @@ export function useAnalyticsData(period: Period = "week") {
 
       if (weightsError) throw weightsError;
 
-      // Generate all days in the period
-      const days = eachDayOfInterval({ start, end: new Date(Math.min(end.getTime(), new Date().getTime())) });
+      // Generate all days in the period.
+      //
+      // İki düzeltme:
+      // 1. **Bugünden sonraki günler kırpılıyor.** `endOfWeek`/`endOfMonth`
+      //    gelecek tarihleri veriyordu; `hasData: false` günler grafiğe
+      //    "0 kalori" olarak giriyordu vehaftanın geri kalanını
+      //    yapay olarak düşürüyordu.
+      // 2. `eachDayOfInterval` **ters aralıkta `RangeError` fırlatır**.
+      //    `period` geçersiz ya da `start > end` olduğunda (ör. saat dilimi
+      //    kayması, `endOfWeek` sınırı) tüm analitik ekranı patlıyordu.
+      //    Flutter tarafı `analytics_repository.buildDays` aynı korumayı
+      //    `_daysBetween` ile yapıyor; `_addDays` DST'ye duyarlı olduğu için
+      //    orada `eachDayOfInterval` kullanılmıyor.
+      const cappedEnd = new Date(Math.min(end.getTime(), new Date().getTime()));
+      const days =
+        start.getTime() <= cappedEnd.getTime()
+          ? eachDayOfInterval({ start, end: cappedEnd })
+          : [];
 
       // Group data by date
       const mealsByDate: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
@@ -181,12 +197,28 @@ export function useAnalyticsData(period: Period = "week") {
         daysWithData: daysWithData.length,
       });
 
-      // Process weight trend
-      const weightData: WeightTrend[] = (weights || []).map((w) => ({
-        date: w.entry_date,
-        dateLabel: format(parseISO(w.entry_date), "d MMM", { locale: tr }),
-        weight: w.weight_kg,
-      }));
+      // Process weight trend.
+      //
+      // `parseISO(w.entry_date)` — `entry_date` bir `DATE` kolonu olduğu için
+      // sunucu **"2026-03-01"** (tarih-saat değil) döner. `parseISO` bunu
+      // **UTC gece yarısı** olarak ayrıştırıyor ve `format()` yerel saatte
+      // yazdırıyor. UTC+03:00'te 1 Mart gösterilirken 28 Şubat'a kayıyordu
+      // (Batı yarımkürede 1 Mart, Doğu yarımkürede 28 Şubat). Aynı sınıf hata
+      // A5'ın `useDataExport` için eklediği `localDateFromIso` ile düzeltilmiş
+      //ti; burada da yerel takvim gününe sabitleniyor.
+      const weightData: WeightTrend[] = (weights || [])
+        .filter((w) => typeof w.entry_date === "string" && w.entry_date.trim() !== "")
+        .map((w) => {
+          const [y, m, d] = w.entry_date.split("-").map(Number);
+          const localDate = y && m && d ? new Date(y, m - 1, d) : null;
+          return {
+            date: w.entry_date,
+            dateLabel: localDate
+              ? format(localDate, "d MMM", { locale: tr })
+              : w.entry_date,
+            weight: w.weight_kg,
+          };
+        });
 
       setWeightTrend(weightData);
       setError(null);

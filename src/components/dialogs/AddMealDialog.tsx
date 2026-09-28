@@ -52,14 +52,21 @@ export function AddMealDialog({
     fat: "",
   });
 
+  // `parseFloat` yalnızca baştaki sayıyı okur ("12abc" → 12, "abc" → NaN).
+  // NaN/negatif miktar `amount_g_ml = 0` olarak kaydedilip günlük toplamları
+  // sessizce bozuyordu (bkz. EditMealDialog'daki aynı düzeltme).
+  const amountNum = parseFloat(formData.amount);
+  const amountValid = Number.isFinite(amountNum) && amountNum > 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!amountValid) return;
     setLoading(true);
 
     const result = await onSubmit({
       custom_name: formData.name,
       meal_type: formData.mealType,
-      amount_g_ml: parseFloat(formData.amount) || 0,
+      amount_g_ml: amountNum,
       calculated_kcal: parseFloat(formData.calories) || 0,
       calculated_protein: parseFloat(formData.protein) || 0,
       calculated_carbs: parseFloat(formData.carbs) || 0,
@@ -131,6 +138,7 @@ export function AddMealDialog({
                 <Input
                   id="amount"
                   type="number"
+                  min={1}
                   value={formData.amount}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, amount: e.target.value }))
@@ -208,7 +216,7 @@ export function AddMealDialog({
             >
               İptal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !amountValid}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ekle
             </Button>

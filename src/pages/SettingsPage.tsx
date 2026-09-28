@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useProfile } from "@/contexts/ProfileContext";
-import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, APP_VERSION, activityLevelToDb, activityLevelFromDb, type ActivityLevel, type Goal } from "@/lib/constants";
+import { HEALTH_DISCLAIMER, ACTIVITY_LEVELS, GOALS, APP_VERSION, DEFAULT_GOALS, activityLevelToDb, activityLevelFromDb, type ActivityLevel, type Goal } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -43,6 +43,7 @@ import {
   getBMICategory,
 } from "@/lib/calculations";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction, type MacroCalcResponse } from "@/integrations/supabase/functions";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { useDataExport } from "@/hooks/useDataExport";
 import { useTranslation } from "react-i18next";
@@ -90,7 +91,7 @@ const SettingsPage = () => {
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(profile?.daily_calorie_target || 2000);
   const [proteinTarget, setProteinTarget] = useState(profile?.protein_target_g || 150);
   const [carbsTarget, setCarbsTarget] = useState(profile?.carbs_target_g || 200);
-  const [fatTarget, setFatTarget] = useState(profile?.fat_target_g || 65);
+  const [fatTarget, setFatTarget] = useState(profile?.fat_target_g || DEFAULT_GOALS.fat);
   const [waterTarget, setWaterTarget] = useState(profile?.daily_water_target_ml || 2500);
 
   // Notification settings
@@ -115,7 +116,7 @@ const SettingsPage = () => {
     setDailyCalorieTarget(profile?.daily_calorie_target || 2000);
     setProteinTarget(profile?.protein_target_g || 150);
     setCarbsTarget(profile?.carbs_target_g || 200);
-    setFatTarget(profile?.fat_target_g || 65);
+    setFatTarget(profile?.fat_target_g || DEFAULT_GOALS.fat);
     setWaterTarget(profile?.daily_water_target_ml || 2500);
     setGoalsOpen(true);
   };
@@ -141,19 +142,22 @@ const SettingsPage = () => {
     try {
       const age = calculateAge(new Date(birthDate));
 
-      const { data, error } = await supabase.functions.invoke('calculate-macros', {
-        body: {
-          age,
-          gender,
-          height_cm: heightCm,
-          current_weight_kg: currentWeightKg,
-          target_weight_kg: targetWeightKg,
-          activity_level: activityLevel,
-          goal,
-        },
+      const { data, error } = await invokeFunction<MacroCalcResponse>('calculate-macros', {
+        age,
+        gender,
+        height_cm: heightCm,
+        current_weight_kg: currentWeightKg,
+        target_weight_kg: targetWeightKg,
+        // `calculate-macros` yalnızca DB'nin CHECK kısıtıyla birebir aynı
+        // snake_case değerleri kabul eder (supabase/functions/calculate-macros
+        // /index.ts:23 `ACTIVITY_LEVELS`). UI anahtarı camelCase
+        // (`veryActive`) gönderilince fonksiyon **400** döner ve tüm
+        // "yeniden hesapla" akışı hata mesajıyla bitiyordu.
+        activity_level: activityLevelToDb(activityLevel),
+        goal,
       });
 
-      if (error) throw error;
+      if (error || !data) throw error ?? new Error('calculate-macros boş yanıt döndü');
 
       setDailyCalorieTarget(data.daily_calorie_target);
       setProteinTarget(data.protein_target_g);
@@ -197,22 +201,24 @@ const SettingsPage = () => {
       try {
         const age = calculateAge(new Date(birthDate));
 
-        const { data, error: aiError } = await supabase.functions.invoke('calculate-macros', {
-          body: {
-            age,
-            gender,
-            height_cm: heightCm,
-            current_weight_kg: currentWeightKg,
-            target_weight_kg: targetWeightKg,
-            activity_level: activityLevelToDb(profile?.activity_level || "moderate"),
-            goal: profile?.goal || "maintain",
-            previous_weight_kg: profile.current_weight_kg,
-            previous_macros: {
-              daily_calorie_target: profile.daily_calorie_target,
-              protein_target_g: profile.protein_target_g,
-              carbs_target_g: profile.carbs_target_g,
-              fat_target_g: profile.fat_target_g,
-            },
+        // `activityLevelToDb` UI anahtarı (camelCase) bekler; profil DB'den
+        // snake_case okur. `activityLevelFromDb` ile önce UI'ya, sonra
+        // `activityLevelToDb` ile DB'ye çeviriyoruz — aksi hâlde "Çok Aktif"
+        // profilinde `calculate-macros` 400 döner ve hedefler güncellenmez.
+        const { data, error: aiError } = await invokeFunction<MacroCalcResponse>('calculate-macros', {
+          age,
+          gender,
+          height_cm: heightCm,
+          current_weight_kg: currentWeightKg,
+          target_weight_kg: targetWeightKg,
+          activity_level: activityLevelToDb(activityLevelFromDb(profile?.activity_level)),
+          goal: profile?.goal || "maintain",
+          previous_weight_kg: profile.current_weight_kg,
+          previous_macros: {
+            daily_calorie_target: profile.daily_calorie_target,
+            protein_target_g: profile.protein_target_g,
+            carbs_target_g: profile.carbs_target_g,
+            fat_target_g: profile.fat_target_g,
           },
         });
 

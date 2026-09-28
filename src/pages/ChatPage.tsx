@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/integrations/supabase/functions";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -271,18 +272,20 @@ const ChatPage = () => {
   };
 
   const invokeAssistant = async (activeThreadId: string) => {
-    const { data, error } = await supabase.functions.invoke("ai-chat", {
-      body: {
-        mode: "chat",
-        threadId: activeThreadId,
-        locale: navigator.language || i18n.language,
-        language: i18n.language,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        currentDate: new Date().toLocaleDateString("en-CA"),
-      },
+    const { data, error } = await invokeFunction<{ message?: unknown }>("ai-chat", {
+      mode: "chat",
+      threadId: activeThreadId,
+      locale: navigator.language || i18n.language,
+      language: i18n.language,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // `toLocaleDateString("en-CA")` bölgeye göre `MM/DD/YYYY` üretebiliyor
+      // (`en-CA` her tarayıcıda yyyy-mm-dd garantisi vermiyor). Sunucu
+      // `currentDate`'i prompt'a düz metin koyduğu için belirsiz "09/07/2026"
+      // gün/ay sırasını AI'a bırakmak yanlış gün yorumlatıyordu.
+      currentDate: format(new Date(), "yyyy-MM-dd"),
     });
-    if (error) throw error;
-    if (data?.message) {
+    if (error || !data) throw error ?? new Error("ai-chat boş yanıt döndü");
+    if (data.message) {
       const signed = await signAttachments([data.message as ChatMessage]);
       setMessages((prev) => [...prev, signed[0]]);
       scrollToBottom("smooth");

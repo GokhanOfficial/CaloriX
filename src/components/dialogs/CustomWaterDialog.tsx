@@ -27,13 +27,20 @@ export function CustomWaterDialog({
   const { t } = useTranslation();
   const [amount, setAmount] = useState("");
 
+  // `parseInt("500.9")` → 500 (ondalık **sessizce** kesilir), `parseInt("abc")`
+  // → NaN, `parseInt("-1")` → -1. Alt sınır zaten vardı ama üst sınır
+  // yoktu: "999999" ml tek kayıtla günlük hedefi (varsayılan 2500 ml)
+  // binlerce katına çıkarıyor ve aylar boyunca istatistikleri bozuyordu.
+  // Flutter tarafındaki karşılığı `water_tracker`'ın 5000 ml üst sınırıdır.
+  const amountNum = Number(amount);
+  const amountValid =
+    Number.isInteger(amountNum) && amountNum >= 50 && amountNum <= 5000;
+
   const handleSubmit = () => {
-    const value = parseInt(amount, 10);
-    if (value > 0) {
-      onSubmit(value);
-      setAmount("");
-      onOpenChange(false);
-    }
+    if (!amountValid) return;
+    onSubmit(amountNum);
+    setAmount("");
+    onOpenChange(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -60,6 +67,9 @@ export function CustomWaterDialog({
               <Input
                 id="waterAmount"
                 type="number"
+                min={50}
+                max={5000}
+                step={50}
                 placeholder={`${t('dialogs.example')} 330`}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -91,7 +101,7 @@ export function CustomWaterDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!amount || parseInt(amount, 10) <= 0}
+            disabled={!amountValid}
           >
             {t('dialogs.add')}
           </Button>

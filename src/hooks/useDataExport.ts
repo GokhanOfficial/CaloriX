@@ -21,6 +21,19 @@ function localDateFromIso(iso: string | null | undefined): string | null {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Kullanıcıya gösterilebilir, **içerik sızdırmayan** hata etiketi.
+ *
+ * `SyntaxError` → dosya JSON değil (beklenen en yaygın senaryo: kullanıcı
+ * yanlış dosyayı seçti). Diğer her şey için sınıf adı — dosya yolu, tablo
+ * adı ya da kısıt adı taşımaz.
+ */
+function errorName(error: unknown): string {
+  if (error instanceof SyntaxError) return 'geçersiz JSON biçimi';
+  if (error instanceof Error && error.name) return error.name;
+  return 'bilinmeyen hata';
+}
+
 export interface ExportData {
   version: string;
   exportedAt: string;
@@ -314,10 +327,15 @@ export function useDataExport() {
         description: `${importedCount.meals} öğün, ${importedCount.water} su, ${importedCount.weight} kilo, ${importedCount.foods} yemek içe aktarıldı.`,
       });
     } catch (error) {
+      // `error.message` **kullanıcıya doğrudan gösteriliyordu**. `JSON.parse`
+      // hatası dosya yolunu (`/home/kullanici/.../backup.json`) sızdırıyordu;
+      // Supabase `PostgrestError.message` ise tablo/kolon adlarını ve kısıt
+      // adlarını (örn. `meal_entries_amount_g_ml_check`) içerebiliyor.
+      // Artık yalnızca operasyonel bilgi gösteriliyor, ayrıntı konsola gidiyor.
       console.error('Import error:', error);
       toast({
         title: 'Hata',
-        description: error instanceof Error ? error.message : 'Veriler içe aktarılamadı',
+        description: `Yedek dosyası içe aktarılamadı (${errorName(error)}). Dosyanın CaloriX tarafından dışa aktarılmış olduğundan emin olun.`,
         variant: 'destructive',
       });
     } finally {

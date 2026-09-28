@@ -12,12 +12,14 @@ import { AddMealDialog } from "@/components/dialogs/AddMealDialog";
 import { EditMealDialog } from "@/components/dialogs/EditMealDialog";
 import { AddWeightDialog } from "@/components/dialogs/AddWeightDialog";
 import { UnifiedFoodDialog } from "@/components/dialogs/UnifiedFoodDialog";
-import { MEAL_TYPES, type MealType, DEFAULT_GOALS, activityLevelToDb } from "@/lib/constants";
+import { MEAL_TYPES, type MealType, DEFAULT_GOALS, activityLevelToDb, activityLevelFromDb } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useDailyData } from "@/hooks/useDailyData";
 import { useProfile } from "@/contexts/ProfileContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction, type MacroCalcResponse } from "@/integrations/supabase/functions";
+import { calculateAge } from "@/lib/calculations";
 import { useTranslation } from "react-i18next";
 
 const Index = () => {
@@ -100,30 +102,32 @@ const Index = () => {
     if (profile?.auto_recalculate_macros && weight !== profile.current_weight_kg) {
       try {
         // Recalculate macros with AI
-        const response = await supabase.functions.invoke("calculate-macros", {
-          body: {
-            age: profile.birth_date
-              ? Math.floor(
-                (Date.now() - new Date(profile.birth_date).getTime()) /
-                (365.25 * 24 * 60 * 60 * 1000)
-              )
-              : 30,
-            gender: profile.gender || "other",
-            height_cm: profile.height_cm || 170,
-            current_weight_kg: weight,
-            target_weight_kg: profile.target_weight_kg || weight,
-            activity_level: activityLevelToDb(profile.activity_level || "moderate"),
-            goal: profile.goal || "maintain",
-            previous_macros: profile.daily_calorie_target
-              ? {
-                daily_calorie_target: profile.daily_calorie_target,
-                protein_target_g: profile.protein_target_g || 0,
-                carbs_target_g: profile.carbs_target_g || 0,
-                fat_target_g: profile.fat_target_g || 0,
-              }
-              : undefined,
-            previous_weight_kg: profile.current_weight_kg,
-          },
+        // `age` hesabı `Date.now()` ile **duvar saati farkına** duyarlıydı:
+        // doğum tarihi 29 Şubat olan bir kullanıcıda her yıl 28 Şubat'ta
+        // "365.25 gün" bölmesi 1 gün fazla sayıyor (veya 1 gün eksik),
+        // sonuç BMR'yi ~5 kcal kaydırıyordu. Takvim yılı farkı birebir.
+        const response = await invokeFunction<MacroCalcResponse>("calculate-macros", {
+          age: profile.birth_date ? calculateAge(new Date(profile.birth_date)) : 30,
+          gender: profile.gender || "other",
+          height_cm: profile.height_cm || 170,
+          current_weight_kg: weight,
+          target_weight_kg: profile.target_weight_kg || weight,
+          // Profil DB'den snake_case (`very_active`) okunuyor; edge function
+          // da yalnızca snake_case kabul ediyor. `activityLevelToDb` UI anahtarı
+          // (camelCase) beklediği için çift dönüşüm şart: "Çok Aktif"
+          // kullanıcısında aksi hâlde fonksiyon 400 döner ve hedefler
+          // güncellenmeden kilo kaydediliyordu.
+          activity_level: activityLevelToDb(activityLevelFromDb(profile.activity_level)),
+          goal: profile.goal || "maintain",
+          previous_macros: profile.daily_calorie_target
+            ? {
+              daily_calorie_target: profile.daily_calorie_target,
+              protein_target_g: profile.protein_target_g || 0,
+              carbs_target_g: profile.carbs_target_g || 0,
+              fat_target_g: profile.fat_target_g || 0,
+            }
+            : undefined,
+          previous_weight_kg: profile.current_weight_kg,
         });
 
         if (response.data && !response.error) {

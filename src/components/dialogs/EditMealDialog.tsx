@@ -110,9 +110,18 @@ export function EditMealDialog({
     (parseFloat(formData.fatPer100) || 0) * currentAmount / 100 * 10
   ) / 10;
 
+  // `parseFloat` yalnızca **baştaki** sayıyı okur: "12abc" → 12, "-5" → -5,
+  // "abc" → NaN. Miktar alanı boş/çöp/negatif olduğunda `amount_g_ml = 0`
+  // veya negatif kaydedilip dashboard toplamları sessizce yanlışlaşıyordu
+  // (Flutter tarafındaki `recognition_confirm`/`add_manual_entry` düzeltmesinin
+  // React karşılığı). `type="number"` tarayıcıyı uyarmaya zorlar ama
+  // doğrulamayı atlamak mümkündür.
+  const amountValid = Number.isFinite(currentAmount) && currentAmount > 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!entry) return;
+    if (!amountValid) return;
 
     setLoading(true);
 
@@ -198,6 +207,7 @@ export function EditMealDialog({
                   <Input
                     id="edit-amount"
                     type="number"
+                    min={1}
                     value={formData.amount}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, amount: e.target.value }))
@@ -309,7 +319,7 @@ export function EditMealDialog({
                 >
                   İptal
                 </Button>
-                <Button type="submit" disabled={loading} className="flex-1">
+                <Button type="submit" disabled={loading || !amountValid} className="flex-1">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Kaydet
                 </Button>

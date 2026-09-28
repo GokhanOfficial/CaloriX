@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction, type MacroCalcResponse } from "@/integrations/supabase/functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,19 +144,17 @@ export default function OnboardingPage() {
       const age = calculateAge(new Date(birthDate));
       const bmi = calculateBMI(currentWeightKg, heightCm);
 
-      const { data, error } = await supabase.functions.invoke('calculate-macros', {
-        body: {
-          age,
-          gender,
-          height_cm: heightCm,
-          current_weight_kg: currentWeightKg,
-          target_weight_kg: targetWeightKg,
-          activity_level: activityLevelToDb(activityLevel),
-          goal,
-        },
+      const { data, error } = await invokeFunction<MacroCalcResponse>('calculate-macros', {
+        age,
+        gender,
+        height_cm: heightCm,
+        current_weight_kg: currentWeightKg,
+        target_weight_kg: targetWeightKg,
+        activity_level: activityLevelToDb(activityLevel),
+        goal,
       });
 
-      if (error) {
+      if (error || !data) {
         console.error('AI calculation error:', error);
         // Fallback to local calculation
         const genderForCalc = gender === "other" ? "male" : gender;

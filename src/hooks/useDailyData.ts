@@ -151,6 +151,12 @@ export function useDailyData(date: Date) {
     id: string,
     updates: Partial<Omit<MealEntry, "id" | "created_at">>
   ) => {
+    // `user_id` filtresi yoktu: RLS `auth.uid() = user_id` ile korusa bile
+    // savunma katmanı olarak burada da ekleniyor (bkz. `deleteMealEntry`,
+    // `useNotifications.markAsRead` — ikisi de bu filtreyi kullanıyor).
+    // `.eq("deleted_at", null)` ile "zaten silinmiş" kayıt güncellenmiyor.
+    if (!user) return { error: new Error("Not authenticated") };
+
     try {
       const { data, error } = await supabase
         .from("meal_entries")
@@ -159,6 +165,8 @@ export function useDailyData(date: Date) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
         .select()
         .single();
 
@@ -174,11 +182,14 @@ export function useDailyData(date: Date) {
   };
 
   const deleteMealEntry = async (id: string) => {
+    if (!user) return { error: new Error("Not authenticated") };
+
     try {
       const { error } = await supabase
         .from("meal_entries")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
@@ -191,6 +202,12 @@ export function useDailyData(date: Date) {
 
   const addWaterEntry = async (amount_ml: number) => {
     if (!user) return { error: new Error("Not authenticated") };
+    // Üst sınır yoktu: hızlı ekleme butonları ya da doğrudan çağrı ile
+    // 1.000.000 ml yazılabiliyordu (günlük hedef 2500 ml). Flutter tarafı
+    // 5000 ml'de kesiyor.
+    if (!Number.isFinite(amount_ml) || amount_ml <= 0 || amount_ml > 5000) {
+      return { error: new Error("Geçersiz su miktarı (0-5000 ml aralığında olmalı)") };
+    }
 
     try {
       const { data, error } = await supabase
@@ -214,6 +231,12 @@ export function useDailyData(date: Date) {
 
   const addWeightEntry = async (weight_kg: number, note?: string) => {
     if (!user) return { error: new Error("Not authenticated") };
+    // Fiziksel olarak geçersiz kilo (NaN/≤0/≥500) trend grafiğini ve BMI'yı
+    // bozuyordu. Flutter tarafı aynı sınıf hatayı 20–500 kg aralığında
+    // sınırlıyor (bkz. `weight_card`).
+    if (!Number.isFinite(weight_kg) || weight_kg < 20 || weight_kg > 500) {
+      return { error: new Error("Geçersiz kilo (20-500 kg aralığında olmalı)") };
+    }
 
     try {
       const { data, error } = await supabase

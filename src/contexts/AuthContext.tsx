@@ -14,6 +14,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   resendVerificationEmail: () => Promise<{ error: Error | null }>;
+  /** `signOut` uçuşta mı — butonu disabled yapmak için. */
+  signingOut: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  // `signOut`'ta `loading` yeniden **true** yapılmıyordu. `ProtectedRoute`
+  // `!loading && !user` koşuluyla yönlendirdiği için çoğu akışta sorun
+  // görünmese de `onAuthStateChange('SIGNED_OUT')` ile `user` null olduğu
+  // anda `loading` de düşüyor; aradaki `await supabase.auth.signOut()`
+  // penceresinde ekran hâlâ oturumlu kullanıcıyı gösterip veri isteği
+  // atabiliyordu. Aynı pencere `AuthProvider`'ın iki kez `setUser(null)`
+  // çağırdığı "çift render" sıçramasını da üretiyordu.
+  const [signingOut, setSigningOut] = useState(false);
 
   const isEmailVerified = user?.email_confirmed_at != null;
 
@@ -31,13 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let disposed = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (disposed) return;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
+
         // Detect password recovery event
         if (event === 'PASSWORD_RECOVERY') {
           setIsPasswordRecovery(true);
@@ -45,14 +58,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // THEN check for existing session.
+    //
+    // `getSession()` async: depodan okunan ve **süresi dolmuş** bir oturum
+    // için token yenileme isteği yapar, bu sırada `onAuthStateChange` yeni
+    // oturumu (`SIGNED_IN`/`TOKEN_REFRESHED`) yayınlayabilir. `getSession()`
+    // sözü eski oturumla çözülürse (aşağıdaki `disposed` kontrolü olmadan)
+    // `setSession(eski)` yazılıp `TOKEN_REFRESHED` sonucunu **eziyordu**.
+    // `getSession` ayrıca reddedebiliyordu (bozuk localStorage, özel
+    // `storageKey`); o durumda `loading` hiç düşmüyor ve uygulama sonsuza
+    // dek splash ekranında kalıyordu.
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (disposed) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (disposed) return;
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      disposed = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
@@ -82,7 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setSigningOut(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      // Hata yutuluyordu: `signOut` başarısız olsa bile `onAuthStateChange`
+      // tetiklenmediği için kullanıcı "çıkış yapmış" sanıyordu. Yutulan
+      // hata P1 sınıfı (kullanıcıyı yanlış bilgilendiren sessiz hata).
+      console.error('Sign out failed:', error);
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   const resetPassword = async (email: string) => {
@@ -123,9 +167,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearPasswordRecovery,
       signUp, 
       signIn, 
-      signOut,
+      signOut, 
       resetPassword,
-      resendVerificationEmail
+      resendVerificationEmail,
+      // Çağıranlar `await signOut()` sonrası `setSigningOut(false)` bekliyordu;
+      // yeni bayrak ikinci render'ı tetikler.
+      signingOut,
     }}>
       {children}
     </AuthContext.Provider>

@@ -101,8 +101,17 @@ export function calculateNutritionForAmount(
  * Calculate BMI
  */
 export function calculateBMI(weightKg: number, heightCm: number): number {
+  // Boy 0 (veya negatif/NaN) → bölme tanımsız: `Infinity`/`NaN` üretip
+  // `getBMICategory` tarafında "obez" (Infinity >= 30) olarak sınıflanıyordu,
+  // yani **fiziksel olarak imkânsız** bir kayıt yanlış sağlık uyarısı
+  // gösteriyordu. Flutter tarafı A3'ün düzelttiği `Calculations.bmi` ile aynı
+  // davranış: 0 dön.
+  if (!Number.isFinite(heightCm) || heightCm <= 0) return 0;
+  if (!Number.isFinite(weightKg) || weightKg <= 0) return 0;
   const heightM = heightCm / 100;
-  return Math.round((weightKg / (heightM * heightM)) * 10) / 10;
+  const raw = weightKg / (heightM * heightM);
+  if (!Number.isFinite(raw)) return 0;
+  return Math.round(raw * 10) / 10;
 }
 
 /**
@@ -119,6 +128,31 @@ export function getBMICategory(bmi: number): { labelKey: string; color: string }
  * Calculate progress percentage
  */
 export function calculateProgress(current: number, target: number): number {
-  if (target === 0) return 0;
-  return Math.min(100, Math.round((current / target) * 100));
+  // `target === 0` tek başına yetmiyor: negatif hedef (ör. `calculateBMR`
+  // çıktısı yazı hatasıyla negatifse) `Math.min(100, -400) = -400` döner ve
+  // ilerleme çubuğu `-%400` olarak render edilir. `NaN`/`Infinity` de aynı
+  // sınıf bozulmayı üretir (`Math.min` NaN korur).
+  if (!Number.isFinite(target) || !Number.isFinite(current) || target <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((current / target) * 100)));
+}
+
+/**
+ * Takvim yılı farkına dayalı yaş — `Index.tsx` kilo kaydı sırasında kullanılır.
+ *
+ * Önceden `Math.floor((Date.now() - birth) / (365.25 * gün))` kullanılıyordu;
+ * bu yaklaşım **duvar saati farkına** duyarlıdır (doğum gününe 1 gün kala
+ * 1 gün fazla/eksik sayar) ve 29 Şubat doğumlularda yılda bir gün kaydırır.
+ * `OnboardingPage`/`SettingsPage` zaten `calculateAge` kullanıyordu; üç çağrı
+ * da aynı hesaba bağlandı (tutarsızlık BMR'yi ~5 kcal kaydırıyordu).
+ */
+export function calculateAge(birthDate: Date): number {
+  if (Number.isNaN(birthDate.getTime())) return 30;
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDiff = now.getMonth() - birthDate.getMonth();
+  // Doğum günü henüz gelmediyse yaş bir azalır.
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return Math.max(0, age);
 }

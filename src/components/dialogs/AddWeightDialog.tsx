@@ -30,11 +30,18 @@ export function AddWeightDialog({
   const [weight, setWeight] = useState(currentWeight?.toString() || "");
   const [note, setNote] = useState("");
 
+  // `parseFloat` "abc" → NaN, "" → NaN, "-3" → -3. Bunlar `weight_entries`
+  // tablosuna yazılıp BMI/kilo trendini bozuyordu (Flutter tarafında aynı
+  // sınıf hata `weight_card` ile düzeltildi). `Number.isFinite` + üst sınır.
+  const weightNum = parseFloat(weight);
+  const weightValid = Number.isFinite(weightNum) && weightNum >= 20 && weightNum <= 500;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!weightValid) return;
     setLoading(true);
 
-    const result = await onSubmit(parseFloat(weight), note || undefined);
+    const result = await onSubmit(weightNum, note || undefined);
 
     setLoading(false);
 
@@ -60,6 +67,8 @@ export function AddWeightDialog({
                   id="weight"
                   type="number"
                   step="0.1"
+                  min={20}
+                  max={500}
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   placeholder="75.5"
@@ -88,7 +97,7 @@ export function AddWeightDialog({
             >
               İptal
             </Button>
-            <Button type="submit" disabled={loading || !weight}>
+            <Button type="submit" disabled={loading || !weightValid}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Kaydet
             </Button>

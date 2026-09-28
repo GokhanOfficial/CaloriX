@@ -17,7 +17,12 @@ export const DEFAULT_GOALS = {
   calories: 2000,
   protein: 150,
   carbs: 200,
-  fat: 65,
+  // `2000 × 0.30 ÷ 9 = 66.67 → 67`. Değer 65 idi; hem Flutter
+  // (`AppConstants.defaultFat`, A3 `be8158a` ile 67'ye düzeltildi) hem de
+  // `calculateMacros(2000)` 67 döndürüyordu — profil kaydı olmayan kullanıcı
+  // dashboard'da yanlış yağ hedefi görüyordu. `tool/check_versions.cjs`
+  // artık **her iki istemciyi** de karşılaştırıyor.
+  fat: 67,
   water: 2500,
 };
 

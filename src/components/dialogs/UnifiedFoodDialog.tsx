@@ -33,6 +33,7 @@ import {
   ImagePlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/integrations/supabase/functions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useFoodSearch, FoodSearchResult } from "@/hooks/useFoodSearch";
@@ -184,23 +185,23 @@ export function UnifiedFoodDialog({
 
       if (imageData) {
         // Use photo recognition
-        const response = await supabase.functions.invoke("recognize-food", {
-          body: {
-            image_base64: imageData,
-            additional_text: inputText || undefined,
-          },
+        const response = await invokeFunction<RecognitionResponse>("recognize-food", {
+          image_base64: imageData,
+          additional_text: inputText || undefined,
         });
         if (response.error) throw response.error;
-        if (response.data.error) throw new Error(response.data.error);
-        data = response.data;
+        // `recognize-food` hata durumunda **200** ile `{ error: "..." }`
+        // döndüğü için HTTP hatası yok; gövde ayrıca denetlenmeli.
+        if (response.data?.error) throw new Error(response.data.error);
+        data = response.data as RecognitionResponse;
       } else {
         // Use text recognition
-        const response = await supabase.functions.invoke("recognize-food-text", {
-          body: { text: inputText },
+        const response = await invokeFunction<RecognitionResponse>("recognize-food-text", {
+          text: inputText,
         });
         if (response.error) throw response.error;
-        if (response.data.error) throw new Error(response.data.error);
-        data = response.data;
+        if (response.data?.error) throw new Error(response.data.error);
+        data = response.data as RecognitionResponse;
       }
 
       const foods = (data.foods || []).map((food) => ({

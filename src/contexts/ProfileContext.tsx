@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -46,12 +46,32 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  /**
+   * Uçuştaki isteği geçersiz kılmak için sayaç.
+   *
+   * `user` değiştiğinde iki sorun vardı:
+   *  1. `A`'nın profili `B`'nin ekranında bir kare kalıyordu (state sıfırlanmıyor).
+   *  2. `A`'nın isteği `B`'ninkinden **sonra** çözülürse `setProfile(A)`
+   *     `B`'nin verisini eziyordu (race condition).
+   *
+   * Async fonksiyon `useEffect` cleanup'ına fonksiyon **döndüremez**
+   * (dönen değer bir Promise'dir), bu yüzden sayaç kullanılıyor: her
+   * `fetchProfile` çağrısı sayacı artırır, çözülme anında kendi
+   * jetonuyla karşılaştırır; eşleşmiyorsa state'e hiç dokunmaz.
+   */
+  const requestIdRef = useRef(0);
+
   const fetchProfile = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
     if (!user) {
       setProfile(null);
       setLoading(false);
+      setError(null);
       return;
     }
+
+    setLoading(true);
 
     try {
       const { data, error } = await supabase
@@ -60,13 +80,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         .eq("id", user.id)
         .single();
 
+      if (requestId !== requestIdRef.current) return;
       if (error) throw error;
       setProfile(data as UserProfile);
       setError(null);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err as Error);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [user]);
 
