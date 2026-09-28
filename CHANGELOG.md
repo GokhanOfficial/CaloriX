@@ -11,6 +11,32 @@ Sürüm **yükseltilmedi**: aşağıdakiler zaten yayımlanmış 1.3.0+4'ün üz
 gelen düzeltmeler; `pubspec.yaml`'da hâlâ `1.3.0+4`.
 
 ### Fixed — React PWA (`src/**`)
+- **Sunucu bildirim tercihi kaydedilemiyordu (P1).**
+  `useNotifications` `interval_hours: 0` yazıyordu; DB CHECK'i
+  `notification_preferences_hours_range` (`interval_hours BETWEEN 1 AND 24`)
+  bu değeri reddediyordu → web PWA'da kullanıcı **hiçbir** sunucu bildirim
+  tercihini kaydedemiyordu. Varsayılanlar Flutter'ın `toRow` mantığıyla
+  birebir hizalandı (tek seferlik tiplerde `1`, `goal_achieved` için `24`)
+  ve **her** yazma yeni `src/lib/notificationPreferences.ts` normalize
+  katmanından geçiyor. `start > end` de 23'e çekiliyor (sessizce hiç
+  gönderilmeme sorunu).
+- **Bildirim master anahtarı ölüydü (P1).**
+  `send-notification:423` `preference?.push_enabled ??
+  profile.push_notifications_enabled` okuyor ve `??` **yalnız `NULL`** üstüne
+  düştüğü için, `notification_preferences`'a satır yazıldığı anda profil
+  master anahtarı hiç okunmuyordu. Flutter'ın `applyMasterSwitches` (AND)
+  davranışı web'e de uygulandı: master `false` iken hiçbir tip satırı
+  `true` yazamaz. Ayrıca `SettingsPage.saveNotifications` **ölü koddu**
+  (hiçbir yerden çağrılmıyordu, profil master anahtarları hiç yazılmıyordu
+  ve "her tip için satır yaz" davranışı hiç tetiklenmiyordu); artık diyalogdaki
+  "Kaydet" düğmesi beş tipin de satırını yazar.
+- **Hesap silme giriş noktası yoktu (P3, KVKK / Google Play).**
+  Web PWA'da kullanıcı hesabını **elle** silmek zorundaydı. Ayarlar →
+  Hesap bölümüne giriş noktası, iki aşamalı onay ve parola doğrulamalı
+  diyalog eklendi; tam silme sonrası oturum düşürülüp `/auth`'a yönlendirilir.
+  Kısmi silme (`retryRecommended`) "başarı" gibi gösterilmez.
+
+
 - **`activity_level` 400 hatası (P1).** `SettingsPage.recalculateMacros`
   UI anahtarını (`veryActive`) doğrudan edge function'a gönderiyordu;
   `calculate-macros` yalnızca DB CHECK kısıtıyla birebir aynı snake_case

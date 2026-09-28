@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Configurações de notificação",
-      "desc": "Configure os canais e horários de notificação"
+      "desc": "Configure os canais e horários de notificação",
+      "push": "Notificações Push",
+      "email": "Notificações por E-mail",
+      "server": {
+        "channelNote": "Push/e-mail ao nível da conta. Os interruptores acima aplicam-se a todos os lembretes abaixo."
+      }
     },
     "import": {
       "title": "Importar dados",
@@ -297,6 +302,36 @@
       "error": "Ocorreu um erro",
       "aiFailedTitle": "Não foi possível atualizar as metas",
       "aiFailedDesc": "Seus dados foram salvos, mas suas metas não puderam ser recalculadas. Tente novamente com \"Recalcular\" na seção Metas."
+    },
+    "deleteAccount": {
+      "entry": "Excluir minha conta",
+      "entryDesc": "Exclua permanentemente sua conta e todos os seus dados",
+      "title": "Deseja excluir sua conta?",
+      "warning": "Esta ação não pode ser desfeita. Sua conta e todos os dados a seguir serão excluídos permanentemente:",
+      "irreversible": "Esta ação é irreversível e seus dados não poderão ser recuperados.",
+      "passwordLabel": "Sua senha atual",
+      "passwordRequired": "Digite sua senha",
+      "confirm": "Excluir minha conta",
+      "deleting": "Excluindo sua conta...",
+      "data": {
+        "meals": "Registros de alimentos e refeições",
+        "water": "Acompanhamento de água",
+        "weight": "Registros de peso",
+        "chat": "Histórico de conversas com IA",
+        "favorites": "Alimentos favoritos e recentes",
+        "settings": "Perfil, metas e configurações",
+        "notifications": "Notificações e lembretes"
+      },
+      "messages": {
+        "wrongPassword": "Sua senha está incorreta. Tente novamente.",
+        "rateLimited": "Muitas tentativas. Tente novamente em alguns minutos.",
+        "invalidRequest": "Solicitação inválida. Tente novamente.",
+        "unauthorized": "Sua sessão expirou. Entre novamente.",
+        "network": "Não foi possível conectar. Verifique sua internet.",
+        "partial": "Alguns dados não puderam ser excluídos. Sua conta ainda existe; tente em alguns minutos.",
+        "failed": "Sua conta não pôde ser excluída. Tente mais tarde.",
+        "localCleanup": "Alguns dados locais não puderam ser limpos. Reinicie o aplicativo."
+      }
     }
   },
   "dashboard": {

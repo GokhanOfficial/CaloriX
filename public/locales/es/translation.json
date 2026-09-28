@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Configuración de notificaciones",
-      "desc": "Configure los canales y horarios de notificaciones"
+      "desc": "Configure los canales y horarios de notificaciones",
+      "push": "Notificaciones Push",
+      "email": "Notificaciones por Email",
+      "server": {
+        "channelNote": "Push/correo a nivel de cuenta. Los interruptores de arriba se aplican a todos los recordatorios de abajo."
+      }
     },
     "import": {
       "title": "Importar datos",
@@ -297,6 +302,36 @@
       "error": "Ocurrió un error",
       "aiFailedTitle": "No se pudieron actualizar los objetivos",
       "aiFailedDesc": "Tus datos se guardaron, pero no se pudieron recalcular los objetivos. Inténtalo de nuevo con «Recalcular» en la sección Objetivos."
+    },
+    "deleteAccount": {
+      "entry": "Eliminar mi cuenta",
+      "entryDesc": "Elimina permanentemente tu cuenta y todos tus datos",
+      "title": "¿Quieres eliminar tu cuenta?",
+      "warning": "Esta acción no se puede deshacer. Tu cuenta y todos los datos siguientes se eliminarán permanentemente:",
+      "irreversible": "Esta acción es irreversible y tus datos no se podrán recuperar.",
+      "passwordLabel": "Tu contraseña actual",
+      "passwordRequired": "Introduce tu contraseña",
+      "confirm": "Eliminar mi cuenta",
+      "deleting": "Eliminando tu cuenta...",
+      "data": {
+        "meals": "Registros de alimentos y comidas",
+        "water": "Seguimiento del agua",
+        "weight": "Registros de peso",
+        "chat": "Historial de chats con IA",
+        "favorites": "Alimentos favoritos y recientes",
+        "settings": "Perfil, objetivos y ajustes de la app",
+        "notifications": "Notificaciones y recordatorios"
+      },
+      "messages": {
+        "wrongPassword": "Tu contraseña es incorrecta. Inténtalo de nuevo.",
+        "rateLimited": "Demasiados intentos. Inténtalo de nuevo en unos minutos.",
+        "invalidRequest": "Solicitud no válida. Inténtalo de nuevo.",
+        "unauthorized": "Tu sesión ha finalizado. Inicia sesión de nuevo.",
+        "network": "No se pudo conectar. Comprueba tu conexión a internet.",
+        "partial": "Algunos datos no se pudieron eliminar. Tu cuenta sigue existiendo; inténtalo en unos minutos.",
+        "failed": "No se pudo eliminar tu cuenta. Inténtalo más tarde.",
+        "localCleanup": "Algunos datos locales no se pudieron borrar. Reinicia la aplicación."
+      }
     }
   },
   "dashboard": {

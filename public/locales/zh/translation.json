@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "通知设置",
-      "desc": "配置通知渠道和时间"
+      "desc": "配置通知渠道和时间",
+      "push": "推送通知",
+      "email": "电子邮件通知",
+      "server": {
+        "channelNote": "账户级别的推送/电子邮件。上方开关适用于下方所有提醒。"
+      }
     },
     "import": {
       "title": "导入数据",
@@ -297,6 +302,36 @@
       "error": "发生错误",
       "aiFailedTitle": "无法更新目标",
       "aiFailedDesc": "您的信息已保存，但无法重新计算目标。请在“目标”部分点击“重新计算”重试。"
+    },
+    "deleteAccount": {
+      "entry": "删除我的账户",
+      "entryDesc": "永久删除你的账户及所有数据",
+      "title": "要删除你的账户吗？",
+      "warning": "此操作无法撤销。你的账户及以下数据将被永久删除：",
+      "irreversible": "此操作不可撤销，数据无法恢复。",
+      "passwordLabel": "当前密码",
+      "passwordRequired": "请输入密码",
+      "confirm": "删除我的账户",
+      "deleting": "正在删除账户…",
+      "data": {
+        "meals": "食物与餐食记录",
+        "water": "饮水记录",
+        "weight": "体重记录",
+        "chat": "AI 聊天记录",
+        "favorites": "收藏及最近使用的食物",
+        "settings": "个人资料、目标与应用设置",
+        "notifications": "通知与提醒"
+      },
+      "messages": {
+        "wrongPassword": "密码不正确，请重试。",
+        "rateLimited": "尝试次数过多，请几分钟后重试。",
+        "invalidRequest": "请求无效，请重试。",
+        "unauthorized": "会话已结束，请重新登录。",
+        "network": "无法连接，请检查网络后重试。",
+        "partial": "部分数据未能删除，账户仍然存在，请几分钟后重试。",
+        "failed": "账户删除失败，请稍后重试。",
+        "localCleanup": "部分本地数据未能清理，请重启应用。"
+      }
     }
   },
   "dashboard": {

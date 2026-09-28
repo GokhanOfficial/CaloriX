@@ -25,6 +25,7 @@ import {
   Upload,
   Info,
   ChevronRight,
+  Mail,
   Moon,
   Sun,
   Loader2,
@@ -32,6 +33,7 @@ import {
   Scale,
   LogOut,
   KeyRound,
+  Trash2,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -47,6 +49,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { invokeFunction, type MacroCalcResponse } from "@/integrations/supabase/functions";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
+import { DeleteAccountDialog } from "@/components/account/DeleteAccountDialog";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useDataExport } from "@/hooks/useDataExport";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -66,6 +70,11 @@ const SettingsPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { exportData, importData, isExporting, isImporting } = useDataExport();
+  // Sunucu bildirim tercihleri (`notification_preferences`) — "Kaydet"
+  // düğmesi master anahtarları bu hook üzerinden yazar. `NotificationPreferences`
+  // bileşeni **kendi** hook örneğini kullanır (her anahtar anında kaydedilir);
+  // buradaki örnek yalnızca "tüm satırları yaz" işlemi içindir.
+  const { saveAllPreferences } = useNotifications();
 
   // Dialog states
   const [personalInfoOpen, setPersonalInfoOpen] = useState(false);
@@ -73,6 +82,10 @@ const SettingsPage = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  // KVKK / Google Play "Hesap Silme" zorunluluğu: web PWA'da giriş noktası
+  // yoktu, kullanıcı hesabını **elle** silmek zorundaydı. Sunucu
+  // (`supabase/functions/delete-account`) hazırdı; giriş noktası eklendi.
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Form states for personal info
@@ -301,18 +314,45 @@ const SettingsPage = () => {
   };
 
   const saveNotifications = async () => {
+    // Çift gönderim kapısı: `isLoading` ikinci tıklamayı da geçirirse
+    // `saveAllPreferences` beş satırı iki kez yazar (sunucu kotasını ve
+    // gereksiz yazmayı üretir).
+    if (isLoading) return;
     setIsLoading(true);
 
-    const { error } = await updateProfile({
+    // Profil master anahtarları.
+    const { error: profileError } = await updateProfile({
       push_notifications_enabled: pushEnabled,
       email_notifications_enabled: emailEnabled,
       weigh_in_frequency_days: weighInFrequency,
       auto_recalculate_macros: autoRecalculate,
     } as any);
 
+    // ⭐ Sunucu (push/e-posta) bildirim tercihleri.
+    //
+    // Bu adım **daha önce hiç çalışmıyordu**: `saveNotifications` tanımlıydı
+    // ama hiçbir yerden çağrılmıyordu, `NotificationPreferences` her anahtarı
+    // kendi `updatePreference` çağrısıyla yazıyordu. Sonuç:
+    //  - `notification_preferences`'ta satır olmayan tipler
+    //    (`check-reminders`'ın sessizce kapattığı `water`/`daily_log`/
+    //    `weekly_summary`) **hiçbir zaman** satır kazanamıyordu;
+    //  - profil master anahtarları **hiç yazılmıyordu** (`pushEnabled`
+    //    state'i yalnızca okunuyordu), dolayısıyla
+    //    `send-notification:423` `profile.push_notifications_enabled`
+    //    okuyordu.
+    //
+    // `saveAllPreferences` master anahtarları **AND** ile birleştirip beş tipin
+    // de satırını yazar; böylece (a) sessiz-kapalı davranış kapanır ve
+    // (b) master `false` iken hiçbir satır `true` yazamaz
+    // (`send-notification`'ın `??` gölgelenmesi, A4r8).
+    const serverSaved = await saveAllPreferences(
+      {},
+      { push: pushEnabled, email: emailEnabled },
+    );
+
     setIsLoading(false);
 
-    if (error) {
+    if (profileError || !serverSaved) {
       toast({ title: t('common.error'), description: t('settings.messages.error'), variant: "destructive" });
     } else {
       toast({ title: t('common.success'), description: t('settings.messages.settingsSaved') });
@@ -432,6 +472,17 @@ const SettingsPage = () => {
           label: t('settings.items.signOut'),
           description: t('settings.items.signOutDesc'),
           action: handleSignOut,
+          destructive: true,
+        },
+        {
+          // ⭐ P3: web PWA'da hesap silme giriş noktası yoktu. Sunucu hazır
+          // ve test edilmiş (`supabase/functions/delete-account`), Flutter
+          // arayüzü yazıldı; web'de kullanıcı KVKK "sil" talebini
+          // **elle** yapmak zorundaydı.
+          icon: Trash2,
+          label: t('settings.deleteAccount.entry'),
+          description: t('settings.deleteAccount.entryDesc'),
+          action: () => setDeleteAccountOpen(true),
           destructive: true,
         },
       ],
@@ -793,12 +844,48 @@ const SettingsPage = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
+          <div className="space-y-4 py-4">
+            {/* ── Profil seviyesi master anahtarlar ─────────────────────────
+                Bu iki anahtar "Push Bildirimleri" / "E-posta Bildirimleri"
+                adlarıyla **her tipin** üstünde uygulanır
+                (`applyMasterSwitches`, AND mantığı). `send-notification`
+                `push_enabled ?? profil` okuduğu için master `false` iken
+                tip bazlı `true` satırları **gönderilmez**.
+
+                Bu blok **yeni**: `pushEnabled`/`emailEnabled` state'i daha
+                önce yalnızca okunuyordu, hiçbir yerde gösterilmiyor ve
+                kaydedilmiyordu (`saveNotifications` ölü koddu). */}
+            <div className="rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm">{t('settings.notifications.push')}</Label>
+                </div>
+                <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm">{t('settings.notifications.email')}</Label>
+                </div>
+                <Switch checked={emailEnabled} onCheckedChange={setEmailEnabled} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('settings.notifications.server.channelNote')}
+              </p>
+            </div>
+
             <NotificationPreferences />
           </div>
 
           <DialogFooter>
-            <Button onClick={() => setNotificationsOpen(false)}>{t('common.close')}</Button>
+            <Button variant="outline" onClick={() => setNotificationsOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={saveNotifications} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('common.save')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -896,6 +983,8 @@ const SettingsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Delete Account Dialog (KVKK / Google Play "Hesap Silme") */}
+      <DeleteAccountDialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen} />
     </AppLayout>
   );
 };

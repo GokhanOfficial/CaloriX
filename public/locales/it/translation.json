@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Impostazioni notifiche",
-      "desc": "Configura canali e orari delle notifiche"
+      "desc": "Configura canali e orari delle notifiche",
+      "push": "Notifiche Push",
+      "email": "Notifiche Email",
+      "server": {
+        "channelNote": "Push/e-mail a livello di account. Le interruttori sopra si applicano a tutti i promemoria qui sotto."
+      }
     },
     "import": {
       "title": "Importa dati",
@@ -297,6 +302,36 @@
       "error": "Si è verificato un errore",
       "aiFailedTitle": "Impossibile aggiornare gli obiettivi",
       "aiFailedDesc": "I tuoi dati sono stati salvati, ma gli obiettivi non sono stati ricalcolati. Riprova con «Ricalcola» nella sezione Obiettivi."
+    },
+    "deleteAccount": {
+      "entry": "Elimina il mio account",
+      "entryDesc": "Elimina definitivamente il tuo account e tutti i tuoi dati",
+      "title": "Vuoi eliminare il tuo account?",
+      "warning": "Questa azione non può essere annullata. Il tuo account e tutti i dati seguenti verranno eliminati definitivamente:",
+      "irreversible": "Questa azione è irreversibile e i tuoi dati non potranno essere recuperati.",
+      "passwordLabel": "La tua password attuale",
+      "passwordRequired": "Inserisci la tua password",
+      "confirm": "Elimina il mio account",
+      "deleting": "Eliminazione dell'account...",
+      "data": {
+        "meals": "Registro di alimenti e pasti",
+        "water": "Monitoraggio dell'acqua",
+        "weight": "Registro del peso",
+        "chat": "Cronologia delle chat con l'IA",
+        "favorites": "Alimenti preferiti e recenti",
+        "settings": "Profilo, obiettivi e impostazioni",
+        "notifications": "Notifiche e promemoria"
+      },
+      "messages": {
+        "wrongPassword": "La password non è corretta. Riprova.",
+        "rateLimited": "Troppi tentativi. Riprova tra qualche minuto.",
+        "invalidRequest": "Richiesta non valida. Riprova.",
+        "unauthorized": "La sessione è scaduta. Accedi di nuovo.",
+        "network": "Impossibile connettersi. Controlla la connessione.",
+        "partial": "Alcuni dati non sono stati eliminati. Il tuo account esiste ancora; riprova tra qualche minuto.",
+        "failed": "Impossibile eliminare il tuo account. Riprova più tardi.",
+        "localCleanup": "Alcuni dati locali non sono stati cancellati. Riavvia l'app."
+      }
     }
   },
   "dashboard": {

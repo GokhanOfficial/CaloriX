@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Bildirim Ayarları",
-      "desc": "Bildirim kanallarını ve zamanlamayı yapılandırın"
+      "desc": "Bildirim kanallarını ve zamanlamayı yapılandırın",
+      "push": "Push Bildirimleri",
+      "email": "E-posta Bildirimleri",
+      "server": {
+        "channelNote": "Hesap seviyesinde push/e-posta. Yukarıdaki anahtarlar aşağıdaki tüm hatırlatıcılara uygulanır."
+      }
     },
     "import": {
       "title": "Verileri İçe Aktar",
@@ -297,6 +302,36 @@
       "error": "Bir hata oluştu",
       "aiFailedTitle": "Hedefler güncellenemedi",
       "aiFailedDesc": "Bilgileriniz kaydedildi ancak hedefleriniz hesaplanamadı. Hedefler bölümünden \"Yeniden hesapla\" ile tekrar deneyin."
+    },
+    "deleteAccount": {
+      "entry": "Hesabımı Sil",
+      "entryDesc": "Hesabınızı ve tüm verilerinizi kalıcı olarak silin",
+      "title": "Hesabınızı silmek istiyor musunuz?",
+      "warning": "Bu işlem geri alınamaz. Hesabınız ve aşağıdaki tüm veriler kalıcı olarak silinecek:",
+      "irreversible": "Bu işlem geri alınamaz ve verileriniz kurtarılamaz.",
+      "passwordLabel": "Mevcut parolanız",
+      "passwordRequired": "Parolanızı girin",
+      "confirm": "Hesabımı Sil",
+      "deleting": "Hesabınız siliniyor...",
+      "data": {
+        "meals": "Yemek ve öğün kayıtları",
+        "water": "Su takibi",
+        "weight": "Kilo kayıtları",
+        "chat": "Yapay zekâ sohbet geçmişi",
+        "favorites": "Favori yiyecekler ve son kullanılanlar",
+        "settings": "Profil, hedefler ve uygulama ayarları",
+        "notifications": "Bildirimler ve hatırlatıcılar"
+      },
+      "messages": {
+        "wrongPassword": "Parolanız hatalı. Lütfen tekrar deneyin.",
+        "rateLimited": "Çok fazla deneme yaptınız. Lütfen biraz sonra tekrar deneyin.",
+        "invalidRequest": "İstek geçersiz. Lütfen tekrar deneyin.",
+        "unauthorized": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
+        "network": "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.",
+        "partial": "Bazı veriler silinemedi. Hesabınız hâlâ duruyor; birkaç dakika sonra tekrar deneyin.",
+        "failed": "Hesabınız silinemedi. Lütfen daha sonra tekrar deneyin.",
+        "localCleanup": "Bazı cihaz verileri temizlenemedi. Lütfen uygulamayı yeniden başlatın."
+      }
     }
   },
   "dashboard": {

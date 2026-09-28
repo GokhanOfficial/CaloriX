@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Paramètres de notification",
-      "desc": "Configurer les canaux et horaires de notification"
+      "desc": "Configurer les canaux et horaires de notification",
+      "push": "Notifications Push",
+      "email": "Notifications par e-mail",
+      "server": {
+        "channelNote": "Push/e-mail au niveau du compte. Les interrupteurs ci-dessus s’appliquent à tous les rappels ci-dessous."
+      }
     },
     "import": {
       "title": "Importer les données",
@@ -297,6 +302,36 @@
       "error": "Une erreur s'est produite",
       "aiFailedTitle": "Impossible de mettre à jour les objectifs",
       "aiFailedDesc": "Vos informations ont été enregistrées, mais vos objectifs n'ont pas pu être recalculés. Réessayez avec « Recalculer » dans la section Objectifs."
+    },
+    "deleteAccount": {
+      "entry": "Supprimer mon compte",
+      "entryDesc": "Supprime définitivement votre compte et toutes vos données",
+      "title": "Voulez-vous supprimer votre compte ?",
+      "warning": "Cette action est irréversible. Votre compte et toutes les données suivantes seront définitivement supprimées :",
+      "irreversible": "Cette action est irréversible et vos données ne pourront pas être récupérées.",
+      "passwordLabel": "Votre mot de passe actuel",
+      "passwordRequired": "Saisissez votre mot de passe",
+      "confirm": "Supprimer mon compte",
+      "deleting": "Suppression de votre compte...",
+      "data": {
+        "meals": "Aliments et repas",
+        "water": "Suivi de l'eau",
+        "weight": "Relevé de poids",
+        "chat": "Historique des conversations IA",
+        "favorites": "Aliments favoris et récents",
+        "settings": "Profil, objectifs et paramètres",
+        "notifications": "Notifications et rappels"
+      },
+      "messages": {
+        "wrongPassword": "Votre mot de passe est incorrect. Veuillez réessayer.",
+        "rateLimited": "Trop de tentatives. Réessayez dans quelques minutes.",
+        "invalidRequest": "Requête invalide. Veuillez réessayer.",
+        "unauthorized": "Votre session a expiré. Veuillez vous reconnecter.",
+        "network": "Connexion impossible. Vérifiez votre connexion internet.",
+        "partial": "Certaines données n'ont pas pu être supprimées. Votre compte existe toujours ; réessayez dans quelques minutes.",
+        "failed": "Votre compte n'a pas pu être supprimé. Réessayez plus tard.",
+        "localCleanup": "Certaines données locales n'ont pas pu être effacées. Redémarrez l'application."
+      }
     }
   },
   "dashboard": {

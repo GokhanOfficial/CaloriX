@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Benachrichtigungseinstellungen",
-      "desc": "Konfigurieren Sie Benachrichtigungskanäle und -zeiten"
+      "desc": "Konfigurieren Sie Benachrichtigungskanäle und -zeiten",
+      "push": "Push-Benachrichtigungen",
+      "email": "E-Mail-Benachrichtigungen",
+      "server": {
+        "channelNote": "Kontowebenebene push/E-Mail. Die Schalter oben gelten für alle Erinnerungen unten."
+      }
     },
     "import": {
       "title": "Daten importieren",
@@ -297,6 +302,36 @@
       "error": "Ein Fehler ist aufgetreten",
       "aiFailedTitle": "Ziele konnten nicht aktualisiert werden",
       "aiFailedDesc": "Deine Daten wurden gespeichert, aber die Ziele konnten nicht neu berechnet werden. Versuche es erneut mit \"Neu berechnen\" im Bereich Ziele."
+    },
+    "deleteAccount": {
+      "entry": "Mein Konto löschen",
+      "entryDesc": "Dein Konto und alle Daten dauerhaft löschen",
+      "title": "Möchtest du dein Konto löschen?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Dein Konto und alle folgenden Daten werden dauerhaft gelöscht:",
+      "irreversible": "Diese Aktion ist nicht umkehrbar und deine Daten können nicht wiederhergestellt werden.",
+      "passwordLabel": "Dein aktuelles Passwort",
+      "passwordRequired": "Gib dein Passwort ein",
+      "confirm": "Mein Konto löschen",
+      "deleting": "Dein Konto wird gelöscht...",
+      "data": {
+        "meals": "Lebensmittel- und Mahlzeitenverlauf",
+        "water": "Wassererfassung",
+        "weight": "Gewichtsverlauf",
+        "chat": "KI-Chatverlauf",
+        "favorites": "Lieblingslebensmittel und zuletzt verwendet",
+        "settings": "Profil, Ziele und App-Einstellungen",
+        "notifications": "Benachrichtigungen und Erinnerungen"
+      },
+      "messages": {
+        "wrongPassword": "Dein Passwort ist falsch. Bitte versuche es erneut.",
+        "rateLimited": "Zu viele Versuche. Bitte versuche es in ein paar Minuten erneut.",
+        "invalidRequest": "Ungültige Anfrage. Bitte versuche es erneut.",
+        "unauthorized": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+        "network": "Verbindung fehlgeschlagen. Bitte prüfe deine Internetverbindung.",
+        "partial": "Einige Daten konnten nicht gelöscht werden. Dein Konto besteht weiter; versuche es in ein paar Minuten erneut.",
+        "failed": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es später erneut.",
+        "localCleanup": "Einige Gerätedaten konnten nicht bereinigt werden. Bitte starte die App neu."
+      }
     }
   },
   "dashboard": {

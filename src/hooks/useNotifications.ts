@@ -2,19 +2,37 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import {
+  NOTIFICATION_TYPES,
+  applyMasterSwitches,
+  buildPreferenceRow,
+  normalizePreference,
+  type NotificationType,
+  type PreferenceDraft,
+} from '@/lib/notificationPreferences';
 
-export type NotificationType = 'weigh_in' | 'daily_log' | 'water' | 'goal_achieved' | 'weekly_summary';
+export type { NotificationType };
 
-export interface NotificationPreference {
+/**
+ * Profil seviyesi **master** anahtarlar (`profiles.push_notifications_enabled`
+ * / `email_notifications_enabled`).
+ *
+ * Neden gerekli: `send-notification/index.ts:423-424`
+ * `preference?.push_enabled ?? profile.push_notifications_enabled` okuyor ve
+ * `??` **yalnız `NULL` üstüne düşer**. Satır bir kez yazıldıktan sonra profil
+ * master anahtarı **hiç okunmaz** → kullanıcı üstteki anahtarı kapatır,
+ * bildirim yine gider. Flutter bu hatanın karşılığını
+ * `NotificationPreferencesRepository.applyMasterSwitches` (AND) ile çözdü;
+ * web'de de **aynı** bileşim uygulanır.
+ */
+export interface MasterSwitches {
+  push: boolean;
+  email: boolean;
+}
+
+export interface NotificationPreference extends PreferenceDraft {
   id: string;
   notification_type: NotificationType;
-  push_enabled: boolean;
-  email_enabled: boolean;
-  start_hour: number;
-  end_hour: number;
-  interval_hours: number;
-  summary_day: number;
-  summary_hour: number;
 }
 
 export interface Notification {
@@ -26,12 +44,29 @@ export interface Notification {
   created_at: string;
 }
 
-const NOTIFICATION_DEFAULTS: Record<NotificationType, Partial<NotificationPreference>> = {
-  weigh_in: { push_enabled: true, email_enabled: true, start_hour: 9, end_hour: 9, interval_hours: 0 },
-  daily_log: { push_enabled: true, email_enabled: false, start_hour: 18, end_hour: 18, interval_hours: 0 },
-  water: { push_enabled: true, email_enabled: false, start_hour: 9, end_hour: 21, interval_hours: 3 },
-  goal_achieved: { push_enabled: true, email_enabled: false, start_hour: 0, end_hour: 23, interval_hours: 0 },
-  weekly_summary: { push_enabled: false, email_enabled: true, summary_day: 1, summary_hour: 9 },
+/**
+ * Bir tipin **sunucu tarafı** varsayılanı.
+ *
+ * ⭐ Değerler Flutter `defaultServerPreference`
+ * (`notification_preferences_repository.dart:72-123`) ile **birebir aynıdır**;
+ * iki istemci farklı varsayılan üretirse aynı kullanıcı web'de ve
+ * Flutter'da farklı davranış görür.
+ *
+ * **Eski hata (P1, A1r8/A4r8 ölçümü):** buradaki `interval_hours: 0` değerleri
+ * DB CHECK'i `notification_preferences_hours_range` ihlal ediyordu
+ * (`interval_hours BETWEEN 1 AND 24`) → web'de sunucu bildirim tercihi
+ * **kaydedilemiyordu**. Flutter'da olduğu gibi `1` (ve `goal_achieved`
+ * için `24`) yazılıyor; ayrıntılı gerekçe `lib/notificationPreferences.ts`.
+ *
+ * `weekly_summary` `push_enabled: false` kalır: sunucu haftalık özeti
+ * e-posta kanalına yollar (Flutter ile aynı).
+ */
+const NOTIFICATION_DEFAULTS: Record<NotificationType, PreferenceDraft> = {
+  weigh_in: { push_enabled: true, email_enabled: true, start_hour: 9, end_hour: 9, interval_hours: 1, summary_day: 1, summary_hour: 9 },
+  daily_log: { push_enabled: true, email_enabled: false, start_hour: 18, end_hour: 18, interval_hours: 1, summary_day: 1, summary_hour: 9 },
+  water: { push_enabled: true, email_enabled: false, start_hour: 9, end_hour: 21, interval_hours: 3, summary_day: 1, summary_hour: 9 },
+  goal_achieved: { push_enabled: true, email_enabled: false, start_hour: 0, end_hour: 23, interval_hours: 24, summary_day: 1, summary_hour: 9 },
+  weekly_summary: { push_enabled: false, email_enabled: true, start_hour: 9, end_hour: 9, interval_hours: 1, summary_day: 1, summary_hour: 9 },
 };
 
 export const NOTIFICATION_LABELS: Record<NotificationType, { title: string; description: string }> = {
@@ -213,17 +248,21 @@ export function useNotifications() {
       return false;
     }
 
-    // Merge with defaults for any missing types
-    const allTypes: NotificationType[] = ['weigh_in', 'daily_log', 'water', 'goal_achieved', 'weekly_summary'];
-    const mergedPrefs = allTypes.map(type => {
+    // Eksik tipler varsayılanla doldurulur. Satır **okunurken** de
+    // normalize edilir: kolonlar nullable olduğu için DB'de `null` gelebilir
+    // ve `null` "sunucu varsayılanına düş" demektir; ekranda `NaN`/geçersiz
+    // bir değer göstermiyoruz ve **kaydederken** de aynı normalize
+    // kuralı uygulanıyor (yoksa `0` yeniden yazılırdı).
+    const mergedPrefs = NOTIFICATION_TYPES.map(type => {
       const existing = data?.find(p => p.notification_type === type);
-      if (existing) {
-        return existing as NotificationPreference;
-      }
+      const fallback = NOTIFICATION_DEFAULTS[type];
+      const draft = existing
+        ? normalizePreference(type, { ...fallback, ...existing })
+        : fallback;
       return {
-        id: '',
+        id: existing?.id ?? '',
         notification_type: type,
-        ...NOTIFICATION_DEFAULTS[type],
+        ...draft,
       } as NotificationPreference;
     });
 
@@ -262,21 +301,30 @@ export function useNotifications() {
   // Update preference
   const updatePreference = useCallback(async (
     type: NotificationType,
-    updates: Partial<NotificationPreference>
+    updates: Partial<NotificationPreference>,
+    /** Profil master anahtarları — bkz. `applyMasterSwitches` notu. */
+    master?: MasterSwitches,
   ): Promise<boolean> => {
     if (!user) return false;
 
     const existing = preferences.find(p => p.notification_type === type);
 
+    // ⭐ Yazılan satır **daima normalize** edilir (`buildPreferenceRow`).
+    // Eski davranış `...updates` dosyasını olduğu gibi gönderiyordu:
+    // `interval_hours: 0` yazan bir çağıran (ayarlar ekranı, yedek içe
+    // aktarım, gelecekteki bir form) DB CHECK'ine takılıp **kaydı
+    // düşürüyordu**. Artık normalize katmanı tek yerde.
+    const row = buildPreferenceRow(user.id, type, {
+      ...NOTIFICATION_DEFAULTS[type],
+      ...(existing ?? {}),
+      ...updates,
+    });
+    const effective = master ? applyMasterSwitches([row], master)[0] : row;
+
     // Use upsert to handle both insert and update atomically
     const { data, error: writeError } = await supabase
       .from('notification_preferences')
-      .upsert({
-        user_id: user.id,
-        notification_type: type,
-        ...(existing?.id ? {} : NOTIFICATION_DEFAULTS[type]), // Apply defaults only for new records conceptually, but upsert will merge
-        ...updates,
-      }, {
+      .upsert(effective, {
         onConflict: 'user_id,notification_type',
         ignoreDuplicates: false,
       })
@@ -317,6 +365,62 @@ export function useNotifications() {
     ));
     return true;
   }, [user, preferences, toast]);
+
+  /**
+   * ⭐ Tüm tipler için satırı **tek seferde** yazar (master anahtarlarla
+   * birleştirilmiş hâliyle).
+   *
+   * Neden ayrı fonksiyon? A4r7'nin "her tip için satır yaz" davranışı
+   * Flutter'da `upsertAll` ile tek bir "Kaydet" düğmesine bağlıydı. Web'de
+   * `NotificationPreferences` bileşeni her anahtarı **anında** kaydediyordu;
+   * dolayısıyla `notification_preferences`'ta satır olmayan bir tip
+   * (`check-reminders`'ın sessizce kapattığı `water`/`daily_log`/
+   * `weekly_summary`) **hiçbir zaman** satır kazanamıyordu.
+   *
+   * Ayar ekranı "Kaydet" dediğinde bu fonksiyon beş tipin de satırını
+   * yazar → sessiz-kapalı davranış kalıcı olarak kapanır.
+   *
+   * `master` verilirse **AND** bileşimi uygulanır (bkz. `MasterSwitches`).
+   * `false` dönen değer en az bir satırın yazılamadığını gösterir;
+   * çağıran bunu kullanıcıya **görünür** hata olarak bildirir.
+   */
+  const saveAllPreferences = useCallback(async (
+    drafts: Partial<Record<NotificationType, Partial<PreferenceDraft>>>,
+    master: MasterSwitches,
+  ): Promise<boolean> => {
+    if (!user) return false;
+
+    const rows = applyMasterSwitches(
+      NOTIFICATION_TYPES.map(type => buildPreferenceRow(user.id, type, {
+        ...NOTIFICATION_DEFAULTS[type],
+        ...(preferences.find(p => p.notification_type === type) ?? {}),
+        ...(drafts[type] ?? {}),
+      })),
+      master,
+    );
+
+    const results = await Promise.all(
+      rows.map(row => supabase
+        .from('notification_preferences')
+        .upsert(row, { onConflict: 'user_id,notification_type', ignoreDuplicates: false })),
+    );
+
+    const failed = results.filter(r => r.error);
+    if (failed.length > 0) {
+      console.error('Error saving preferences:', failed.map(r => r.error));
+      setError({
+        operation: 'preferences',
+        message: 'Ayarlar kaydedilemedi. Değişikliğiniz DB\'ye ulaşmadı.',
+        detail: failed[0].error,
+      });
+      toast({ title: 'Hata', description: 'Ayarlar kaydedilemedi', variant: 'destructive' });
+      return false;
+    }
+
+    setError((prev) => (prev?.operation === 'preferences' ? null : prev));
+    await fetchPreferences();
+    return true;
+  }, [user, preferences, toast, fetchPreferences]);
 
   // Mark notification as read
   // `.eq('user_id', user.id)` RLS'e ek savunma katmanı: bir bildirim id'si
@@ -445,6 +549,7 @@ export function useNotifications() {
     pushPermission,
     requestPushPermission,
     updatePreference,
+    saveAllPreferences,
     markAsRead,
     markAllAsRead,
     deleteNotification,

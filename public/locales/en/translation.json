@@ -279,7 +279,12 @@
     },
     "notifications": {
       "title": "Notification Settings",
-      "desc": "Configure notification channels and timing"
+      "desc": "Configure notification channels and timing",
+      "push": "Push Notifications",
+      "email": "Email Notifications",
+      "server": {
+        "channelNote": "Account-level push/e-mail. The switches above apply to every reminder below."
+      }
     },
     "import": {
       "title": "Import Data",
@@ -297,6 +302,36 @@
       "error": "An error occurred",
       "aiFailedTitle": "Targets could not be updated",
       "aiFailedDesc": "Your details were saved, but your targets could not be recalculated. Try again with \"Recalculate\" in the Goals section."
+    },
+    "deleteAccount": {
+      "entry": "Delete my account",
+      "entryDesc": "Permanently delete your account and all your data",
+      "title": "Do you want to delete your account?",
+      "warning": "This action cannot be undone. Your account and all of the following data will be permanently deleted:",
+      "irreversible": "This action is irreversible and your data cannot be recovered.",
+      "passwordLabel": "Your current password",
+      "passwordRequired": "Enter your password",
+      "confirm": "Delete my account",
+      "deleting": "Deleting your account...",
+      "data": {
+        "meals": "Food and meal records",
+        "water": "Water tracking",
+        "weight": "Weight records",
+        "chat": "AI chat history",
+        "favorites": "Favorite foods and recently used",
+        "settings": "Profile, goals and app settings",
+        "notifications": "Notifications and reminders"
+      },
+      "messages": {
+        "wrongPassword": "Your password is incorrect. Please try again.",
+        "rateLimited": "Too many attempts. Please try again in a few minutes.",
+        "invalidRequest": "Invalid request. Please try again.",
+        "unauthorized": "Your session has ended. Please sign in again.",
+        "network": "Could not connect. Please check your internet and try again.",
+        "partial": "Some data could not be deleted. Your account still exists; try again in a few minutes.",
+        "failed": "Your account could not be deleted. Please try again later.",
+        "localCleanup": "Some local data could not be cleared. Please restart the app."
+      }
     }
   },
   "dashboard": {

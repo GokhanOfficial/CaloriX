@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --import ./tool/ts-resolve.mjs --test tool/test_backup_import.mjs tool/test_calculations_parity.mjs tool/test_dates.mjs",
+    "test": "node --experimental-strip-types --import ./tool/ts-resolve.mjs --test tool/test_backup_import.mjs tool/test_calculations_parity.mjs tool/test_dates.mjs tool/test_notification_preferences.mjs",
     "test:web-verify": "npm test && node tool/check_versions.cjs && node tool/check_i18n.cjs"
   },
   "dependencies": {
