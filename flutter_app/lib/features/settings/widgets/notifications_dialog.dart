@@ -183,9 +183,22 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
 
       // Sunucu bildirim tercihleri `notification_preferences`'a yazılır
       // (yoksa `check-reminders` bu tipleri sessizce kapatıyordu).
+      //
+      // ⭐ **Master anahtarlar burada birleştirilir** (A4r8).
+      // `send-notification/index.ts:423-424` `preference?.push_enabled ??
+      // profile.push_notifications_enabled` okur ve `??` yalnız `NULL` üstüne
+      // düştüğü için, satır bir kez yazıldıktan sonra **profil** master
+      // anahtarı hiç okunmaz. Yukarıdaki "Push/E-posta Bildirimleri"
+      // anahtarlarının ölü kalmasını önlemek için burada **AND** uygulanır:
+      // master `false` ise hiçbir tip satırı `true` yazamaz.
+      final effective = NotificationPreferencesRepository.applyMasterSwitches(
+        _serverPrefs,
+        masterPush: _push,
+        masterEmail: _email,
+      );
       await ref
           .read(notificationPreferencesRepositoryProvider)
-          .upsertAll(user.id, _serverPrefs.values);
+          .upsertAll(user.id, effective.values);
       ref.invalidate(notificationPreferencesProvider);
 
       if (mounted) Navigator.of(context).pop();
@@ -264,6 +277,15 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
             title: Text('settings.notifications.autoRecalculate'.tr()),
             value: _autoRecalc,
             onChanged: (v) => setState(() => _autoRecalc = v),
+          ),
+          // ⭐ Master anahtarların **aşağıdaki** her hatırlatıcıya da
+          // uygulandığını metinle söyle (A4r8). Kullanıcı üstteki anahtarı
+          // kapatıp aşağıda bir tipi açık bırakırsa ne olacağını bilmeli;
+          // gerçek davranış da AND'dir
+          // (`NotificationPreferencesRepository.applyMasterSwitches`).
+          Text(
+            'settings.notifications.server.channelNote'.tr(),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const Divider(height: 32),
           // --- Sunucu hatırlatıcıları (hesaba kaydedilir) ---------------

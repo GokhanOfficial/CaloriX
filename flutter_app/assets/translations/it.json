@@ -332,7 +332,7 @@
       "webOnlyInApp": "Sul web i promemoria vengono mostrati solo con l'app aperta",
       "server": {
         "title": "Promemoria del server",
-        "desc": "Promemoria che sopravvivono al cambio di dispositivo (acqua, registro giornaliero, riepilogo settimanale). Vengono salvati nel tuo account; i promemoria dei pasti qui sopra restano sul dispositivo.",
+        "desc": "Promemoria inviati dal tuo account (acqua, diario alimentare, riepilogo settimanale). Le interruttori in alto valgono per tutti i promemoria di questa sezione.",
         "loadFailed": "Impossibile caricare le impostazioni dei promemoria del server. Al salvataggio verranno usati i valori predefiniti.",
         "water": "Promemoria acqua",
         "dailyLog": "Promemoria registro giornaliero",
@@ -343,8 +343,8 @@
         "intervalHours": "Intervallo (ore)",
         "summaryDay": "Giorno",
         "summaryHour": "Ora",
-        "days": "giorni",
-        "hours": "ore"
+        "channelNote": "Push/e-mail a livello di account. Le interruttori sopra si applicano a tutti i promemoria qui sotto.",
+        "serverScope": "Essendo inviati dal tuo account, questi promemoria continuano ad arrivare anche quando questo dispositivo è spento o cambiato. I promemoria dei pasti nella sezione successiva restano solo su questo dispositivo."
       }
     },
     "import": {

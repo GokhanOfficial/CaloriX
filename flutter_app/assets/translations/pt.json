@@ -332,7 +332,7 @@
       "webOnlyInApp": "Na web, os lembretes são exibidos apenas com o app aberto",
       "server": {
         "title": "Lembretes do servidor",
-        "desc": "Lembretes que sobrevivem à troca de dispositivo (água, registro diário, resumo semanal). São salvos na sua conta; os lembretes de refeição acima ficam no seu dispositivo.",
+        "desc": "Lembretes enviados a partir da sua conta (água, registo diário, resumo semanal). Os interruptores no topo aplicam-se a todos os lembretes desta secção.",
         "loadFailed": "Não foi possível carregar as configurações de lembrete do servidor. Ao salvar, serão usados os padrões.",
         "water": "Lembrete de água",
         "dailyLog": "Lembrete de registro diário",
@@ -343,8 +343,8 @@
         "intervalHours": "Intervalo (horas)",
         "summaryDay": "Dia",
         "summaryHour": "Hora",
-        "days": "dias",
-        "hours": "horas"
+        "channelNote": "Push/e-mail ao nível da conta. Os interruptores acima aplicam-se a todos os lembretes abaixo.",
+        "serverScope": "Como são enviados a partir da sua conta, estes lembretes continuam a chegar mesmo quando este dispositivo está desligado ou é trocado. Os lembretes de refeições da secção seguinte ficam apenas neste dispositivo."
       }
     },
     "import": {

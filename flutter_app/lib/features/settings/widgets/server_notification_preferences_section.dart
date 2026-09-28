@@ -73,8 +73,12 @@ class ServerNotificationPreferencesSection extends StatelessWidget {
   }
 }
 
-/// Bir sunucu tercihini **tek alanlı** kopyalar — Dart'ın `copyWith`'inden
-/// farklı olarak hepsi `non-null` (varsayılan `?? p.x`).
+/// Bir sunucu tercihini **tek alanlı** kopyalar.
+///
+/// ⭐ Uygulama veri katmanındaki [copyNotificationPreference] ile
+/// **aynı fonksiyondur** (A4r8): iki kopya yardımcı, biri bir alanı
+/// unuttuğunda sessizce eski değeri korurdu. Bölüm dosyası artık yalnız
+/// bu adı **dışa aktarır**; uygulama tek yerde.
 NotificationPreference copyPreference(
   NotificationPreference p, {
   bool? pushEnabled,
@@ -84,16 +88,17 @@ NotificationPreference copyPreference(
   int? intervalHours,
   int? summaryDay,
   int? summaryHour,
-}) => NotificationPreference(
-  type: p.type,
-  pushEnabled: pushEnabled ?? p.pushEnabled,
-  emailEnabled: emailEnabled ?? p.emailEnabled,
-  startHour: startHour ?? p.startHour,
-  endHour: endHour ?? p.endHour,
-  intervalHours: intervalHours ?? p.intervalHours,
-  summaryDay: summaryDay ?? p.summaryDay,
-  summaryHour: summaryHour ?? p.summaryHour,
-);
+}) =>
+    copyNotificationPreference(
+      p,
+      pushEnabled: pushEnabled,
+      emailEnabled: emailEnabled,
+      startHour: startHour,
+      endHour: endHour,
+      intervalHours: intervalHours,
+      summaryDay: summaryDay,
+      summaryHour: summaryHour,
+    );
 
 /// Tek sunucu tercihi kartı — push/e-posta anahtarı + tip-özgü zamanlama.
 class _PreferenceCard extends StatelessWidget {

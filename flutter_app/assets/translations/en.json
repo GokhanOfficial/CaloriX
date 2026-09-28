@@ -332,7 +332,7 @@
       "webOnlyInApp": "On web, reminders are shown only while the app is open",
       "server": {
         "title": "Server Reminders",
-        "desc": "Reminders that survive a device change (water, daily log, weekly summary). These are saved to your account; meal reminders above stay on your device.",
+        "desc": "Reminders sent from your account (water, daily log, weekly summary). The switches at the top apply to every reminder in this section.",
         "loadFailed": "Server reminder settings could not be loaded. Saving will use the defaults.",
         "water": "Water Reminder",
         "dailyLog": "Daily Log Reminder",
@@ -343,8 +343,8 @@
         "intervalHours": "Interval (hours)",
         "summaryDay": "Day",
         "summaryHour": "Hour",
-        "days": "days",
-        "hours": "hours"
+        "channelNote": "Account-level push/e-mail. The switches above apply to every reminder below.",
+        "serverScope": "Because they are sent from your account, these reminders keep arriving even if this device is off or changed. Meal reminders in the next section stay on this device only."
       }
     },
     "import": {

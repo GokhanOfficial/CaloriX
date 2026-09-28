@@ -332,7 +332,7 @@
       "webOnlyInApp": "Im Web werden Erinnerungen nur bei geöffneter App angezeigt",
       "server": {
         "title": "Server-Erinnerungen",
-        "desc": "Erinnerungen, die einen Gerätewechsel überstehen (Wasser, Tagesprotokoll, Wochenzusammenfassung). Diese werden in Ihrem Konto gespeichert; die Mahlzeiten-Erinnerungen oben bleiben auf Ihrem Gerät.",
+        "desc": "Erinnerungen, die von deinem Konto gesendet werden (Trinken, Tagesprotokoll, Wochenzusammenfassung). Die Schalter oben gelten für alle Erinnerungen in diesem Abschnitt.",
         "loadFailed": "Server-Erinnerungseinstellungen konnten nicht geladen werden. Beim Speichern werden die Standardwerte verwendet.",
         "water": "Wassererinnerung",
         "dailyLog": "Tagesprotokoll-Erinnerung",
@@ -343,8 +343,8 @@
         "intervalHours": "Intervall (Stunden)",
         "summaryDay": "Tag",
         "summaryHour": "Stunde",
-        "days": "Tage",
-        "hours": "Stunden"
+        "channelNote": "Kontowebenebene push/E-Mail. Die Schalter oben gelten für alle Erinnerungen unten.",
+        "serverScope": "Da sie von deinem Konto gesendet werden, kommen diese Erinnerungen auch, wenn dieses Gerät ausgeschaltet oder gewechselt ist. Die Mahnzeiten-Erinnerungen im nächsten Abschnitt bleiben nur auf diesem Gerät."
       }
     },
     "import": {

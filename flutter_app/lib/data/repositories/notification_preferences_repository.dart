@@ -151,23 +151,59 @@ class NotificationPreference {
   /// DB'ye yazılacak satır (`user_id` çağıran doldurur).
   ///
   /// DB CHECK'leri `notification_preferences_hours_range`
-  /// (`full_setup.sql:624-628`): saatler 0..23, `interval_hours` 1..24,
-  /// `summary_day` 0..6. Aralık dışı bir değer yazmak 400 döndürür ve
-  /// **tüm ayar kaydını** düşürürdü → `clamp` ile normalize edilir.
-  Map<String, dynamic> toRow(String userId) => {
-    'user_id': userId,
-    'notification_type': type.wire,
-    'push_enabled': pushEnabled,
-    'email_enabled': emailEnabled,
-    'start_hour': _clamp(startHour, 0, 23, 9),
-    'end_hour': _clamp(endHour, 0, 23, 21),
-    'interval_hours': _clamp(intervalHours, 1, 24, 3),
-    'summary_day': _clamp(summaryDay, 0, 6, 1),
-    'summary_hour': _clamp(summaryHour, 0, 23, 9),
-    // `updated_at` trigger varsa yazmaya gerek yok; `created_at`
-    // `DEFAULT now()` — A2r5'in "created_at sözleşmeye girmiyordu"
-    // hatasını tekrarlamamak için **gönderilmez**.
-  };
+  /// (`full_setup.sql:826-831`): `start_hour`/`end_hour`/`summary_hour`
+  /// 0..23, `interval_hours` **1..24**, `summary_day` 0..6. Aralık dışı bir
+  /// değer yazmak `23514` döndürür ve **tüm ayar kaydını** düşürürdü →
+  /// [_clamp] ile normalize edilir.
+  ///
+  /// ⭐ **`interval_hours` neden `NULL` değil de `1`?** (A1r8 aktarımı)
+  /// A1r8, web istemcisinin (`src/hooks/useNotifications.ts:30-33`)
+  /// yazdığı `interval_hours: 0` değerinin CHECK'e takıldığını canlı
+  /// Postgres'te kanıtladı. Burada iki seçenek vardı:
+  ///
+  /// - `NULL` → CHECK `NULL` üstünde **geçer** (SQL üç değerli mantığı),
+  ///   ama `check-reminders/index.ts:354` `interval_hours ?? 3` dediği için
+  ///   sunucu sessizce `3` kullanır; yani "kapalı" anlamı taşımaz, sadece
+  ///   **yazılmamış** olur. Kullanıcı `water`'ı 5 saatte bir açtığını
+  ///   düşünür, sunucu 3 saatte bir gönderir.
+  /// - `1` → CHECK'i **karşılar** ve anlamlıdır: `weigh_in`/`daily_log`/
+  ///   `goal_achieved` gibi tek seferlik tiplerde aralık zaten kullanılmaz
+  ///   (`index.ts:302` `normalizedHour === 9`, `:414` `=== 18` sabit saat
+  ///   denetimi yapar), `interval_hours` yalnızca `water`'da okunur. Bu
+  ///   tipler için `1` "saatte en fazla bir kez" sınırıdır ve pratikte
+  ///   `sendThisRun`/`sentThisRun` idempotency'si zaten tek gönderimi
+  ///   garanti eder.
+  ///
+  /// Bu yüzden **`1`** seçildi: CHECK'e uyar, `NULL`'ın taşıdığı "sunucu
+  /// varsayılana düşer" belirsizliğini bırakma. `0` **asla** gönderilmez.
+  Map<String, dynamic> toRow(String userId) {
+    // `check-reminders/index.ts:356` koşulu:
+    //   `normalizedHour >= startHour && normalizedHour <= endHour`
+    // `start > end` ise **hiçbir saatte** sağlanmaz → `water` hatırlatması
+    // sessizce hiç gönderilmez. DB CHECK'i bunu reddetmez (iki saat de
+    // 0..23 olduğu için kabul eder), yani istemci tarafında düzeltilir.
+    // Gece aralığı (örn. 21→09) **desteklenmez**; kullanıcı 09→21 isterse
+    // bu şekilde yazılır. Kullanıcı "tüm gün" isterse `0`/`23` seçer.
+    final start = _clamp(startHour, 0, 23, 9);
+    final end = endHour >= 0 && endHour <= 23 && endHour >= start
+        ? endHour
+        : 23;
+    return {
+      'user_id': userId,
+      'notification_type': type.wire,
+      'push_enabled': pushEnabled,
+      'email_enabled': emailEnabled,
+      'start_hour': start,
+      'end_hour': end,
+      // CHECK 1..24 → 0 ve negatifler burada **asla** çıkmaz.
+      'interval_hours': _clamp(intervalHours, 1, 24, 3),
+      'summary_day': _clamp(summaryDay, 0, 6, 1),
+      'summary_hour': _clamp(summaryHour, 0, 23, 9),
+      // `updated_at` trigger varsa yazmaya gerek yok; `created_at`
+      // `DEFAULT now()` — A2r5'in "created_at sözleşmeye girmiyordu"
+      // hatasını tekrarlamamak için **gönderilmez**.
+    };
+  }
 
   static int _clamp(int v, int min, int max, int fallback) =>
       (v >= min && v <= max) ? v : fallback;
@@ -258,7 +294,73 @@ class NotificationPreferencesRepository {
       await upsert(pref, userId);
     }
   }
+
+  /// ⭐ Profil seviyesi **master** anahtarlarla tip tercihlerini birleştirir.
+  ///
+  /// ## Neden gerekiyor? (A4r8 ölçümü, 2026-09-28)
+  ///
+  /// `send-notification/index.ts:423-424` tercihi şöyle okur:
+  ///
+  /// ```ts
+  /// const pushEnabled  = preference?.push_enabled  ?? profile.push_notifications_enabled  ?? true;
+  /// const emailEnabled = preference?.email_enabled ?? profile.email_notifications_enabled ?? true;
+  /// ```
+  ///
+  /// `??` **yalnız `NULL` üstüne düşer**. `notification_preferences`'a
+  /// yazan ilk istemci olmak (`check-reminders`'ın "satır yoksa kapalı"
+  /// davranışını düzeltmek) demektir, `push_enabled` kolonunun artık
+  /// **dolu** olması demektir — ve dolayısıyla profil master anahtarı
+  /// **hiç okunmaz**. Kullanıcı üstteki "Push Bildirimleri" anahtarını
+  /// kapatır, tip bazlı `true` satırı yazılır, bildirimler **yine gider**.
+  ///
+  /// Doğru bileşim **AND**'dir: master kapandıysa hiçbir kanal açılamaz.
+  /// Master kapandığında hangi satırın "kapatıldığı" bilgisi kaybolduğu için
+  /// master tekrar açıldığında **tüm** satırlar yazılır; A4r7'nin zaten
+  /// yaptığı "her tip için satır yaz" davranışı bu yüzden doğru.
+  static Map<ServerNotificationType, NotificationPreference> applyMasterSwitches(
+    Map<ServerNotificationType, NotificationPreference> prefs, {
+    required bool masterPush,
+    required bool masterEmail,
+  }) =>
+      {
+        for (final entry in prefs.entries)
+          entry.key: copyNotificationPreference(
+            entry.value,
+            pushEnabled: masterPush && entry.value.pushEnabled,
+            emailEnabled: masterEmail && entry.value.emailEnabled,
+          ),
+      };
 }
+
+/// Tek alanlı kopya yardımcısı.
+///
+/// `NotificationPreference` alanları `const` ve hepsi konumlu olduğu için
+/// `copyWith` deseni kullanılabilirdi; ama arayüz katmanı zaten
+/// `copyPreference` adlı bir yardımcı barındırıyor ve iki kopya
+/// yardımcısının **farklı davranması** (biri alanı unutursa sessizce eski
+/// değer korunur) tam olarak bu dosyada aranan hata sınıfıdır. Bu yüzden
+/// tek uygulama kullanılır ve arayüz dışa aktarılan
+/// [copyNotificationPreference] adını taşır.
+NotificationPreference copyNotificationPreference(
+  NotificationPreference p, {
+  bool? pushEnabled,
+  bool? emailEnabled,
+  int? startHour,
+  int? endHour,
+  int? intervalHours,
+  int? summaryDay,
+  int? summaryHour,
+}) =>
+    NotificationPreference(
+      type: p.type,
+      pushEnabled: pushEnabled ?? p.pushEnabled,
+      emailEnabled: emailEnabled ?? p.emailEnabled,
+      startHour: startHour ?? p.startHour,
+      endHour: endHour ?? p.endHour,
+      intervalHours: intervalHours ?? p.intervalHours,
+      summaryDay: summaryDay ?? p.summaryDay,
+      summaryHour: summaryHour ?? p.summaryHour,
+    );
 
 final notificationPreferencesRepositoryProvider =
     Provider<NotificationPreferencesRepository>((ref) {

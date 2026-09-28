@@ -332,7 +332,7 @@
       "webOnlyInApp": "En la web, los recordatorios solo se muestran con la app abierta",
       "server": {
         "title": "Recordatorios del servidor",
-        "desc": "Recordatorios que se conservan al cambiar de dispositivo (agua, registro diario, resumen semanal). Se guardan en tu cuenta; los recordatorios de comidas de arriba se quedan en tu dispositivo.",
+        "desc": "Recordatorios enviados desde tu cuenta (agua, registro diario, resumen semanal). Los interruptores de arriba se aplican a todos los recordatorios de esta sección.",
         "loadFailed": "No se pudieron cargar los ajustes de recordatorio del servidor. Al guardar se usarán los valores predeterminados.",
         "water": "Recordatorio de agua",
         "dailyLog": "Recordatorio de registro diario",
@@ -343,8 +343,8 @@
         "intervalHours": "Intervalo (horas)",
         "summaryDay": "Día",
         "summaryHour": "Hora",
-        "days": "días",
-        "hours": "horas"
+        "channelNote": "Push/correo a nivel de cuenta. Los interruptores de arriba se aplican a todos los recordatorios de abajo.",
+        "serverScope": "Como se envían desde tu cuenta, estos recordatorios siguen llegando aunque este dispositivo esté apagado o se cambie. Los recordatorios de comidas de la sección siguiente solo se quedan en este dispositivo."
       }
     },
     "import": {

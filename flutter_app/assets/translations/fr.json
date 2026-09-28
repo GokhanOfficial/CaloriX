@@ -332,7 +332,7 @@
       "webOnlyInApp": "Sur le web, les rappels ne s'affichent que si l'app est ouverte",
       "server": {
         "title": "Rappels du serveur",
-        "desc": "Rappels qui survivent au changement d'appareil (eau, saisie quotidienne, résumé hebdomadaire). Ils sont enregistrés dans votre compte ; les rappels de repas ci-dessus restent sur votre appareil.",
+        "desc": "Rappels envoyés depuis votre compte (eau, bilan quotidien, résumé hebdomadaire). Les interrupteurs en haut s’appliquent à tous les rappels de cette section.",
         "loadFailed": "Impossible de charger les paramètres de rappel du serveur. L'enregistrement utilisera les valeurs par défaut.",
         "water": "Rappel d'hydratation",
         "dailyLog": "Rappel de saisie quotidienne",
@@ -343,8 +343,8 @@
         "intervalHours": "Intervalle (heures)",
         "summaryDay": "Jour",
         "summaryHour": "Heure",
-        "days": "jours",
-        "hours": "heures"
+        "channelNote": "Push/e-mail au niveau du compte. Les interrupteurs ci-dessus s’appliquent à tous les rappels ci-dessous.",
+        "serverScope": "Envoyés depuis votre compte, ces rappels continuent d’arriver même si cet appareil est éteint ou remplacé. Les rappels de repas de la section suivante restent sur cet appareil uniquement."
       }
     },
     "import": {

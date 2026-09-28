@@ -332,7 +332,7 @@
       "webOnlyInApp": "Web'de hatırlatma yalnızca uygulama açıkken gösterilir",
       "server": {
         "title": "Sunucu Hatırlatıcıları",
-        "desc": "Cihaz değişse de korunan hatırlatıcılar (su, günlük kayıt, haftalık özet). Bu ayarlar hesabınıza kaydedilir; öğün hatırlatıcıları yukarıda cihazınızda kalır.",
+        "desc": "Hesabınızdan gönderilen hatırlatıcılar (su, günlük kayıt, haftalık özet). Yukarıdaki anahtarlar bu bölümdeki tüm hatırlatıcılara uygulanır.",
         "loadFailed": "Sunucu hatırlatma ayarları yüklenemedi. Kaydederseniz varsayılanlar kullanılır.",
         "water": "Su İçme Hatırlatıcısı",
         "dailyLog": "Günlük Kayıt Hatırlatıcısı",
@@ -343,8 +343,8 @@
         "intervalHours": "Aralık (saat)",
         "summaryDay": "Gün",
         "summaryHour": "Saat",
-        "days": "gün",
-        "hours": "saat"
+        "channelNote": "Hesap seviyesinde push/e-posta. Yukarıdaki anahtarlar aşağıdaki tüm hatırlatıcılara uygulanır.",
+        "serverScope": "Hesabınızdan gönderildikleri için bu hatırlatıcılar, cihazınız kapalıyken veya değişse de gelmeye devam eder. Sonraki bölümdeki öğün hatırlatıcıları yalnızca bu cihazda kalır."
       }
     },
     "import": {

@@ -112,23 +112,55 @@ void main() {
   });
 
   group('DB CHECK aralıkları — toRow normalize eder', () {
-    test('24 olamayan saat 23\'e kırpılır (CHECK 400 döndürürdü)', () {
-      // `notification_preferences_hours_range`: `start_hour BETWEEN 0 AND 23`.
-      // Aralık dışı bir değer **tüm ayar kaydını** 400 ile düşürürdü.
+    test('CHECK aralığı dışı değerler varsayılana döner (23514 önlenir)', () {
+      // `notification_preferences_hours_range`: `start_hour BETWEEN 0 AND 23`,
+      // `interval_hours 1..24`, `summary_day 0..6`, `summary_hour 0..23`.
+      // Aralık dışı bir değer **tüm ayar kaydını** 400/`23514` ile düşürürdü.
       const bad = NotificationPreference(
         type: ServerNotificationType.water,
         startHour: 25,
-        endHour: -1,
+        endHour: 30,
         intervalHours: 99,
         summaryDay: 9,
         summaryHour: 30,
       );
       final row = bad.toRow('u1');
       expect(row['start_hour'], 9, reason: 'varsayılana döner (25 geçersiz)');
-      expect(row['end_hour'], 21, reason: '-1 negatif → 23 de CHECK dışı');
+      // `end` yalnız `0..23` **ve** `start`'tan büyük/equal ise korunur;
+      // 30 hem aralık dışı hem `start(9) < end` koşulunu da sağlamıyor →
+      // güvenli tarafa (`23` = gün sonu) düşer. Ölçülen davranış.
+      expect(row['end_hour'], 23,
+          reason: 'geçersiz `end` → 23 (tüm gün); `check-reminders` '
+              '`normalizedHour <= endHour` koşulunu her saat sağlasın');
       expect(row['interval_hours'], 3, reason: 'CHECK 1..24, 99 geçersiz');
       expect(row['summary_day'], 1, reason: 'CHECK 0..6, 9 geçersiz');
       expect(row['summary_hour'], 9, reason: 'CHECK 0..23, 30 geçersiz');
+    });
+
+    // ⭐ `start_hour > end_hour` DB tarafından reddedilmez (ikisi de 0..23),
+    // ama `check-reminders/index.ts:356` koşulu
+    // `normalizedHour >= startHour && normalizedHour <= endHour` **hiçbir
+    // saatte** sağlanmaz → `water` hatırlatması sessizce hiç gönderilmez.
+    // İstemci tarafında düzeltilmeli (gece aralığı desteklenmiyor).
+    test('start > end yazılmaz: sessizce kapalı hatırlatma olmaz', () {
+      const bad = NotificationPreference(
+        type: ServerNotificationType.water,
+        startHour: 21,
+        endHour: 6, // gece aralığı — sunucu desteklemiyor
+      );
+      final row = bad.toRow('u1');
+      expect(row['start_hour'], 21);
+      expect(row['end_hour'], 23,
+          reason: 'end < start ise aralık **hiçbir saatte** sağlanmaz → '
+              '23\'e çekilir, en azından 21-23 arası çalışır');
+      // `row` değerleri `dynamic`; karşılaştırma öncesi `int`'e alınır
+      // (`strict-casts` altında `as int` ifadesi `dynamic` üzerinde
+      // `num` bekliyor ve derleme hatası veriyor).
+      final start = row['start_hour'] as int;
+      final end = row['end_hour'] as int;
+      expect(start <= end, isTrue,
+          reason: 'yazılan satır sunucunun saat aralığı koşulunu '
+              'sağlayabilmeli');
     });
 
     test('geçerli değerler dokunulmadan yazılır', () {
