@@ -525,6 +525,28 @@ void main() {
           reason: '`foods` tablosunda satır yok → silinecek kayıt yok');
     });
 
+    testWidgets(
+        '⭐ A4r11: topluluk/seed gıdasında (canDelete=false) düğme GİZLENİR',
+        (tester) async {
+      await pump(
+        tester,
+        food: const FoodItem(
+          id: 'seed-1',
+          foodId: 'seed-1',
+          name: 'Mercimek Çorbası',
+          calories: 90,
+          proteinG: 4,
+          carbsG: 12,
+          fatG: 1,
+          canDelete: false,
+        ),
+      );
+      expect(find.byType(IconButton), findsNothing,
+          reason:
+              '`created_by IS NULL` → RLS DELETE reddi → düğme boşuna umut verir');
+      expect(find.byTooltip('Yemek sil: Mercimek Çorbası'), findsNothing);
+    });
+
     testWidgets('tooltip + Semantics (ikon-only düğme kuralı)', (tester) async {
       final handle = tester.ensureSemantics();
       await pump(
@@ -532,6 +554,7 @@ void main() {
         food: const FoodItem(
           id: 'f1',
           foodId: 'f1',
+          canDelete: true,
           name: 'Yoğurt',
           calories: 60,
           proteinG: 5,
@@ -557,6 +580,7 @@ void main() {
         food: const FoodItem(
           id: 'f1',
           foodId: 'f1',
+          canDelete: true,
           name: 'Yoğurt',
           calories: 60,
           proteinG: 5,
@@ -592,6 +616,7 @@ void main() {
         food: const FoodItem(
           id: 'f1',
           foodId: 'f1',
+          canDelete: true,
           name: 'Yoğurt',
           calories: 60,
           proteinG: 5,
@@ -624,6 +649,7 @@ void main() {
         food: const FoodItem(
           id: 'f1',
           foodId: 'f1',
+          canDelete: true,
           name: 'Yoğurt',
           calories: 60,
           proteinG: 5,
@@ -656,6 +682,7 @@ void main() {
         food: const FoodItem(
           id: 'f1',
           foodId: 'f1',
+          canDelete: true,
           name: 'Yoğurt',
           calories: 60,
           proteinG: 5,
@@ -701,6 +728,7 @@ void main() {
                       food: FoodItem(
                         id: 'f1',
                         foodId: 'f1',
+                        canDelete: true,
                         name: 'Yoğurt',
                         calories: 60,
                         proteinG: 5,

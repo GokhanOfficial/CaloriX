@@ -87,7 +87,28 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
       await ref.read(diaryRepositoryProvider).addMealEntry(
             user.id,
             foodId: widget.food.foodId,
-            customName: widget.food.isCustom ? widget.food.name : null,
+            // ⭐ P0 (A4r11): `custom_name` "adı yedekle" görevi görür.
+            //
+            // `meal_entries.food_id` FK'si `ON DELETE SET NULL`
+            // (`full_setup.sql` / `20260927120000`): kullanıcı gıdasını
+            // sildiğinde öğün satırı **korunur** ama `food_id` NULL olur.
+            // `fetchDaily` `foods` join'i **yapmaz** (düz `select()`), yani
+            // `MealEntry.displayName` (`meal_entry.dart:89`) yalnızca
+            // `custom_name`'e bakar → NULL ise dashboard'da **"Bilinmeyen"**.
+            // Kalorisi duran ama adı olmayan bir öğün = veri kaybı gibi görünür.
+            //
+            // Kural: `isCustom` (elle/tanıma girdisi, `food_id` zaten NULL)
+            // **veya** `canDelete` (kullanıcının kendi gıdası, silinebilir)
+            // → ad yazılır. `canDelete == false` olan topluluk/seed gıdası
+            // silinemez (`created_by = auth.uid()` reddi) → FK hiç kırılmaz →
+            // `custom_name` **gereksiz tekrardır** (yazılmaz).
+            //
+            // Ölçüm: `canDelete` = `created_by == userId`; `deleteFood` ile
+            // **birebir** aynı koşul (bkz. `food_repository.dart:24-63`). Yani
+            // "adı yaz" ile "gıda silinebilir" aynı sorunun iki yüzü.
+            customName: (widget.food.isCustom || widget.food.canDelete)
+                ? widget.food.name
+                : null,
             mealType: _mealType.name,
             amountGMl: _amount,
             calculatedKcal: calc.kcal.toDouble(),

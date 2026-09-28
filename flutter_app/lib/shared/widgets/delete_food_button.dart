@@ -40,8 +40,11 @@
 ///   metin **eyleme göre** değişmez (her zaman "sil"), yemeğin adını içerir.
 /// - `Semantics(button: true, label: …)` verilir; yalnız ikon bir ekran
 ///   okuyucuya anlamsızdır.
-/// - `custom` (manuel) girdilerde `foodId == null` olduğu için düğme
-///   **gizlenir** (silinecek `foods` satırı yok).
+/// - Düğme yalnızca **silinebilir** gıdalarda çizilir:
+///   - `foodId == null` → custom/manuel girdi; `foods` tablosunda satır yok.
+///   - `canDelete == false` → `foods.created_by != auth.uid()`; RLS DELETE
+///     reddeder (A4r11). Düğme görünür ama hiç çalışmazsa kullanıcı
+///     "bozuk özellik" sanır; hiç görünmezse soru sormaya gerek kalmaz.
 library;
 
 import 'package:easy_localization/easy_localization.dart';
@@ -174,7 +177,17 @@ class _DeleteFoodButtonState extends ConsumerState<DeleteFoodButton> {
   @override
   Widget build(BuildContext context) {
     final foodId = widget.food.foodId;
-    if (foodId == null) return const SizedBox.shrink();
+    // ⭐ A4r11: `foodId == null` → custom/manuel girdi, `foods` tablosunda
+    // silinecek satır yok.
+    //
+    // `canDelete == false` → `foods.created_by != auth.uid()`: RLS DELETE
+    // politikası (`full_setup.sql:424`) reddedeceği için düğme **işe yaramaz**.
+    // A4r10 bu yüzden **tohumluk/topluluk** gıdalarında da düğmeyi
+    // gösteriyordu; kullanıcı "neden silemiyorum" diye boşuna dener.
+    // `canDelete` = `created_by == userId` (`food_repository.dart:24-63`), yani
+    // `deleteFood`'in süzgeciyle **birebir** aynı koşul → düğme yalnız işe
+    // yarayacağı yerde görünür.
+    if (foodId == null || !widget.food.canDelete) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final tooltip = 'foodDelete.tooltip'.tr(
