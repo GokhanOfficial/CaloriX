@@ -186,7 +186,13 @@ class FakeDb {
       tables[table] = (tables[table] ?? [])
           .where((r) => !rows.any((d) => d['id'] == r['id']))
           .toList();
-      return _respond(req, const <Object>[]);
+      // A2r9: `_rollback` artık **silinen satırların id'lerini doğruluyor**
+      // (`.select('id')` → `RETURNING id`). Boş liste dönerse telafi
+      // "başarısız" sayılır (`rolledBack = false`) ve round-trip testleri
+      // gerçek davranışı göremez.
+      return _respond(req, [
+        for (final r in rows) {'id': r['id']}
+      ]);
     }
 
     if (req.method == 'PATCH') {

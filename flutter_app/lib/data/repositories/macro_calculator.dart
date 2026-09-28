@@ -119,9 +119,14 @@ class MacroCalculator {
     //    girdide hâlâ `UnsupportedError` fırlatabiliyor. Kullanıcı boyu
     //    elle girip `NaN` bırakırsa (boş metin → parse hatası) onboarding
     //    ekranı düşmemeli, hedefler üretilmeli.
+    // `Calculations.bmr` girdileri kendi içinde `isFinite` kontrolü yapar
+    // (`minBmr` döner) — A2r9: eski `? 0` eşlemeleri **negatif** kilo/boy
+    // girdisini 0'a çekiyordu; sonuç yine 0 çıkıyordu ama `weightKg`/`heightCm`
+    // artık kırpmadan aşağı veriliyor, böylece `Calculations` kendi sözleşmesini
+    // (pozitif alt sınır + `minBmr` kırpması) tek yerde uyguluyor.
     final bmr = _safeBmr(
-      weightKg: currentWeightKg.isFinite ? currentWeightKg : 0,
-      heightCm: heightCm.isFinite ? heightCm : 0,
+      weightKg: currentWeightKg,
+      heightCm: heightCm,
       age: age,
       gender: gender,
     );

@@ -935,9 +935,32 @@ class DataTransferRepository {
   /// (`20260111041204_...sql:365/382/399`, `foods` için
   /// `20260927120000_...:75`), yani istemci kendi yazdığı satırları silebilir.
   ///
+  /// ## ⭐ DELETE **etkisi doğrulanır** (A2r9 — P3 borcu kapandı)
+  ///
+  /// Eski sürümde `_client.from(t).delete().inFilter('id', chunk)` çağrısı
+  /// **istek atıldı mı diye** sayılıyordu: `remaining -= chunk.length`
+  /// yalnızca "istek fırlatmadı" demekti. PostgREST DELETE 200 dönse bile
+  /// **0 satır** silebilir — RLS politikası gevşemiş, `id` filtresi
+  /// PostgREST tarafından yok sayılmış ya da satır zaten başka bir işlemde
+  /// silinmiş olabilir. Bu durumda `rolledBack = true` raporlanır,
+  /// `counts` sıfırlanır ve kullanıcıya **"hiçbir şey yazılmadı"** yalanı
+  /// söylenir; oysa DB'de yarım içe aktarma duruyor.
+  ///
+  /// Düzeltme: silme **kendi satırlarını geri getirir** (`.select('id')`).
+  /// - **0 satır** dönerse → o dilim "silinmedi" sayılır, `rolledBack`
+  ///   `false` olur ve id'ler [survivors]'a yazılır (kullanıcıya
+  ///   hangi kayıtların kaldığı tam olarak bildirilir).
+  /// - **Tüm satırlar** dönmezse (kısmi silme — örn. RLS yalnızca bir kısmını
+  ///   sildiyse) → kalan id'ler ayrıştırılır ve **yalnızca onlar**
+  ///   raporlanır. Tahmin yok, ölçüm var.
+  ///
+  /// Not: `DELETE` + `Prefer: return=representation` gövdesi **yalnızca o
+  /// dilimdeki** satırları içerir, bu yüzden `chunk`'ın hangi id'leri
+  /// sildiğini **kesin** biliriz.
+  ///
   /// `id` listesi de `in` filtresi olduğu için **dilimlenir** (2000 UUID tek
-  /// sorguda ~78 KB → 414). Dönen değer: geri alınan tablo sayısı > 0 ise
-  /// `true`; bir tablo silinemezse `false` (rapor `rolledBack = false`).
+  /// sorguda ~78 KB → 414). Dönen değer: tüm yazılan satırlar silindiyse
+  /// `true`; aksi hâlde `false` (rapor `rolledBack = false`).
   Future<bool> _rollback(
     Map<String, List<String>> written,
     Map<String, List<String>> survivors,
@@ -947,21 +970,36 @@ class DataTransferRepository {
     for (final table in importTables.reversed) {
       final ids = written[table];
       if (ids == null || ids.isEmpty) continue;
-      var remaining = ids.length;
+      final stillThere = <String>{};
       for (final chunk in inFilterChunks(ids)) {
         try {
-          await _client.from(table).delete().inFilter('id', chunk);
-          remaining -= chunk.length;
+          // `select('id')` → silinen satırların id'leri (`RETURNING id`).
+          final deleted = await _client
+              .from(table)
+              .delete()
+              .inFilter('id', chunk)
+              .select('id');
+          final gone = <String>{};
+          for (final row in deleted) {
+            final id = row['id']?.toString();
+            if (id != null) gone.add(id);
+          }
+          // Silinmeyenler = dilimde istenip **dönmeyenler**.
+          for (final id in chunk) {
+            if (!gone.contains(id)) stillThere.add(id);
+          }
         } catch (e, s) {
+          // İstek hiç atılamadı → dilimin tamamı duruyor.
           AppLog.e('Telafi: $table silinemedi (${e.toString()})', e, s);
+          stillThere.addAll(chunk);
         }
       }
-      if (remaining > 0) {
+      if (stillThere.isNotEmpty) {
         allRolled = false;
-        // Silinemeyen satırlar **kalan** olarak raporlanır (varsayım yok):
-        // hangi dilimlerin sildiğini bilmiyoruz, bu yüzden en kötü senaryo
-        // (hiçbiri silinmedi) varsayılır ve id'ler tam olarak raporlanır.
-        survivors[table] = ids;
+        // Silinemeyen satırlar **ölçülen** kalan kümedir: yalnızca DELETE
+        // gövdesinde dönmeyen id'ler raporlanır (en kötü senaryo
+        // varsayımı yok).
+        survivors[table] = stillThere.toList();
       }
     }
     return allRolled;

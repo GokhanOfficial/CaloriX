@@ -205,7 +205,31 @@ SupabaseClient clientWith(
           return _respond(req, {'code': '42501', 'message': 'permission denied'},
               status: 403);
         }
-        return _respond(req, const <Object>[]);
+        // A2r9: `_rollback` artık **silinen satırların id'lerini doğruluyor**
+        // (`.select('id')` → `RETURNING id`). Sahte DB `in.(...)` filtresini
+        // gerçekten uygular ve silinen id'leri döndürür; aksi hâlde
+        // "0 satır silindi" yanıtı gelir ve telafi başarısız sayılır.
+        //
+        // **DİKKAT — ölçülmüş tuzak:** `inFilter` üç farklı yazım üretiyor
+        // ve `Uri.queryParameters` bunları **kendisi bozar**:
+        //   * 3+ eleman  → `in.("a","b","c")` → doğru parse edilir
+        //   * 2 eleman   → `in.(a,b)` (tırnak atlanır, yalnız `)` bozulur)
+        //   * 1 eleman   → `in.ins-0-0` → `)` **yok**, `in.` **yutulur**
+        // (ölçüldü: `supabase` 2.x `PostgrestQueryBuilder`, DELETE `id` filtresi)
+        // Bu yüzden yalnızca `(` ve tırnak temizlenir; `in.` öneki ise
+        // ayrıştırılmadan önce **açıkça atılır** (aksi hâlde ilk eleman
+        // `in.ins-0-0` olur ve hiçbir satır eşleşmez).
+        final raw = req.url.queryParameters['id'] ?? '';
+        final cleaned = raw.contains('(') ? raw.substring(raw.indexOf('(') + 1) : raw;
+        final asked = cleaned
+            .replaceAll(')', '')
+            .split(',')
+            .map((s) => s.trim().replaceAll('"', ''))
+            .where((s) => s.isNotEmpty && s != 'in.')
+            .toSet();
+        return _respond(req, <Map<String, dynamic>>[
+          for (final id in asked) <String, dynamic>{'id': id}
+        ]);
       }
 
       if (req.method == 'POST') {

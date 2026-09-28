@@ -68,9 +68,24 @@ abstract final class Calculations {
   /// `0` döner — çağıran taraf (`MacroCalculator.calculate`) bu değeri
   /// `try` bloğu DIŞINDA kullandığı için istisna akışı kırıp ekranı düşürüyordu.
   /// Böyle bir kayıt fiziksel olarak da geçersizdir; 0.0 = "hesaplanamadı".
+  ///
+  /// ## ⭐ Neden **kilo** de `> 0` olmalı? (A2r9, `check_versions.cjs` bulgusu)
+  ///
+  /// A3r6 boy tarafını düzeltti ama ağırlıkta yalnızca `isFinite` kontrolü
+  /// kaldı. BMI formülünde boy **kare** olduğu için `bmi(70, -180) = 24.2`
+  /// döner — yani **fiziksel olarak imkânsız** bir kayıt (70 kg / −180 cm)
+  /// geçerli bir "normal" BMI olarak üretilir ve `bmiCategory` bunu
+  /// `bmi.normal` etiketiyle yeşil gösterir. Negatif kilo/BMI'yi
+  /// `bmi.underweight` (<18.5) olarak göstermekten daha kötüdür: kullanıcı
+  /// **doğru** görünen ama **temelsiz** bir sayı görür.
+  ///
+  /// Web sözleşmesi (`src/lib/calculations.ts:294`) **kilo ≤ 0 → 0** diyor;
+  /// iki istemci aynı kaydı farklı değerlendirmemeli. `tool/check_versions.cjs`
+  /// bu ayrışmayı ikili bir kapı olarak denetler — düzeltme sonrası
+  /// "BMI ağırlık alt sınırı iki tarafta farklı" uyarısı düşer.
   static double bmi(double weightKg, double heightCm) {
     if (!heightCm.isFinite || heightCm <= 0) return 0;
-    if (!weightKg.isFinite) return 0;
+    if (!weightKg.isFinite || weightKg <= 0) return 0;
     final hM = heightCm / 100;
     final raw = weightKg / (hM * hM);
     if (!raw.isFinite) return 0;

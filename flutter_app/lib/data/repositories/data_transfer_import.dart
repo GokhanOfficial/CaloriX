@@ -239,8 +239,21 @@ class ImportReport {
   /// Toplam eklenen kayıt.
   int get totalAdded => counts.values.fold<int>(0, (a, b) => a + b);
 
+  /// İçe aktarma **kısmi** mi bitti, yani DB'de yarım veri mi kaldı?
+  ///
+  /// ## Neden `failedStage` tek başına yetmez (A2r9)
+  ///
+  /// Eski tanım `failedStage != null || (rolledBack == false && …)` idi.
+  /// Ama `failedStage` **her** yazma hatasında doludur — telafi başarılıysa
+  /// bile (kullanıcının verisi tamamen geri alınmış, DB temiz) `isPartial`
+  /// `true` dönüyordu. Yani alan adı "kısmi bitti" dediği hâlde
+  /// "bir şeyler ters gitti" anlamını taşıyordu ve içe aktarma
+  /// arayüzünün kısmi durum uyarısını (`transfer_dialogs.dart`) yanlış
+  /// tetikleyebilirdi.
+  ///
+  /// Doğru ölçüt: **kısmi bitti ⇔ telafi edilemedi ve kayıt kaldı.**
   bool get isPartial =>
-      failedStage != null || (rolledBack == false && writtenTables.isNotEmpty);
+      rolledBack == false && writtenTables.isNotEmpty;
 
   @override
   String toString() => 'ImportReport(eklendi: $counts'
