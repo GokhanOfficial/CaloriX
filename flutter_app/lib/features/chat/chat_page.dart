@@ -11,6 +11,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/chat_repository.dart';
 import 'chat_attachment.dart';
 import 'chat_widgets.dart';
+import 'message_list.dart';
 
 /// Bölme sonrası geriye dönük uyum.
 ///
@@ -429,61 +430,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     ? const ChatSkeleton()
                     : _loadFailed && _messages.isEmpty
                         ? LoadErrorBody(onRetry: _loadInitial)
-                        : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(12),
-                        itemCount: visible.length + (_loadingMore ? 1 : 0) +
-                            (_sending ? 1 : 0) +
-                            (_hasMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          // Listenin sırası (baştan sona):
-                          //   [0]              → "daha eski mesajları yükle"
-                          //                                      (yalnız `_hasMore`)
-                          //   [_headerLen]     → sayfalama göstergesi
-                          //                                      (yalnız `_loadingMore`)
-                          //   [_headerLen..]   → mesaj balonları
-                          //   son              → "düşünüyor" göstergesi
-                          //                                      (yalnız `_sending`)
-                          //
-                          // Mesaj indeksine geçmek için **üstteki** yardımcı
-                          // satır sayısı çıkarılır. Buradaki `+ (_hasMore ? 1 : 0)`
-                          // işareti tersydi (`-` olmalıydı): `_hasMore` doğru
-                          // olduğunda `itemCount` başlık satırını içeriyor ama
-                          // `i` bir fazla büyüyordu ve `visible[i]`
-                          // `RangeError` fırlatıyordu — yani "daha eski
-                          // mesajlar" düğmesi görünen **her** sohbette liste
-                          // çöküyordu (`_hasMore` varsayılan `true`).
-                          final headerLen = (_hasMore ? 1 : 0) + (_loadingMore ? 1 : 0);
-                          if (_hasMore && index == 0) {
-                            return LoadEarlierHeader(
+                        : MessageList(
+                            messages: visible,
+                            controller: _scrollController,
+                            // Bayrak listesi tek yerde (`MessageList`); indeks
+                            // eşlemesi artık `itemBuilder`da **elle** yapılmaz
+                            // (A4r3'ün P0'ı buradan çıkmıştı).
+                            header: [
+                              if (_hasMore) ChatListHeader.loadEarlier,
+                              if (_loadingMore) ChatListHeader.loadingMore,
+                            ],
+                            loadEarlier: LoadEarlierHeader(
                               loading: _loadingMore,
                               onTap: _loadingMore ? null : _loadMore,
-                            );
-                          }
-                          if (_loadingMore && index == (_hasMore ? 1 : 0)) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
-                            );
-                          }
-                          final i = index - headerLen;
-                          // En altta "düşünüyor" göstergesi.
-                          if (_sending && i == visible.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: ThinkingIndicator(),
-                            );
-                          }
-                          final message = visible[i];
-                          return MessageBubble(message: message);
-                        },
-                      ),
+                            ),
+                            hasFooter: _sending,
+                          ),
               ),
             ),
             if (_pendingFiles.isNotEmpty)
