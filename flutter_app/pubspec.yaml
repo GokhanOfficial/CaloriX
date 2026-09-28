@@ -63,6 +63,11 @@ dependencies:
   # Sürüm / zorunlu güncelleme kontrolü (GitHub Releases manifesti)
   package_info_plus: ^8.3.0
   http: ^1.4.0
+  # APK sha256 bütünlük doğrulaması (core/updates/apk_integrity.dart).
+  # Dart'ta platform kriptografik API yok; `crypto` paketi pub.dev'in
+  # referans implementation'ı ve zaten transitive olarak geliyordu —
+  # artık **doğrudan** bağımlılık (kaynak olarak kullanılıyor).
+  crypto: ^3.0.7
 
   # Utils
   intl: ^0.20.2
