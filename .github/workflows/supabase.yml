@@ -205,7 +205,19 @@ jobs:
   # `foods.created_by` FK'si `ON DELETE CASCADE`'ten `SET NULL`'a
   # düşürüldü → **3 test kırmızıya döndü** ve `schema_contract` hatayı adıyla
   # söyledi: `[KALDI] foods.created_by ON DELETE CASCADE (3-A) -- confdeltype=n`.
-  # Sonra geri alındı. Ayrıntı: RAPOR-A6r13.
+  #
+  # ⭐⭐ **En pahalı vaka (bulundu ve düzeltildi):** BOLA enjeksiyonu
+  # (`meal_entries` SELECT politikası → `USING (true)`) ilk iki denemede
+  # **yeşil** kaldı. Nedeni test değil, **koşu sırasıydı**:
+  # `full_setup.sql` `DROP POLICY IF EXISTS` + `CREATE POLICY` ile
+  # politikaları **yeniden yazıyor** ve harness'te şablon veritabanında
+  # 3× çalıştırılıyordu → migration regresyonu sessizce onarılıyordu.
+  # Aynı test elle koşulduğunda "48 test / 1 başarısız" veriyordu.
+  # Düzeltme: idempotans doğrulaması **ayrı bir veritabanına** taşındı,
+  # şablon bozulmadan bırakılıyor. Sonrasında aynı enjeksiyon
+  # `48 test / 1 basarisiz` ile kırmızı verdi.
+  # Ders: **kapı, koşu sırasından da etkilenebilir** — yeşil sonuç
+  # "regresyon yok" demek değil, "regresyon ölçülmedi" demektir.
   #
   # ### Bilinen kısıtlar (gizlenmiyor)
   #   - `pg_cron`/`pg_net` uzantıları stock imajda **yok**; migration'daki

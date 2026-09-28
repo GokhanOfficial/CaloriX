@@ -129,13 +129,39 @@ echo "  ✓ $count migration hatasız"
 
 # Migration yolunun ardından full_setup.sql'in **idempotent** olduğunu da
 # doğrular (A1r8'in iddiası: 2. ve 3. çalıştırmada 0 gerçek hata).
-echo "▸ full_setup.sql idempotansı (3×)…"
+#
+# ⭐⭐ **KRİTİK — bu adım ŞABLON VERİTABANINI DEĞİŞTİRMEZ (2026-09-28).**
+# `full_setup.sql` `CREATE TABLE IF NOT EXISTS` + `DROP POLICY IF EXISTS`
+# + `CREATE POLICY` kullanıyor, yani **politikaları yeniden yazıyor**.
+# İlk denemede bu 3× çalıştırma doğrudan şablon veritabanında yapıldı ve
+# sonuç: migration yolundaki **bir politika regresyonu kalıcı olarak
+# sessizce onarıldı** ve testler yeşil kaldı.
+#
+# Ölçülen kanıt: `meal_entries` SELECT politikasına `USING (true)`
+# (BOLA — kullanıcı başkasının öğünlerini okuyabilir) enjekte edildi;
+# test paketi "49 test / 0 başarısız" dedi. Aynı test **elle** koşulduğunda
+# "48 test / 1 başarısız" verdi ve `[KALDI] A yalnızca kendi meal
+# kaydını görür -- görülen: 2` dedi. Fark tek şeydi: manuel koşumda
+# `full_setup.sql` **çalıştırılmamıştı**.
+#
+# Ders: "Yeşil test ≠ etkin test"nin 8. vakası ve **en pahalısı** — kapı
+# yeşildi çünkü koşu sırası hatayı **sessizce onardı**, test zayıf
+# değildi. Şimdi idempotans **ayrı bir veritabanında** doğrulanıyor.
+echo "▸ full_setup.sql idempotansı (3×, AYRI veritabanında)…"
+IDEM_DB="cx_idem_$$"
+docker exec "$CONTAINER" psql -U postgres -d postgres -q \
+  -c "DROP DATABASE IF EXISTS \"$IDEM_DB\";" >/dev/null 2>&1
+docker exec "$CONTAINER" psql -U postgres -d postgres -q \
+  -c "CREATE DATABASE \"$IDEM_DB\" TEMPLATE \"$PG_DB\";" >/dev/null
 for i in 1 2 3; do
-  if ! psql_run < "$ROOT/supabase/full_setup.sql" >/dev/null; then
+  if ! docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres \
+      -d "$IDEM_DB" -q -f - < "$ROOT/supabase/full_setup.sql" >/dev/null; then
     echo "  ✗ full_setup.sql $i. çalıştırmada BAŞARISIZ"; exit 1
   fi
 done
-echo "  ✓ 3× hatasız"
+docker exec "$CONTAINER" psql -U postgres -d postgres -q \
+  -c "DROP DATABASE IF EXISTS \"$IDEM_DB\";" >/dev/null 2>&1
+echo "  ✓ 3× hatasız (şablon veritabanı bozulmadı)"
 
 # -----------------------------------------------------------------------
 # 5) Regresyon testleri — **her biri kendi taze veritabanında**
