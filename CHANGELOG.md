@@ -359,9 +359,14 @@ hâlâ `1.3.0+4`); aşağıdakiler 1.3.0+4 üzerine gelen düzeltmelerdir.
 - **13 turda 7 kez "yeşil test ≠ etkin test"** yakalandı. Bu turun
   bulguları: 4 tasarım denemesi **elendi** (302 yanlış pozitif), SQL
   testlerinde **izolasyon** hatası (bir testin bıraktığı tablo diğerini
-  kırmızıya düşürüyordu), ve migration'da enjeksiyon **görünmez** kaldı
-  (`full_setup.sql` `IF NOT EXISTS` olduğu için sonraki adım onu
-  düzeltiyordu) — ancak **davranış** enjeksiyonu 3 testi kırmızıya döndürdü.
+  kırmızıya düşürüyordu), ve ⭐ **koşu sırası hatası**: `full_setup.sql`
+  politikaları `DROP POLICY` + `CREATE POLICY` ile **yeniden yazdığı** için
+  harness'te şablon üzerinde 3× çalıştırıldığında migration yolundaki
+  **bir politika regresyonu sessizce onarılıyordu** — BOLA enjeksiyonu
+  (`USING (true)`) iki denemede **yeşil** kaldı, elle koşulunca
+  "48 test / 1 başarısız" verdi. İdempotans doğrulaması ayrı veritabanına
+  taşındı; sonra aynı enjeksiyon kırmızı verdi. **Hata testte değil, testi
+  çalıştıran koddaydı.**
 
 ### Fixed — Yedek içe/dışa aktarma (React PWA, `src/lib/import/**`)
 Web tarafı, Flutter'da Tur 4'te düzeltilen **aynı** yedek hatalarını
