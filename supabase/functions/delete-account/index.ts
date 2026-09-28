@@ -12,7 +12,10 @@
 //    (`userId`) **doğrulanmış JWT'den** gelir; istek gövdesinden hiçbir kimlik
 //    bilgisi kabul edilmez (BOLA koruması).
 //  - Sıralama: storage → uygulama tabloları → `auth.admin.deleteUser()`.
-//    Son adımda FK `ON DELETE CASCADE` devreye girerek kalan her şeyi temizler.
+//    Son adımda FK `ON DELETE CASCADE` devreye girerek kalan her şeyi temizler
+//    (A1r5: `foods.created_by` de CASCADE — URUN-KARARLARI 3-A; kullanıcının
+//    eklediği gıdalar ve `food_nutrition` kayıtları da hesapla birlikte silinir,
+//    `created_by IS NULL` seed gıdalar **korunur**).
 //  - Idempotent: her adım "yoksa başarılı" sayılır; yarıda kalan bir silme
 //    yeniden denendiğinde tamamlanır.
 //  - İstemciye SABİT mesaj döner; hiçbir tablo/kolom/ayar adı sızmaz.
@@ -30,6 +33,7 @@ import {
   DELETION_PARTIAL_MESSAGE,
   DELETION_SUCCESS_MESSAGE,
   assertSafeDeletionOrder,
+  isAlreadyDeletedAuthError,
   mapPasswordErrorToStatus,
   ownerFilterColumn,
 } from "./helpers.ts";
@@ -126,8 +130,11 @@ const handler = async (req: Request): Promise<Response> => {
     const rows = await deleteUserRows(serviceClient, userId);
 
     // 8) Son adım: auth kullanıcısını sil. `ON DELETE CASCADE` ile kalan tüm
-    //    satırlar (user_roles dahil) temizlenir. Idempotent: kullanıcı zaten
-    //    yoksa Supabase "User not found" hatası döner; bu **başarı** sayılır.
+    //    satırlar (user_roles dahil, `foods.created_by` dahil) temizlenir.
+    //    Idempotent: kullanıcı zaten yoksa GoTrue "User not found" döner ve bu
+    //    **başarı** sayılır — ama **yalnızca** o hata için (bkz.
+    //    `isAlreadyDeletedAuthError`; "schema not found" gibi başka hatalar
+    //    artık kısmi silme mesajına düşer).
     await deleteAuthUser(serviceClient, userId);
 
     console.log(
@@ -238,8 +245,12 @@ export async function deleteUserRows(
 export async function deleteAuthUser(client: ServiceClient, userId: string): Promise<void> {
   const { error } = await client.auth.admin.deleteUser(userId);
   if (!error) return;
-  const message = (error.message ?? "").toLowerCase();
-  if (message.includes("user not found") || message.includes("not found")) {
+  // A1r5: A1r4'ün bulduğu **çok geniş** `includes("not found")` eşleşmesi
+  // daraltıldı. Yalnızca GoTrue'nun gerçek "kullanıcı yok" hatası idempotent
+  // başarı sayılır; `"schema not found"` / `"session not found"` gibi hatalar
+  // artık istisna fırlatır → çağıran `DELETION_PARTIAL_MESSAGE` döner ve
+  // kullanıcıya **başarı** denmez (KVKK eksik silme iddiası olmaz).
+  if (isAlreadyDeletedAuthError({ message: error.message, status: error.status, code: error.code })) {
     // Zaten silinmiş → idempotent başarı.
     return;
   }
