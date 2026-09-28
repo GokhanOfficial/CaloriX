@@ -142,6 +142,17 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
               'calculated_fat': calc.fat,
               // source/food_id/photo_url/entry_date korunur.
             },
+            // **İyimser kilit.** Kullanıcı iki ekranda (telefon + tablet) aynı
+            // öğünü açtığında ikinci kaydetme, ilkinin değişikliklerini
+            // sessizce eziyordu: kayıt "güncellendi" onayı veriyordu ama
+            // kullanıcı ilk düzenlemenin miktarını kaybetmişti ve hiçbir iz
+            // kalmıyordu. Ekranın gördüğü `updated_at` damgası verilir; DB'de
+            // damga değişmişse yazma **hiç yapılmaz** ve
+            // `MealEntryConflictError` fırlatılır (aşağıdaki ayrı kol).
+            //
+            // Damga `null` ise (eski satır / eksik kolon) kilit **devre dışı**
+            // kalır → geriye dönük uyum, son yazan kazanır.
+            expectedUpdatedAt: widget.entry.updatedAt,
           );
       ref.invalidate(dailyDataProvider);
       ref.invalidate(recentFoodsProvider);
@@ -158,6 +169,26 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
         SnackBar(content: Text('dialogs.invalidAmount'.tr())),
       );
       if (mounted) setState(() => _saving = false);
+    } on MealEntryConflictError catch (e, s) {
+      // A2: **kayıp güncelleme** kapandı. Kullanıcının ekranda gördüğü kayıt
+      // başka bir cihazda değişmiş; bu yazma bilinçli olarak yapılmadı.
+      // Genel hata mesajı ("Kayıt başarısız") yanlış olurdu: kullanıcı
+      // kaydı **tekrar deneyerek** aynı kaybı yaşatabilirdi. Kilit
+      // kaldırılmadan kaydetmeye çalışmak da yanlış — o yol birinci
+      // düzenlemeyi ezerdi. Doğru davranış: dur, bildir, listeyi tazele.
+      AppLog.w('Öğün çakışması — kayıt başka cihazda güncellenmiş', e, s);
+      messenger.showSnackBar(
+        SnackBar(content: Text('dialogs.edit.conflict'.tr())),
+      );
+      // Sunucudaki hâli görmek için listeyi tazele (kullanıcı tekrar açtığında
+      // güncel değerlerle karşılaşsın).
+      ref.invalidate(dailyDataProvider);
+      if (mounted) {
+        setState(() => _saving = false);
+        // Dialog'dan çık: ekrandaki değerler artık geçersiz, kullanıcının
+        // yazdıklarını sessizce kaybetmesi yerine görünür biçimde kapatılır.
+        Navigator.of(context).pop(false);
+      }
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text('addFood.toasts.error'.tr())),

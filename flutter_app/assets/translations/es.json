@@ -129,7 +129,8 @@
     "edit": {
       "title": "Editar registro",
       "updated": "Registro actualizado",
-      "deleted": "Registro eliminado"
+      "deleted": "Registro eliminado",
+      "conflict": "Este registro se actualizó en otro dispositivo. La lista se ha refrescado."
     },
     "fiberG": "Fibra (g)",
     "photoTooLarge": "La foto es demasiado grande",
@@ -334,7 +335,10 @@
       "title": "Importar datos",
       "desc": "Seleccione un archivo JSON exportado previamente. Los datos existentes se conservarán, solo se añadirán registros nuevos.",
       "fileSelect": "Seleccionar archivo",
-      "fileNote": "Solo se admiten archivos de respaldo JSON de CaloriX"
+      "fileNote": "Solo se admiten archivos de respaldo JSON de CaloriX",
+      "validationFailed": "No se pudo validar la copia de seguridad, no se añadió nada",
+      "writeFailedRolledBack": "La importación se detuvo, se revirtieron {count} registros añadidos",
+      "partialWritten": "La importación se detuvo, se añadieron {count} registros"
     },
     "messages": {
       "personalInfoSaved": "Información personal actualizada",

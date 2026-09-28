@@ -165,8 +165,11 @@ class _RecognitionConfirmBodyState
     _rows = widget.foods.map(_FoodRow.new).toList();
   }
 
-  int get _selectedCount =>
-      _rows.where((r) => r.selected && r.amount > 0).length;
+  /// Kaydedilebilecek seçili satır sayısı (uyarı metni ve `_save` filtresi
+  /// ile aynı ölçüt).
+  int get _selectedCount => _rows
+      .where((r) => r.selected && DiaryRepository.isUsableAmount(r.amount))
+      .length;
 
   ({int kcal, double protein, double carbs, double fat}) _rowCalc(_FoodRow r) {
     final kcal = (r.calories * r.amount / 100).round();
@@ -181,7 +184,8 @@ class _RecognitionConfirmBodyState
   ({int kcal, double protein, double carbs, double fat}) get _total {
     var kcal = 0, p = 0.0, c = 0.0, f = 0.0;
     for (final r in _rows) {
-      if (!r.selected || r.amount <= 0) continue;
+      // Aynı tek doğruluk kaynağı (uyarı metni de bunu kullanıyor).
+      if (!r.selected || !DiaryRepository.isUsableAmount(r.amount)) continue;
       final v = _rowCalc(r);
       kcal += v.kcal;
       p += v.protein;
@@ -197,15 +201,18 @@ class _RecognitionConfirmBodyState
     final user = ref.read(currentUserProvider);
     if (user == null || _saving) return;
 
-    // Miktarı 0 (veya geçersiz) satırlar kaydedilmez — 0 gamlık kayıt günlüğü
-    // bozar.
+    // Miktarı kullanılamaz (0/negatif/NaN/Infinity) satırlar kaydedilmez —
+    // 0 gamlık kayıt günlüğü bozar. Uyarı metniyle **aynı** ölçüt
+    // (`isUsableAmount`) kullanılır, böylece "uyarı yok" görülen satır
+    // kaydedilemez hale gelmez.
     //
     // **Önce** seçim kontrolü, **sonra** `_saving = true`: önce `setState`
     // yapılırsa bu erken dönüş `_saving`'i `true` bırakıyor ve Kaydet butonu
     // (`onPressed: _selectedCount > 0 && !_saving`) kalıcı olarak kilitleniyor
     // — kullanıcı butona tekrar basamıyor, ekran kilitleniyor.
-    final selected =
-        _rows.where((r) => r.selected && r.amount > 0).toList();
+    final selected = _rows
+        .where((r) => r.selected && DiaryRepository.isUsableAmount(r.amount))
+        .toList();
     if (selected.isEmpty) return;
 
     setState(() => _saving = true);
@@ -540,11 +547,23 @@ class _FoodRowTileState extends State<_FoodRowTile> {
                 label: 'dialogs.amount'.tr(),
                 suffix: 'g/ml',
               ),
-              if (r.amount <= 0)
+              // Uyarı koşulu `_total`'ın/kaydetme filtresinin **tek doğruluk
+              // kaynağı** (`DiaryRepository.isUsableAmount`) ile aynı olmalı:
+              // iki dal ayrışırsa kullanıcı "uyarı yok" dediğinde satır
+              // yine de kaydedilmiyor, ya da tersi. `isUsableAmount` NaN ve
+              // Infinity'yi de eler (`r.amount <= 0` ikisini de *kabul* eder).
+              //
+              // Metin `dialogs.amountRequired` ("Miktar gerekli") değil
+              // `dialogs.invalidAmount` ("Geçerli bir miktar girin"):
+              // 250 yazıp ondalık noktasını unutan kullanıcı "girilmedi"
+              // mesajı alıyordu, yani ekranda ne yaptığını anlamıyordu.
+              // `invalidAmount` 12 dilde **zaten var** → 0 çeviri işi
+              // (bkz. `diary_repository.dart:105-117`).
+              if (!DiaryRepository.isUsableAmount(r.amount))
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    'dialogs.amountRequired'.tr(),
+                    'dialogs.invalidAmount'.tr(),
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.error),
                   ),

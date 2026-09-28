@@ -129,7 +129,8 @@
     "edit": {
       "title": "编辑条目",
       "updated": "条目已更新",
-      "deleted": "条目已删除"
+      "deleted": "条目已删除",
+      "conflict": "该条目已在另一台设备上更新。列表已刷新。"
     },
     "fiberG": "纤维 (克)",
     "photoTooLarge": "照片太大",
@@ -334,7 +335,10 @@
       "title": "导入数据",
       "desc": "选择之前导出的JSON文件。现有数据将被保留，只添加新记录。",
       "fileSelect": "选择文件",
-      "fileNote": "仅支持CaloriX JSON备份文件"
+      "fileNote": "仅支持CaloriX JSON备份文件",
+      "validationFailed": "无法验证备份，未添加任何内容",
+      "writeFailedRolledBack": "导入已停止，添加的 {count} 条记录已回滚",
+      "partialWritten": "导入已停止，已添加 {count} 条记录"
     },
     "messages": {
       "personalInfoSaved": "个人信息已更新",

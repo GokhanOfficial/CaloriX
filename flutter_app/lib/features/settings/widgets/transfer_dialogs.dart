@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/observability/app_logger.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/data_transfer_repository.dart';
+import '../../../data/repositories/diary_repository.dart';
+import 'import_failure_notices.dart';
 
 /// Veri dışa/içe aktarma — web `useDataExport` parity.
 ///
@@ -90,14 +93,39 @@ abstract final class TransferDialogs {
             content: Text('${'settings.messages.settingsSaved'.tr()} '
                 '($added)')),
       );
-    } on FormatException {
+    } catch (e, s) {
+      // A2r4'ün 4 zorunlu maddesi: `catch (_)` yerine **görünür** sonuç.
+      //
+      // Önceki tek kol dört farklı durumu aynı "Ayarlar kaydedilemedi"
+      // mesajına indirgiyordu. Oysa:
+      //
+      // | Durum | Yazma | Doğru mesaj |
+      // |---|---|---|
+      // | Dosya CaloriX yedeği değil | **hiç** | "yalnızca CaloriX yedekleri" |
+      // | Ön-uçu doğrulama reddi | **hiç** (A2r4'ün ana kazanımı) | "hiçbir kayıt eklenmedi" |
+      // | Yazma hatası, telafi **başarılı** | geri alındı | "eklenenler geri alındı" |
+      // | Yazma hatası, telafi **başarısız** | **duruyor** | "bazı kayıtlar eklendi" ⚠️ |
+      //
+      // Son satır ayrı zorunlu maddedi: `rolledBack == false` iken "hata
+      // oldu" demek **yanlıştır** (kısmen de olsa veri eklendi) ve
+      // kullanıcı aynı yedeği tekrar yükleyip aynı sonucu alınca ne
+      // olduğunu anlamaz.
+      //
+      // Eşleme saf bir fonksiyona taşındı (`ImportFailureNotices`) çünkü
+      // `FilePicker.platform` `flutter_test`'te sürülemiyor; testler bu
+      // fonksiyonu doğrudan kanıtlar.
+      AppLog.w('Yedek içe aktarımı başarısız', e, s);
+      final notice = ImportFailureNotices.of(e);
       messenger.showSnackBar(
-        SnackBar(content: Text('settings.import.fileNote'.tr())),
-      );
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('settings.messages.error'.tr())),
-      );
+        SnackBar(
+          content: Text(notice.translate()),
+          duration: notice.duration,
+        ),
+      );      if (notice.partial) {
+        // Eklenen kayıtlar duruyor: kullanıcının listesi bayat kalmasın,
+        // yoksa "hiçbir şey olmadı" izlenimi doğar.
+        ref.invalidate(dailyDataProvider);
+      }
     }
   }
 }

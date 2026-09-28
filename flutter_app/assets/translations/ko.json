@@ -129,7 +129,8 @@
     "edit": {
       "title": "항목 편집",
       "updated": "항목 업데이트됨",
-      "deleted": "항목 삭제됨"
+      "deleted": "항목 삭제됨",
+      "conflict": "이 항목은 다른 기기에서 업데이트되었습니다. 목록을 새로 고쳤습니다."
     },
     "fiberG": "식이섬유 (g)",
     "photoTooLarge": "사진이 너무 큽니다",
@@ -334,7 +335,10 @@
       "title": "데이터 가져오기",
       "desc": "이전에 내보낸 JSON 파일을 선택하세요. 기존 데이터는 유지되고 새 레코드만 추가됩니다.",
       "fileSelect": "파일 선택",
-      "fileNote": "CaloriX JSON 백업 파일만 지원됩니다"
+      "fileNote": "CaloriX JSON 백업 파일만 지원됩니다",
+      "validationFailed": "백업을 검증할 수 없어 아무것도 추가되지 않았습니다",
+      "writeFailedRolledBack": "가져오기가 중단되어 추가된 {count}개 항목이 롤백되었습니다",
+      "partialWritten": "가져오기가 중단되어 {count}개 항목이 추가되었습니다"
     },
     "messages": {
       "personalInfoSaved": "개인 정보가 업데이트되었습니다",

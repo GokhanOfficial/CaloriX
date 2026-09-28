@@ -129,7 +129,8 @@
     "edit": {
       "title": "Kaydı Düzenle",
       "updated": "Kayıt güncellendi",
-      "deleted": "Kayıt silindi"
+      "deleted": "Kayıt silindi",
+      "conflict": "Bu kayıt başka bir cihazda güncellendi. Liste yenilendi."
     },
     "fiberG": "Lif (g)",
     "photoTooLarge": "Fotoğraf çok büyük",
@@ -334,7 +335,10 @@
       "title": "Verileri İçe Aktar",
       "desc": "Daha önce dışa aktarılmış bir JSON dosyası seçin. Mevcut veriler korunacak, yalnızca yeni kayıtlar eklenecektir.",
       "fileSelect": "Dosya Seç",
-      "fileNote": "Yalnızca CaloriX JSON yedek dosyaları desteklenir"
+      "fileNote": "Yalnızca CaloriX JSON yedek dosyaları desteklenir",
+      "validationFailed": "Yedek doğrulanamadı, hiçbir kayıt eklenmedi",
+      "writeFailedRolledBack": "İçe aktarma durdu, eklenen kayıtlar geri alındı ({count})",
+      "partialWritten": "İçe aktarma durdu, bazı kayıtlar eklendi ({count})"
     },
     "messages": {
       "personalInfoSaved": "Kişisel bilgiler güncellendi",

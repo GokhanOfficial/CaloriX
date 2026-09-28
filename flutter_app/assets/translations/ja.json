@@ -129,7 +129,8 @@
     "edit": {
       "title": "エントリーを編集",
       "updated": "エントリーを更新しました",
-      "deleted": "エントリーを削除しました"
+      "deleted": "エントリーを削除しました",
+      "conflict": "このエントリーは別のデバイスで更新されました。一覧を更新しました。"
     },
     "fiberG": "食物繊維 (g)",
     "photoTooLarge": "写真が大きすぎます",
@@ -334,7 +335,10 @@
       "title": "データをインポート",
       "desc": "以前エクスポートしたJSONファイルを選択してください。既存のデータは保持され、新しいレコードのみ追加されます。",
       "fileSelect": "ファイルを選択",
-      "fileNote": "CaloriX JSONバックアップファイルのみサポート"
+      "fileNote": "CaloriX JSONバックアップファイルのみサポート",
+      "validationFailed": "バックアップを検証できませんでした。何も追加されていません",
+      "writeFailedRolledBack": "インポートが中断され、追加された{count}件は元に戻されました",
+      "partialWritten": "インポートが中断され、{count}件の記録が追加されました"
     },
     "messages": {
       "personalInfoSaved": "個人情報を更新しました",

@@ -129,7 +129,8 @@
     "edit": {
       "title": "Edit Entry",
       "updated": "Entry updated",
-      "deleted": "Entry deleted"
+      "deleted": "Entry deleted",
+      "conflict": "This entry was updated on another device. The list has been refreshed."
     },
     "fiberG": "Fiber (g)",
     "photoTooLarge": "Photo is too large",
@@ -334,7 +335,10 @@
       "title": "Import Data",
       "desc": "Select a previously exported JSON file. Existing data will be preserved, only new records will be added.",
       "fileSelect": "Select File",
-      "fileNote": "Only CaloriX JSON backup files are supported"
+      "fileNote": "Only CaloriX JSON backup files are supported",
+      "validationFailed": "Backup could not be validated, nothing was added",
+      "writeFailedRolledBack": "Import stopped, {count} added records were rolled back",
+      "partialWritten": "Import stopped, some records were added ({count})"
     },
     "messages": {
       "personalInfoSaved": "Personal information updated",

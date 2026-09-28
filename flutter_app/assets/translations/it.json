@@ -129,7 +129,8 @@
     "edit": {
       "title": "Modifica voce",
       "updated": "Voce aggiornata",
-      "deleted": "Voce eliminata"
+      "deleted": "Voce eliminata",
+      "conflict": "Questa voce è stata aggiornata su un altro dispositivo. L'elenco è stato aggiornato."
     },
     "fiberG": "Fibre (g)",
     "photoTooLarge": "Foto troppo grande",
@@ -334,7 +335,10 @@
       "title": "Importa dati",
       "desc": "Seleziona un file JSON esportato in precedenza. I dati esistenti saranno preservati, verranno aggiunti solo i nuovi record.",
       "fileSelect": "Seleziona file",
-      "fileNote": "Sono supportati solo file di backup JSON di CaloriX"
+      "fileNote": "Sono supportati solo file di backup JSON di CaloriX",
+      "validationFailed": "Impossibile convalidare il backup, non è stato aggiunto nulla",
+      "writeFailedRolledBack": "Importazione interrotta, {count} record aggiunti sono stati annullati",
+      "partialWritten": "Importazione interrotta, sono stati aggiunti {count} record"
     },
     "messages": {
       "personalInfoSaved": "Informazioni personali aggiornate",

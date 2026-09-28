@@ -129,7 +129,8 @@
     "edit": {
       "title": "Eintrag bearbeiten",
       "updated": "Eintrag aktualisiert",
-      "deleted": "Eintrag gelöscht"
+      "deleted": "Eintrag gelöscht",
+      "conflict": "Dieser Eintrag wurde auf einem anderen Gerät aktualisiert. Die Liste wurde aktualisiert."
     },
     "fiberG": "Ballaststoffe (g)",
     "photoTooLarge": "Foto ist zu groß",
@@ -334,7 +335,10 @@
       "title": "Daten importieren",
       "desc": "Wählen Sie eine zuvor exportierte JSON-Datei. Vorhandene Daten werden beibehalten, nur neue Einträge werden hinzugefügt.",
       "fileSelect": "Datei auswählen",
-      "fileNote": "Nur CaloriX JSON-Backup-Dateien werden unterstützt"
+      "fileNote": "Nur CaloriX JSON-Backup-Dateien werden unterstützt",
+      "validationFailed": "Sicherung konnte nicht validiert werden, es wurde nichts hinzugefügt",
+      "writeFailedRolledBack": "Import abgebrochen, {count} hinzugefügte Einträge wurden zurückgerollt",
+      "partialWritten": "Import abgebrochen, {count} Einträge wurden hinzugefügt"
     },
     "messages": {
       "personalInfoSaved": "Persönliche Daten aktualisiert",

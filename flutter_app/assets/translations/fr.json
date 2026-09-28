@@ -129,7 +129,8 @@
     "edit": {
       "title": "Modifier l'entrée",
       "updated": "Entrée mise à jour",
-      "deleted": "Entrée supprimée"
+      "deleted": "Entrée supprimée",
+      "conflict": "Cette entrée a été modifiée sur un autre appareil. La liste a été actualisée."
     },
     "fiberG": "Fibres (g)",
     "photoTooLarge": "Photo trop volumineuse",
@@ -334,7 +335,10 @@
       "title": "Importer les données",
       "desc": "Sélectionnez un fichier JSON exporté précédemment. Les données existantes seront conservées, seuls les nouveaux enregistrements seront ajoutés.",
       "fileSelect": "Sélectionner un fichier",
-      "fileNote": "Seuls les fichiers de sauvegarde JSON CaloriX sont pris en charge"
+      "fileNote": "Seuls les fichiers de sauvegarde JSON CaloriX sont pris en charge",
+      "validationFailed": "La sauvegarde n'a pas pu être validée, rien n'a été ajouté",
+      "writeFailedRolledBack": "Import interrompu, {count} enregistrements ajoutés ont été annulés",
+      "partialWritten": "Import interrompu, {count} enregistrements ont été ajoutés"
     },
     "messages": {
       "personalInfoSaved": "Informations personnelles mises à jour",
