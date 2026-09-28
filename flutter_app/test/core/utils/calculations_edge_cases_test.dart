@@ -161,9 +161,16 @@ void main() {
       expect(Calculations.bmi(double.infinity, 180), 0.0);
     });
 
-    test('negatif boy kare alındığı için pozitif BMI verir', () {
-      // -180 → hM=-1.8 → hM²=3.24 → 70/3.24 = 21.6 → 21.6
-      expect(Calculations.bmi(70, -180), 21.6);
+    test('negatif boy 0.0 döner (fiziksel olarak imkânsız kayıt)', () {
+      // Tur 6 düzeltmesi: eski davranış `-180 → hM²=3.24 → 70/3.24 = 21.6`
+      // döndürüyordu, yani boyu **-180 cm** olan bir kayıt geçerli bir BMI
+      // gibi görünüyordu. `heightCm <= 0` artık 0'a düşüyor.
+      expect(Calculations.bmi(70, -180), 0.0);
+      expect(Calculations.bmi(70, -1), 0.0);
+    });
+
+    test('NaN kilo 0.0 döner', () {
+      expect(Calculations.bmi(double.nan, 180), 0.0);
     });
 
     test('0 kilo → 0.0 (bölen geçerli)', () {
@@ -197,10 +204,20 @@ void main() {
   });
 
   group('Calculations.waterTargetMl — negatif kilo', () {
-    test('negatif kilo negatif hedef üretir (koruma yok)', () {
-      // Web parity: kg*33 — koruma uygulama katmanında değil.
-      expect(Calculations.waterTargetMl(-10), -330);
+    test('negatif kilo 0\'a kırpılır (negatif ml hedefi gösterilmez)', () {
+      // Tur 6 düzeltmesi: eski davranış `-330` döndürüyordu ve bu değer
+      // profile yazılıp su ilerleme çubuğunda "−330 ml" olarak
+      // gösterilebiliyordu. Negatif su hedefi fiziksel olarak anlamsızdır.
+      expect(Calculations.waterTargetMl(-10), 0);
       expect(Calculations.waterTargetMl(0), 0);
+    });
+
+    test('NaN/Infinity kilo istisna fırlatmaz', () {
+      // `.round()` NaN'da `UnsupportedError` fırlatıyordu; `MacroCalculator`
+      // bunu `_safeInt` ile sarıyordu ama doğrudan çağıranlar
+      // (`personal_info_dialog.dart` akışı) yakalanmayan hata alıyordu.
+      expect(Calculations.waterTargetMl(double.nan), 0);
+      expect(Calculations.waterTargetMl(double.infinity), 0);
     });
   });
 

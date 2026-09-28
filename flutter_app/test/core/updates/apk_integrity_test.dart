@@ -189,6 +189,11 @@ void main() {
       expect(result.byteLength, bytes.length);
       expect(result.file.existsSync(), isTrue);
       expect(await result.file.readAsBytes(), bytes);
+      // Sürümlü ad: "hangi sürüm indirildi" dosya adından okunur.
+      expect(
+        result.file.path.endsWith(ApkDownloader.stagedFileName(manifest())),
+        isTrue,
+      );
     });
 
     test('boş dosya (0 bayt) reddedilir', () async {
@@ -213,7 +218,11 @@ void main() {
               .having((e) => e.kind, 'kind', ApkDownloadFailure.network),
         ),
       );
-      expect(File('${tempRoot.path}/calorix-update.apk').existsSync(), isFalse);
+      expect(
+        File('${tempRoot.path}/${ApkDownloader.stagedFileName(manifest())}')
+            .existsSync(),
+        isFalse,
+      );
     });
 
     test('üst sınırı aşan gövde reddedilir (maxApkBytes)', () async {
@@ -247,7 +256,11 @@ void main() {
         ),
       );
       // Yazılmadığı doğrulanır — bozuk APK yükleyiciye açılmaz.
-      expect(File('${tempRoot.path}/calorix-update.apk').existsSync(), isFalse);
+      expect(
+        File('${tempRoot.path}/${ApkDownloader.stagedFileName(manifest())}')
+            .existsSync(),
+        isFalse,
+      );
     });
 
     test('yarım inmiş dosya (beklenenden kısa) reddedilir', () async {
@@ -290,6 +303,7 @@ void main() {
           await ApkDownloader.downloadAndVerify(manifest(sha256: 'abc'));
       expect(result.isUnverifiable, isTrue);
       expect(result.file.existsSync(), isTrue);
+      expect(await result.file.length(), 1024);
     });
   });
 
@@ -334,6 +348,67 @@ void main() {
               .having((e) => e.kind, 'kind', ApkDownloadFailure.network),
         ),
       );
+    });
+  });
+
+  group('geçici dosya yönetimi', () {
+    test('dosya adı sürüm ve kodu içerir, yol enjeksiyonu kapatılır', () {
+      expect(
+        ApkDownloader.stagedFileName(manifest()),
+        'calorix-update-4-1.3.0.apk',
+      );
+      // `versionName` sunucudan gelen serbest metin: `../../etc/passwd`
+      // yol dışına kaçamaz.
+      final evil = UpdateManifest(
+        versionName: '../../evil name',
+        versionCode: 9,
+        minSupportedVersionCode: 1,
+        apkUrl: 'https://github.com/a/b/releases/download/v/calorix.apk',
+      );
+      final name = ApkDownloader.stagedFileName(evil);
+      expect(name, isNot(contains('/')));
+      expect(name, isNot(contains('..')));
+      // `.` ve `_` korunur, `/` ve boşluk `_` olur, `..` ayrıca engellenir.
+      expect(name, 'calorix-update-9-____evil_name.apk');
+    });
+
+    test('başarılı indirmede eski sürüm dosyaları silinir', () async {
+      // Kullanıcı önceki güncellemeyi iptal etmiş olabilir; disk dolmasın.
+      final stale = File('${tempRoot.path}/calorix-update-1-1.2.0.apk');
+      await stale.writeAsBytes([1, 2, 3]);
+      final unrelated = File('${tempRoot.path}/başka-bir-dosya.txt');
+      await unrelated.writeAsBytes([1]);
+
+      stubResponse(body: apkBytes(64));
+      ApkDownloader.tempDir = () async => tempRoot;
+      final result = await ApkDownloader.downloadAndVerify(manifest(
+        sha256: ApkIntegrityVerifier.sha256Hex(apkBytes(64)),
+      ));
+
+      expect(result.file.existsSync(), isTrue);
+      expect(stale.existsSync(), isFalse, reason: 'eski sürüm artığı kalmalı');
+      expect(
+        unrelated.existsSync(),
+        isTrue,
+        reason: 'ilgisiz dosya silinmemeli',
+      );
+    });
+
+    test('reddedilen indirme hiçbir dosya bırakmaz', () async {
+      stubResponse(body: apkBytes(1024));
+      ApkDownloader.tempDir = () async => tempRoot;
+      await expectLater(
+        ApkDownloader.downloadAndVerify(manifest(
+          sha256: ApkIntegrityVerifier.sha256Hex(apkBytes(1023)),
+        )),
+        throwsA(isA<ApkDownloadException>()),
+      );
+      final leftovers = tempRoot
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.apk'))
+          .toList();
+      expect(leftovers, isEmpty);
     });
   });
 
