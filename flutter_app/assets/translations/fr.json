@@ -568,7 +568,11 @@
     "checkFailed": "Échec de la vérification de mise à jour",
     "notesTitle": "Nouveautés",
     "openFailed": "Impossible d'ouvrir la page de téléchargement",
-    "unsafeUrl": "Ce lien de mise à jour n'est pas valide. La mise à jour a été annulée."
+    "unsafeUrl": "Ce lien de mise à jour n'est pas valide. La mise à jour a été annulée.",
+    "downloadFailed": "Le téléchargement de la mise à jour a échoué. Vérifiez votre connexion et réessayez.",
+    "integrityFailed": "Le fichier de mise à jour semble corrompu et n'a pas été installé. Vérifiez votre connexion et réessayez.",
+    "tooLarge": "Le fichier de mise à jour est plus volumineux que prévu. L'installation a été annulée.",
+    "unverified": "L'intégrité de cette mise à jour n'a pas pu être vérifiée. L'installation se poursuit quand même."
   },
   "errors": {
     "notFound": "Page introuvable"

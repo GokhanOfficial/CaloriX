@@ -9,6 +9,22 @@
  *   4. easy_localization named placeholder tutarlılığı — `tr` ile `en`
  *      arasında `{foo}` kümesi farklıysa çalışma zamanında sessizce
  *      kaybolan metin parçası vardır.
+ *   4b. Placeholder **sızıntısı**: değer içinde Dart interpolasyonu
+ *      (`${...}`) — kullanıcıya ham metin olarak gösterilir.
+ *   4c. **Placeholder ayracı**: boşluk ayıran dillerde (`tr`, `en`, `de`, …)
+ *      `{min}до` gibi yapışık kullanım okunabilirliği bozar. CJK diller
+ *      bu kurala tabi değildir (`{min}から{max}` doğru yazımdır).
+ *   4d. **RTL sızıntısı** (`ar.json`): Arapça metinde kalan İngilizce
+ *      cümle ve ASCII satır sonu noktalaması. Ölçüm (2026-09-28): 461
+ *      anahtar tarandı, **1 gerçek unutulmuş çeviri** bulundu —
+ *      `dashboard.remaining` = `"kcal متبقية"` (İngilizce "remaining kcal"
+ *      harf harfine bırakılmış) → düzeltildi. Parantez (`(kcal)`) ve
+ *      `...` kısaltması kasıtlı olduğundan yalnızca uyarı üretir.
+ *   4e. **Tarih/sayı biçimi**: `DateFormat(...)` / `NumberFormat(...)`
+ *      çağrıları locale'sizse ya da sabit bir dile bağlıysa hata
+ *      (aktif kullanıcı dilini yok sayarlar). `yyyy-MM-dd` **veritabanına
+ *      yazılan** makine biçimi olduğu için bağlam denetimiyle istisna;
+ *      aynı desen **kullanıcıya gösterilen** bir tarihte hata.
  *   5. Uygulama kodunda (`lib/**` + `test/**`) kullanılan ama hiçbir dilde
  *      karşılığı olmayan anahtarlar.
  *   6. **Orphan** (sahipsiz) anahtarlar: hiçbir dilde karşılığı olmayan
@@ -29,6 +45,7 @@
  * Kullanım:
  *   node tool/check_i18n.cjs                     # CI gate
  *   node tool/check_i18n.cjs --report-orphans    # ayrıntılı orphan listesi
+ *   node tool/check_i18n.cjs --verbose           # RTL/format uyarı listesi
  *   node tool/check_i18n.cjs --write-missing     # eksik anahtarları en.json'dan kopyalar
  */
 const fs = require('fs');
@@ -217,6 +234,23 @@ for (const file of files) {
 }
 
 // --- 4) Placeholder tutarlılığı -------------------------------------------
+//
+// easy_localization `{ad}` placeholder'ları `String.format` benzeri bir
+// dönüşümle ikame eder. En yaygın sessiz çeviri hatası: bir dilde
+// `{min}`/`{max}` yazıp diğerinde `{min}` unutmak → metnin ortasında
+// **"{max}"** ya da `{min} ile {max} kg` içinde **boşluk** kalır.
+//
+// Bu kontrol 2026-09-27'den önce **hiç yoktu**; `onboarding.errAgeRange`
+// gibi çoklu-placeholder anahtarları 12 dilde farklı sayıda placeholder
+// taşıyabiliyordu ve fark edilmiyordu. Ayrıca iki sınıf daha denetleniyor:
+//
+//   a) **Ekstranın tamamı placeholder** — `{ad}` kullanıcının girdiği
+//      serbest metin olabilir ama `{count}`/`{amount}` sayısal olmalı; yine de
+//      `{name}` tek başına bir değer olarak anlamsızsa en azından `tr` ile
+//      aynı küme olmalı (aşağıdaki denetim bunu zaten garanti ediyor).
+//   b) **Sıra farkı** — `{a} {b}` ↔ `{b} {a}`: bazı diller (Arapça, Japonca)
+//      özneyi nesneden önce söyler, ama placeholder kümesi aynı kaldığı için
+//      ikame bozulmaz. Bu yüzden **küme** karşılaştırılır, sıra değil.
 const placeholders = (s) =>
   (String(s).match(/\{[a-zA-Z0-9_]+\}/g) || []).sort().join(',');
 for (const file of files) {
@@ -228,6 +262,260 @@ for (const file of files) {
     if (refPh !== gotPh) {
       errors.push(
         `${file}: "${key}" placeholder uyuşmazlığı — ${REFERENCE_LANG}="{${refPh}}" bu="{${gotPh}}"`,
+      );
+    }
+  }
+}
+
+// --- 4b) Placeholder sızması (ters yön) ------------------------------------
+// `${...}` Dart interpolasyonu bir çeviri değeri içinde geçerse
+// (`"Merhaba ${name}"`) easy_localization o metni olduğu gibi basar ve
+// kullanıcı `${name}` görür. Ayrıca easy_localization'ın `{}` sözdizimi
+// Dart'ın kendi `$` interpolasyonuyla karışır; JSON'da `$` geçen değer
+// yaygın bir tuzak.
+for (const file of files) {
+  for (const [key, value] of Object.entries(flat[file])) {
+    if (typeof value !== 'string') continue;
+    if (value.includes('${')) {
+      errors.push(
+        `${file}: "${key}" Dart interpolasyonu (\${...}) içeriyor — ` +
+          `kullanıcıya ham metin olarak gösterilir`,
+      );
+    }
+  }
+}
+
+// --- 4c) Placeholder ayracı (boşluk dili) ----------------------------------
+// Boşlukla ayrılan dillerde (Latin, Kıbrıs, Yunanca) placeholder'ın
+// ardından/öncesinde **boşluk ya da noktalama** olmalıdır. Atlanırsa
+// metin `{min}до {max}` gibi yapışık okunur — `{min}` kaybolmaz ama
+// okunabilirliği bozulur ve bazı yerelleştirme motorlarında ikame de
+// karışır.
+//
+// CJK (zh/ja/ko) ve boşluk kullanmayan dillerde bu kural **geçerli
+// değildir** (`{min}から{max}` doğru yazımdır), bu yüzden dil bazında
+// uygulanır. Arapça/Farsça/İbranice kelimeleri boşlukla ayırır ama
+// noktalama çeşidi farklıdır; onlar için Latin benzeri ayraç aranır.
+const SPACE_SEPARATED = new Set([
+  'tr.json', 'en.json', 'de.json', 'fr.json', 'es.json', 'it.json',
+  'pt.json', 'ru.json', 'nl.json', 'pl.json', 'sv.json',
+]);
+// Bir placeholder'ın hemen ardından/öncesinde kabul edilen ayraçlar.
+// Harf/rakam **değildir**; ideografik semboller de (→, ~, |) kabul edilir.
+const GLUE_AFTER = /[\s,.;:!?()[\]{}\-–—/\\|·•~<>«»„"“”'’…؟،؛]/;
+const GLUE_BEFORE = /[\s,.;:!?()[\]{}\-–—/\\|·•~<>«»„"“”'’…؟،؛]/;
+for (const file of files) {
+  if (!SPACE_SEPARATED.has(file)) continue;
+  for (const [key, value] of Object.entries(flat[file])) {
+    if (typeof value !== 'string') continue;
+    const found = value.match(/\{[a-zA-Z0-9_]+\}/g) || [];
+    if (found.length < 2) continue;
+    for (const ph of new Set(found)) {
+      const idx = value.indexOf(ph);
+      const after = value[idx + ph.length];
+      const before = idx > 0 ? value[idx - 1] : undefined;
+      const bad = [];
+      if (after !== undefined && !GLUE_AFTER.test(after)) bad.push(`"${ph}${after}"`);
+      if (before !== undefined && !GLUE_BEFORE.test(before)) bad.push(`"${before}${ph}"`);
+      if (bad.length) {
+        errors.push(
+          `${file}: "${key}" placeholder yapışık — ${bad.join(', ')}; ` +
+            `boşluk ayıran dillerde ayraç (boşluk/kesme) gerekli`,
+        );
+      }
+    }
+  }
+}
+
+// --- 4d) RTL sızıntısı (Arapça) --------------------------------------------
+// Arapça metinlerde LTR varsayılanının sızdığı üç örnek denetleniyor:
+//   1. **Satır sonu noktalama** — ASCII `.` `!` `?` `:` `;` Arapçada
+//      noktalama değildir (doğrusu `؟` `،` `؛`). Üç noktalı `...` ise
+//      **beklenen** kısaltma işaretidir (bkz. `common.loading`:
+//      `'جار التحميل...'`), sadece gerçek cümle noktası hata sayılır.
+//   2. **Cümle sonu parantez** — `... (kcal)` kalıbı. Birim/marka
+//      parantezi (`(kcal)`, `(g)`, `(مل)`, `(أيام)`) **doğru** kullanımdır
+//      (Arapçada parantez yönü sağdan sola akar); LTR sızıntısı değildir.
+//   3. **Harf girdisi olmayan metin** — İngilizce marka/birim (`kcal`,
+//      `CaloriX`, `g`) kasıtlıdır ama **cümle** düzeyinde kalan metin
+//      çeviri eksikliğidir.
+//
+// ### Neden yalnızca 1 ve 3 hata, 2 uyarı?
+// 2026-09-28 ölçümü: 461 anahtarın tamamı incelendi. Bulunan ASCII noktalama
+// ve parantez kullanımlarının **tamamı** kasıtlıydı — `...` kısaltması,
+// `!` ünlem, `kcal`/`g` birim parantezi. Bu yüzden parantez denetimi
+// **hata değil uyarı** üretir: gerçek bir LTR sızıntısı olduğunda (ör.
+// `这是 (test)` tipi karışık metin) gözle görülebilir ama kapıyı kırmaz.
+const RTL_LANGS = ['ar.json'];
+/** Noktanın noktalama değil, parçası olduğu bağlamlar. */
+const DOT_OK = [
+  /\d\.\d/, // 1.3 sürüm, ondalık sayı
+  /\.[A-Za-z]{2,4}\b/, // .apk, .json, .com uzantıları
+  /https?:\/\//,
+  /@[a-z]/i, // e-posta
+  /\.{3}/, // kısaltma "..." (yaygın ve doğru)
+];
+for (const file of files) {
+  if (!RTL_LANGS.includes(file)) continue;
+  for (const [key, value] of Object.entries(flat[file])) {
+    if (typeof value !== 'string' || value.trim() === '') continue;
+    // 3) **Sözdizimi sızıntısı**: metin, hedef alfabesine ait olmayan bir
+    //    *kelimeyle* başlıyorsa ya da içinde hiç hedef alfabesinden harf
+    //    yoksa çeviri eksiktir.
+    //
+    //    Ölçüm (2026-09-28): `dashboard.remaining` = `"kcal متبقية"` —
+    //    İngilizce "remaining kcal" kalıbı harf harfine bırakılmıştı
+    //    (`tr: "kalan kcal"`, `en: "remaining kcal"`). Kullanıcı Arapçada
+    //    "kcal kaldı" yerine "kcal mتبقية" görüyordu.
+    //
+    //    Marka/birim olarak bilinen İngilizce kelimeler istisnadır:
+    //    `CaloriX` (ürün adı), `PWA`. Bunlar cümleye başlık olarak da
+    //    kabul edilir (`"CaloriX {version} جاهز."` doğru bir cümledir).
+    //    Birimler (`kcal`) yalnızca **hedef alfabe bulunmadığında** ve
+    //    metin birim dışında hiçbir şey içermiyorsa kabul edilir
+    //    (`"kcal"` gibi tek kelimelik etiketler).
+    const ARABIC = /[\u0600-\u06FF]/;
+    const hasArabic = ARABIC.test(value);
+    const firstWord = value.trim().split(/\s+/)[0] || '';
+    const leadingToken = firstWord.replace(/[.,!?:;،؛؟]+$/, '');
+    if (!hasArabic) {
+      // Hiç Arapça harfi yok: yalnızca marka/birim etiketi kabul edilir.
+      const pureLabel = /^(CaloriX|PWA|kcal|Kcal|KCAL|ml|mL|API)$/.test(leadingToken);
+      if (!pureLabel) {
+        errors.push(
+          `${file}: "${key}" Arapça alfabe içermiyor — çeviri eksik: ` +
+            `${JSON.stringify(value.slice(0, 40))}`,
+        );
+      }
+    } else if (ARABIC.test(leadingToken)) {
+      // Arapça metinde ASCII **noktalama** değil, Latin harfiyle başlayan
+      // kelime: hedef dilin başında yabancı kelime kalmış demektir
+      // (marka/birim istisnası yukarıda).
+      if (/^[A-Za-z][A-Za-z0-9.]*$/.test(leadingToken)) {
+        const latinOk = new Set(['CaloriX', 'PWA']);
+        if (!latinOk.has(leadingToken)) {
+          errors.push(
+            `${file}: "${key}" Latin kelimeyle başlıyor ("${leadingToken}") — ` +
+              `Arapça çeviri eksik: ${JSON.stringify(value.slice(0, 40))}`,
+          );
+        }
+      }
+    }
+    // 2) Parantez — uyarı (kasıtlı birim/marka parantezi yaygın).
+    if (/[()]/.test(value)) {
+      warnings.push(`${file}: "${key}" ASCII parantez — birim/marka için kasıtlıysa sorun yok`);
+    }
+    // 1) Satır sonu ASCII noktalama (URL/ondalık/sürüm/kısaltma hariç).
+    const stripped = DOT_OK.reduce(
+      (acc, re) => acc.replace(new RegExp(re.source, 'g'), ' '),
+      value,
+    );
+    if (/[.!?](\s|$)/.test(stripped) || /[:;]$/.test(stripped)) {
+      warnings.push(
+        `${file}: "${key}" ASCII noktalama ile bitiyor — Arapçada "؟ ، ؛" ` +
+          `daha doğru olur (kısaltma "..." veya emoji ise sorun değil)`,
+      );
+    }
+  }
+}
+
+// --- 4e) Tarih/sayı biçimi — locale sabitlenmesi ----------------------------
+// `DateFormat(pattern)` **locale'siz** çağrıldığında `intl` global ayarını
+// kullanır. easy_localization bu ayarı `en_US`'e çektiği için Türkçe
+// arayüzde `d MMM` → "Mar" yerine yanlış dilde ay adı, `NumberFormat` ise
+// ondalık ayırıcısını yanlış seçer.
+//
+// ### Gerçek bulgu: `yyyy-MM-dd` **makine** biçimidir, `en_US` değil
+// (2026-09-28)
+//
+// `personal_info_dialog.dart:147` `DateFormat('yyyy-MM-dd')` ile
+// `profiles.birth_date` (DATE kolonu) yazıyor. Bu bir **veri biçimi**,
+// kullanıcıya gösterilen metin değil: easy_localization'ın `en_US`
+// varsayılanı `yyyy-MM-dd` deseni için de aynı dizgiyi üretir
+// (`en_US` tarih sırası farkı yalnızca `M/d/y` gibi kalıplarda belirir).
+// Bu yüzden çağrı **makine formatı olarak beyaz listeye** alındı ve
+// denetim onun yerine gerçek riski arıyor: **kullanıcıya gösterilen** bir
+// tarihi makine biçimiyle (`yyyy-MM-dd`) biçimlendirmek. `DATE_FORMAT`
+// beyaz listesi boşsa o kural hata üretir; liste yalnızca **veri
+// yazmak/okmak** için `yyyy-MM-dd` kullanan yerlerde daraltılabilir.
+//
+// Denetim üç parça:
+//   (a) `DateFormat/NumberFormat(...)` çağrılarında ikinci konum (locale)
+//       var mı? Varsa envanter, yoksa **hata** (kullanıcı dilinden bağımsız
+//       biçimlendirme sessizce yanlış sonuç verir).
+//   (b) Locale **sabit** bir koda mı bağlı (`tr`, `en_US`)? Sabit kod
+//       aktif kullanıcı dilini yok sayar → hata.
+//   (c) Çeviri değerlerinde elle yazılmış tarih deseni (`1.3.2026`).
+
+/**
+ * `yyyy-MM-dd` deseniyle **kullanıcıya gösterilen** tarih — kötü.
+ * Makine formatı (DB'ye yazılan `birth_date`) bu kuralla **muaf**.
+ */
+const MACHINE_ISO = 'yyyy-MM-dd';
+const formatCalls = [];
+for (const file of walk(CODE_DIRS[0], (p) => p.endsWith('.dart'))) {
+  const src = fs.readFileSync(file, 'utf8');
+  const rel = path.relative(ROOT, file);
+  // DateFormat('d MMM') · DateFormat('d MMM', locale) · NumberFormat('#.##', locale)
+  const re = /\b(DateFormat|NumberFormat)\(\s*(['"])([^'"]*)\2\s*([,)])/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    formatCalls.push({
+      rel,
+      line: src.slice(0, m.index).split('\n').length,
+      ctor: m[1],
+      pattern: m[3],
+      // Sonraki karakter virgül ise ikinci konumda bir ifade (locale) var.
+      hasLocale: m[4] === ',',
+    });
+  }
+}
+const localeLocked = formatCalls.filter((c) => c.hasLocale);
+const localeForced = formatCalls.filter((c) => /^(tr|en)([_-]|'|$)/.test(c.pattern));
+// (a) Locale verilmemiş çağrılar — çıktı aktif kullanıcı dilinden bağımsız.
+for (const c of formatCalls.filter((x) => !x.hasLocale)) {
+  if (c.pattern === MACHINE_ISO) continue; // makine biçimi, aşağıda inceleniyor
+  errors.push(
+    `${c.rel}:${c.line} ${c.ctor}('${c.pattern}') locale'siz çağrılıyor — ` +
+      `biçimlendirme aktif kullanıcı dilini değil easy_localization'ın ` +
+      `varsayılanını (en_US) kullanır; ikinci konuma ` +
+      `context.locale.toString() geçirilmeli`,
+  );
+}
+// (a2) `yyyy-MM-dd` **kullanıcıya gösteriliyorsa** hata (makine biçimi).
+// Denetim, biçimin içinde göründüğü satırın çevresine bakar: yalnızca
+// veritabanına yazan/okuyan bir ifade (`.update(`/`.insert(`/kolon adı
+// `birth_date`) varsa muaf sayılır.
+for (const c of formatCalls.filter((x) => x.pattern === MACHINE_ISO)) {
+  const src = fs.readFileSync(path.join(ROOT, c.rel), 'utf8');
+  const lines = src.split('\n');
+  const window = lines.slice(Math.max(0, c.line - 6), c.line + 5).join('\n');
+  const writesToDb =
+    /\.(update|insert|upsert)\(|'birth_date'|birth_date:/.test(window);
+  if (!writesToDb) {
+    errors.push(
+      `${c.rel}:${c.line} ${c.ctor}('${c.pattern}') kullanıcıya gösterilen ` +
+        `bir tarihte makine biçimi kullanılıyor — ` +
+        `\`d MMM yyyy\` gibi yerelleştirilmiş bir desen kullan`,
+    );
+  }
+}
+// (b) Locale sabit bir dile bağlı.
+for (const c of localeForced) {
+  errors.push(
+    `${c.rel}:${c.line} ${c.ctor}('${c.pattern}') — sabit locale; ` +
+      `aktif kullanıcı dilini yok sayıyor`,
+  );
+}
+// (c) Elle yazılmış tarih deseni.
+for (const file of files) {
+  for (const [key, value] of Object.entries(flat[file])) {
+    if (typeof value !== 'string') continue;
+    if (/\b\d{1,2}[./]\d{1,2}[./]\d{4}\b/.test(value) && file !== 'tr.json') {
+      warnings.push(
+        `${file}: "${key}" elle yazılmış tarih gibi görünüyor (${value}) — ` +
+          `biçimlendirme ` +
+          `\`DateFormat(...).format(...)\` ile yapılmalı`,
       );
     }
   }
@@ -414,4 +702,23 @@ console.log(
 );
 console.log(
   `  orphan → ölü: ${deadOrphans.length}/${ORPHAN_BASELINE} · react canlı: ${reactOrphans.length} · dinamik: ${dynamicOrphans.length} · dolaylı: ${indirectOrphans.length}`,
+);
+// Yeni kontrollerin özeti — hepsi yeşil olduğu için burada basılıyor.
+// Uyarılar (orphan listesi hariç) yalnızca `--verbose` ile gösterilir, aksi
+// hâlde CI çıktısı 40 satırlık Arapça uyarısıyla boğulur.
+const advisory = warnings.filter((w) => !/^(dinamik|dolaylı|react|ölü):/.test(w));
+if (advisory.length) {
+  if (argv.includes('--verbose')) {
+    for (const w of advisory) console.warn(`⚠ ${w}`);
+  }
+  console.log(
+    `  RTL/format uyarısı: ${advisory.length} (aslında kasıtlı — ` +
+      `node tool/check_i18n.cjs --verbose ile listele)`,
+  );
+}
+console.log(
+  `  placeholder denetimi: ${refKeys.filter((k) => placeholders(flat[REFERENCE_LANG][k])).length} ` +
+    `placeholder'lı anahtar × ${files.length} dil tam tutarlı · ` +
+    `DateFormat/NumberFormat: ${formatCalls.length} çağrı ` +
+    `(${localeLocked.length} locale'lu)`,
 );

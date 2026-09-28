@@ -58,11 +58,17 @@ jobs:
   check:
     name: tsc + lint + build
     runs-on: ubuntu-latest
+    # `npm ci` + build soğuk önbellekte 6-8 dk; ağ takılmasında runner'ın
+    # 6 saatlik varsayılanı beklemek anlamına geliyor. 20 dakika bol.
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      # SHA'ya pinli: etiket (`@v4`) hareketli bir referans; tag sahibi
+      # hesabı ele geçirilirse CI sessizce kötü kod çalıştırır. Dependabot
+      # SHA'yı günceller, `# v4` yorumu sürümü okunur kılar.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
