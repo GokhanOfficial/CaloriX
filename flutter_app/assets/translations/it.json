@@ -344,8 +344,11 @@
         "summaryDay": "Giorno",
         "summaryHour": "Ora",
         "channelNote": "Push/e-mail a livello di account. Le interruttori sopra si applicano a tutti i promemoria qui sotto.",
-        "serverScope": "Essendo inviati dal tuo account, questi promemoria continuano ad arrivare anche quando questo dispositivo è spento o cambiato. I promemoria dei pasti nella sezione successiva restano solo su questo dispositivo."
-      }
+        "serverScope": "Essendo inviati dal tuo account, questi promemoria continuano ad arrivare anche quando questo dispositivo è spento o cambiato. I promemoria dei pasti nella sezione successiva restano solo su questo dispositivo.",
+        "rangeNoNight": "L’orario di fine non può precedere quello di inizio (intervallo notturno non supportato)."
+      },
+      "weighInFrequencyRange": "Inserisci un valore tra 1 e {max}",
+      "weighInFrequencyHint": "1-{max} giorni. Se lasciato vuoto, vengono usati 7 giorni."
     },
     "import": {
       "title": "Importa dati",
@@ -657,5 +660,14 @@
       "addFailed": "Impossibile aggiungere ai preferiti",
       "removeFailed": "Impossibile rimuovere dai preferiti"
     }
+  },
+  "foodDelete": {
+    "title": "Eliminare questo alimento?",
+    "usageCount": "Questo alimento è stato usato in {count} pasti.",
+    "favoriteWarning": "Questo alimento verrà rimosso anche dai tuoi preferiti.",
+    "confirm": "Elimina",
+    "deleted": "Alimento eliminato",
+    "deleteFailed": "Impossibile eliminare l’alimento. Se è usato in un pasto, elimina prima quella voce.",
+    "tooltip": "Elimina alimento: {food}"
   }
 }

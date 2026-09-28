@@ -344,8 +344,11 @@
         "summaryDay": "星期",
         "summaryHour": "时间",
         "channelNote": "账户级别的推送/电子邮件。上方开关适用于下方所有提醒。",
-        "serverScope": "由于这些提醒从你的账户发送，即使本设备关闭或更换也仍会送达。下一节中的用餐提醒仅保留在此设备上。"
-      }
+        "serverScope": "由于这些提醒从你的账户发送，即使本设备关闭或更换也仍会送达。下一节中的用餐提醒仅保留在此设备上。",
+        "rangeNoNight": "结束时间不能早于开始时间（不支持跨夜区间）。"
+      },
+      "weighInFrequencyRange": "请输入 1 到 {max} 之间的值",
+      "weighInFrequencyHint": "1-{max} 天。留空则使用 7 天。"
     },
     "import": {
       "title": "导入数据",
@@ -657,5 +660,14 @@
       "addFailed": "无法添加到收藏",
       "removeFailed": "无法从收藏中移除"
     }
+  },
+  "foodDelete": {
+    "title": "删除该食物？",
+    "usageCount": "该食物已在 {count} 餐中使用。",
+    "favoriteWarning": "该食物也会从你的收藏中移除。",
+    "confirm": "删除",
+    "deleted": "食物已删除",
+    "deleteFailed": "无法删除该食物。如果它被某餐使用，请先删除该记录。",
+    "tooltip": "删除食物：{food}"
   }
 }

@@ -344,8 +344,11 @@
         "summaryDay": "Day",
         "summaryHour": "Hour",
         "channelNote": "Account-level push/e-mail. The switches above apply to every reminder below.",
-        "serverScope": "Because they are sent from your account, these reminders keep arriving even if this device is off or changed. Meal reminders in the next section stay on this device only."
-      }
+        "serverScope": "Because they are sent from your account, these reminders keep arriving even if this device is off or changed. Meal reminders in the next section stay on this device only.",
+        "rangeNoNight": "End hour cannot be before the start hour (overnight range is not supported)."
+      },
+      "weighInFrequencyRange": "Enter a value between 1-{max}",
+      "weighInFrequencyHint": "1-{max} days. If left empty, 7 days is used."
     },
     "import": {
       "title": "Import Data",
@@ -657,5 +660,14 @@
       "addFailed": "Could not add to favorites",
       "removeFailed": "Could not remove from favorites"
     }
+  },
+  "foodDelete": {
+    "title": "Delete this food?",
+    "usageCount": "This food was used in {count} meals.",
+    "favoriteWarning": "This food will also be removed from your favorites.",
+    "confirm": "Delete",
+    "deleted": "Food deleted",
+    "deleteFailed": "Could not delete the food. If it is used in a meal, delete that entry first.",
+    "tooltip": "Delete food: {food}"
   }
 }

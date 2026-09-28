@@ -344,8 +344,11 @@
         "summaryDay": "Jour",
         "summaryHour": "Heure",
         "channelNote": "Push/e-mail au niveau du compte. Les interrupteurs ci-dessus s’appliquent à tous les rappels ci-dessous.",
-        "serverScope": "Envoyés depuis votre compte, ces rappels continuent d’arriver même si cet appareil est éteint ou remplacé. Les rappels de repas de la section suivante restent sur cet appareil uniquement."
-      }
+        "serverScope": "Envoyés depuis votre compte, ces rappels continuent d’arriver même si cet appareil est éteint ou remplacé. Les rappels de repas de la section suivante restent sur cet appareil uniquement.",
+        "rangeNoNight": "L’heure de fin ne peut pas précéder l’heure de début (plage nocturne non prise en charge)."
+      },
+      "weighInFrequencyRange": "Saisissez une valeur entre 1 et {max}",
+      "weighInFrequencyHint": "1 à {max} jours. Si le champ est vide, 7 jours sont utilisés."
     },
     "import": {
       "title": "Importer les données",
@@ -657,5 +660,14 @@
       "addFailed": "Impossible d'ajouter aux favoris",
       "removeFailed": "Impossible de retirer des favoris"
     }
+  },
+  "foodDelete": {
+    "title": "Supprimer cet aliment ?",
+    "usageCount": "Cet aliment a été utilisé dans {count} repas.",
+    "favoriteWarning": "Cet aliment sera également retiré de vos favoris.",
+    "confirm": "Supprimer",
+    "deleted": "Aliment supprimé",
+    "deleteFailed": "Impossible de supprimer l’aliment. S’il est utilisé dans un repas, supprimez d’abord cette entrée.",
+    "tooltip": "Supprimer l’aliment : {food}"
   }
 }

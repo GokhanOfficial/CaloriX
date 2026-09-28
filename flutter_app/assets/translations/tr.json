@@ -344,8 +344,11 @@
         "summaryDay": "Gün",
         "summaryHour": "Saat",
         "channelNote": "Hesap seviyesinde push/e-posta. Yukarıdaki anahtarlar aşağıdaki tüm hatırlatıcılara uygulanır.",
-        "serverScope": "Hesabınızdan gönderildikleri için bu hatırlatıcılar, cihazınız kapalıyken veya değişse de gelmeye devam eder. Sonraki bölümdeki öğün hatırlatıcıları yalnızca bu cihazda kalır."
-      }
+        "serverScope": "Hesabınızdan gönderildikleri için bu hatırlatıcılar, cihazınız kapalıyken veya değişse de gelmeye devam eder. Sonraki bölümdeki öğün hatırlatıcıları yalnızca bu cihazda kalır.",
+        "rangeNoNight": "Bitiş saati başlangıçtan önce olamaz (gece aralığı desteklenmiyor)."
+      },
+      "weighInFrequencyRange": "1-{max} gün arasında bir değer girin",
+      "weighInFrequencyHint": "1-{max} gün arası. Boş bırakılırsa 7 gün kullanılır."
     },
     "import": {
       "title": "Verileri İçe Aktar",
@@ -657,5 +660,14 @@
       "addFailed": "Favorilere eklenemedi",
       "removeFailed": "Favorilerden çıkarılamadı"
     }
+  },
+  "foodDelete": {
+    "title": "Yemek silinsin mi?",
+    "usageCount": "Bu yemek {count} öğünde kullanıldı.",
+    "favoriteWarning": "Bu yemek favorilerinizden de silinecek.",
+    "confirm": "Sil",
+    "deleted": "Yemek silindi",
+    "deleteFailed": "Yemek silinemedi. Bir öğünde kullanılıyorsa önce o kaydı silin.",
+    "tooltip": "Yemek sil: {food}"
   }
 }

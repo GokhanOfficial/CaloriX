@@ -344,8 +344,11 @@
         "summaryDay": "Tag",
         "summaryHour": "Stunde",
         "channelNote": "Kontowebenebene push/E-Mail. Die Schalter oben gelten für alle Erinnerungen unten.",
-        "serverScope": "Da sie von deinem Konto gesendet werden, kommen diese Erinnerungen auch, wenn dieses Gerät ausgeschaltet oder gewechselt ist. Die Mahnzeiten-Erinnerungen im nächsten Abschnitt bleiben nur auf diesem Gerät."
-      }
+        "serverScope": "Da sie von deinem Konto gesendet werden, kommen diese Erinnerungen auch, wenn dieses Gerät ausgeschaltet oder gewechselt ist. Die Mahnzeiten-Erinnerungen im nächsten Abschnitt bleiben nur auf diesem Gerät.",
+        "rangeNoNight": "Die Endzeit darf nicht vor der Startzeit liegen (Nachtbereich wird nicht unterstützt)."
+      },
+      "weighInFrequencyRange": "Wert zwischen 1-{max} eingeben",
+      "weighInFrequencyHint": "1-{max} Tage. Bleibt das Feld leer, werden 7 Tage verwendet."
     },
     "import": {
       "title": "Daten importieren",
@@ -657,5 +660,14 @@
       "addFailed": "Zu Favoriten konnte nicht hinzugefügt werden",
       "removeFailed": "Aus Favoriten konnte nicht entfernt werden"
     }
+  },
+  "foodDelete": {
+    "title": "Lebensmittel löschen?",
+    "usageCount": "Dieses Lebensmittel wurde in {count} Mahlzeiten verwendet.",
+    "favoriteWarning": "Dieses Lebensmittel wird auch aus Ihren Favoriten entfernt.",
+    "confirm": "Löschen",
+    "deleted": "Lebensmittel gelöscht",
+    "deleteFailed": "Lebensmittel konnte nicht gelöscht werden. Wenn es in einer Mahlzeit verwendet wird, löschen Sie zuerst diesen Eintrag.",
+    "tooltip": "Lebensmittel löschen: {food}"
   }
 }

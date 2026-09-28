@@ -344,8 +344,11 @@
         "summaryDay": "Dia",
         "summaryHour": "Hora",
         "channelNote": "Push/e-mail ao nível da conta. Os interruptores acima aplicam-se a todos os lembretes abaixo.",
-        "serverScope": "Como são enviados a partir da sua conta, estes lembretes continuam a chegar mesmo quando este dispositivo está desligado ou é trocado. Os lembretes de refeições da secção seguinte ficam apenas neste dispositivo."
-      }
+        "serverScope": "Como são enviados a partir da sua conta, estes lembretes continuam a chegar mesmo quando este dispositivo está desligado ou é trocado. Os lembretes de refeições da secção seguinte ficam apenas neste dispositivo.",
+        "rangeNoNight": "A hora final não pode ser anterior à inicial (intervalo noturno não é suportado)."
+      },
+      "weighInFrequencyRange": "Insira um valor entre 1 e {max}",
+      "weighInFrequencyHint": "1 a {max} dias. Se ficar vazio, serão usados 7 dias."
     },
     "import": {
       "title": "Importar dados",
@@ -657,5 +660,14 @@
       "addFailed": "Não foi possível adicionar aos favoritos",
       "removeFailed": "Não foi possível remover dos favoritos"
     }
+  },
+  "foodDelete": {
+    "title": "Excluir este alimento?",
+    "usageCount": "Este alimento foi usado em {count} refeições.",
+    "favoriteWarning": "Este alimento também será removido dos seus favoritos.",
+    "confirm": "Excluir",
+    "deleted": "Alimento excluído",
+    "deleteFailed": "Não foi possível excluir o alimento. Se ele for usado em uma refeição, exclua esse registro primeiro.",
+    "tooltip": "Excluir alimento: {food}"
   }
 }

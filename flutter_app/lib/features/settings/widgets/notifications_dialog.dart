@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/notifications/meal_reminder.dart';
 import '../../../core/notifications/reminder_settings.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../data/models/profile.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/notification_preferences_repository.dart';
 import '../../../data/repositories/profile_repository.dart';
 import 'server_notification_preferences_section.dart';
+import 'weigh_in_frequency_input.dart';
 
 /// Bildirim ayarları diyaloğu — web `saveNotifications` parity.
 ///
@@ -22,8 +24,9 @@ import 'server_notification_preferences_section.dart';
 ///
 /// 1. **Profil seviyesi anahtarlar** (push/email master, tartılma sıklığı,
 ///    makro otomatik yeniden hesap) — `profiles` tablosu.
-/// 2. **Sunucu hatırlatıcıları** (`water` / `daily_log` / `weekly_summary` /
-///    `goal_achieved`) — `notification_preferences` tablosu.
+/// 2. **Sunucu hatırlatıcıları** (`water` / `daily_log` / `weekly_summary`) —
+///    `notification_preferences` tablosu. (`goal_achieved` **gösterilmez**:
+///    sunucu bu tipi hiç göndermiyor — A4r10, ürün kararı 2-B.)
 /// 3. **Öğün hatırlatıcıları** — cihazda (`ReminderSettings`,
 ///    SharedPreferences + `NotificationService`).
 ///
@@ -75,10 +78,24 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
   late bool _push = widget.profile?.pushNotificationsEnabled ?? true;
   late bool _email = widget.profile?.emailNotificationsEnabled ?? true;
   late final TextEditingController _frequency = TextEditingController(
-    text: (widget.profile?.weighInFrequencyDays ?? 7).toString(),
+    text: (widget.profile?.weighInFrequencyDays ?? kWeighInDefaultDays)
+        .toString(),
   );
   late bool _autoRecalc = widget.profile?.autoRecalculateMacros ?? true;
   bool _saving = false;
+
+  /// `weigh_in_frequency_days` alanının odak düğümü — doğrulama hatası
+  /// oluştuğunda klavye/focus o alana taşınır (ekran okuyucu da hata
+  /// metnini doğru yerde okur).
+  final _frequencyFocus = FocusNode();
+
+  /// `weigh_in_frequency_days` hatası (`null` = hata yok).
+  ///
+  /// ⭐ Ayrı bir alan tutulur çünkü "Kaydet" düğmesinin `onPressed`'ı
+  /// `build` sırasında okunur: `setState` çağırmadan hata metnini
+  /// yeniden hesaplamak zorundayız (düğmenin `enabled` durumu **anında**
+  /// değişmeli, `form.validate()` yalnız düğmeye basıldığında çalışıyor).
+  String? _frequencyError;
 
   /// Sunucu tercihleri. `{}` = henüz yüklenmedi (bkz. [_prefsLoaded]).
   ///
@@ -146,6 +163,7 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
   @override
   void dispose() {
     _frequency.dispose();
+    _frequencyFocus.dispose();
     super.dispose();
   }
 
@@ -163,9 +181,62 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
     });
   }
 
+  /// Tartılma sıklığı metnini doğrular ve `_frequencyError`'ı günceller.
+  ///
+  /// `onChanged`'te **her tuş vuruşunda** çalışır; bu yüzden hata mesajı
+  /// yalnız "Kaydet"e basılınca değil, **anında** görünür. `_save` de
+  /// aynı fonksiyonu çağırır (defansif: `onChanged` tetiklenmemiş olabilir).
+  void _validateFrequency(String raw) {
+    final next = isValidWeighInInput(raw) ? null : _frequencyErrorOf(raw);
+    if (next == _frequencyError) return;
+    setState(() => _frequencyError = next);
+  }
+
+  /// Geçersiz metin için **yerelleştirilmiş** hata metni.
+  ///
+  /// Boş giriş **hata değildir** (`DEFAULT 7` yazılır ve CHECK
+  /// `IS NULL OR …` olduğu için geçerlidir); aralık dışı/çöp metin hatadır.
+  static String? _frequencyErrorOf(String raw) =>
+      isBlankWeighInInput(raw) ? null : _frequencyRangeMessage;
+
+  /// "1-365 gün arasında bir değer girin" — hata `errorText`'inde **ve**
+  /// `SnackBar`'da aynı metni gösterir (biri kalıcı, biri geçici); iki
+  /// çağrıda kopyalamak yerine tek yerden üretilir.
+  static String get _frequencyRangeMessage =>
+      'settings.notifications.weighInFrequencyRange'.tr(
+        namedArgs: {
+          'min': '$kWeighInMinDays',
+          'max': '$kWeighInMaxDays',
+        },
+      );
+
+  /// "Kaydet"in etkin olması için gereken koşul.
+  ///
+  /// ⭐ A4r10 düzeltmesi: `weigh_in_frequency_days` alanı CHECK aralığı
+  /// (1..365) dışındaysa düğme **pasif** olur. Düzeltme öncesi `0` yazılıp
+  /// "Kaydet"e basıldığında `_save` **iki** yazma yolunu da (profil + sunucu
+  /// bildirim tercihleri) tek `try` içinde çalıştırıyordu; CHECK reddi **tüm
+  /// `_save`'i** düşürüyordu → kullanıcı push/e-posta tercihlerini de
+  /// kaybediyor, üstelik hangi alandan kaynaklandığını öğrenemiyordu.
+  bool get _canSave =>
+      !_saving && _prefsLoaded && isValidWeighInInput(_frequency.text);
+
   Future<void> _save() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
+
+    // Son savunma: düğme pasif olsa bile `_save` doğrudan çağrılabilir
+    // (düğmeye basmadan önce alan değişmiş olabilir) → sunucuya geçersiz
+    // değer göndermek yerine kullanıcının girdiği yere dön.
+    final raw = _frequency.text;
+    if (!isValidWeighInInput(raw)) {
+      setState(() => _frequencyError = _frequencyErrorOf(raw));
+      _frequencyFocus.requestFocus();
+      return;
+    }
+    final frequencyDays =
+        parseWeighInFrequencyDays(raw) ?? kWeighInDefaultDays;
+
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -176,7 +247,12 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
       await ref.read(profileRepositoryProvider).update(user.id, {
         'push_notifications_enabled': _push,
         'email_notifications_enabled': _email,
-        'weigh_in_frequency_days': int.tryParse(_frequency.text.trim()) ?? 7,
+        // ⭐ A4r10: `int.tryParse(...) ?? 7` yerine **doğrulanmış** değer.
+        // `?? 7` yalnız `null` üstüne düşerdi, `0` doğrudan DB'ye
+        // gidiyordu (negatif değer `digitsOnly` ile zaten engelleniyordu)
+        // → `profiles_weigh_in_frequency_days_range` CHECK'i (1..365)
+        // reddediyor, **tüm `_save`** düşüyordu.
+        'weigh_in_frequency_days': frequencyDays,
         'auto_recalculate_macros': _autoRecalc,
       });
       ref.invalidate(profileProvider);
@@ -205,7 +281,25 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
       messenger.showSnackBar(
         SnackBar(content: Text('settings.messages.settingsSaved'.tr())),
       );
-    } catch (_) {
+    } on ProfileFieldRangeError catch (e, s) {
+      // ⭐ A4r10: A2r9'ın veri katmanı savunması **buraya** ulaştı. Bu
+      // hata "ağ yok" değil, "senin girdiğin değer DB CHECK'i sağlamıyor"
+      // demektir; genel hata mesajı (`settings.messages.error`) kullanıcıya
+      // ne yapması gerektiğini söylemezdi ve **hangi alan** olduğunu
+      // göstermezdi.
+      AppLog.w('Profil alanı DB CHECK aralığı dışında', e, s);
+      if (mounted) {
+        setState(() => _frequencyError = _frequencyRangeMessage);
+        _frequencyFocus.requestFocus();
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(_frequencyRangeMessage)),
+      );
+    } catch (e, s) {
+      // Sessiz `catch (_)` **zorunlu log** olmadan bırakıldı: PROTOKOL §2
+      // P1 "sessiz hata yutma"yı yasaklar. Kullanıcı yine de bilgilendirilir
+      // ama hata artık **görünmez** değil.
+      AppLog.w('Bildirim ayarları kaydedilemedi', e, s);
       messenger.showSnackBar(
         SnackBar(content: Text('settings.messages.error'.tr())),
       );
@@ -262,13 +356,34 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
             onChanged: (v) => setState(() => _email = v),
           ),
           const SizedBox(height: 8),
-          TextField(
+          // ⭐ A4r10: `TextField` → `TextFormField`.
+          // * `inputFormatters: digitsOnly` **negatif** girişi zaten engelliyor
+          //   ama `0`'ı engellemiyordu (CHECK alt sınırı 1).
+          // * `LengthLimitingTextInputFormatter(3)` 365'i geçmeyi engeller:
+          //   kullanıcı `9999` yazınca hata **göstermek** yerine yazımı
+          //   sessizce kesiyor (yine de `_frequencyError` yine de çalışır,
+          //   çünkü 3 haneli her sayı 1..365 değildir: `0`, `1x`, `99x`).
+          // * `errorText` doğrulama **anında** görünür.
+          TextFormField(
+            focusNode: _frequencyFocus,
             controller: _frequency,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(3),
+            ],
+            onChanged: _validateFrequency,
             decoration: InputDecoration(
               labelText: 'settings.notifications.weighInFrequency'.tr(),
               suffixText: 'settings.notifications.days'.tr(),
+              errorText: _frequencyError,
+              helperText: 'settings.notifications.weighInFrequencyHint'.tr(
+                namedArgs: {
+                  'min': '$kWeighInMinDays',
+                  'max': '$kWeighInMaxDays',
+                },
+              ),
+              helperMaxLines: 2,
             ),
           ),
           const SizedBox(height: 8),
@@ -350,7 +465,11 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
                 // yazılmaz** → kullanıcı "Ayarlar güncellendi" görür ama
                 // `check-reminders`'ın sessiz-kapalı davranışı durur.
                 // `_saving` eski kapıyı korur (çift gönderim).
-                onPressed: (_saving || !_prefsLoaded) ? null : _save,
+                //
+                // ⭐ `_frequencyError` kapısı (A4r10): CHECK aralığı dışı
+                // değerde **hiçbir şey gönderilmez** — profil **ve** sunucu
+                // bildirim tercihleri birlikte kurtulur.
+                onPressed: _canSave ? _save : null,
                 child: _saving
                     ? const SizedBox(
                         width: 18,
