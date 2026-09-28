@@ -246,10 +246,14 @@ export async function deleteAuthUser(client: ServiceClient, userId: string): Pro
   const { error } = await client.auth.admin.deleteUser(userId);
   if (!error) return;
   // A1r5: A1r4'ün bulduğu **çok geniş** `includes("not found")` eşleşmesi
-  // daraltıldı. Yalnızca GoTrue'nun gerçek "kullanıcı yok" hatası idempotent
-  // başarı sayılır; `"schema not found"` / `"session not found"` gibi hatalar
-  // artık istisna fırlatır → çağıran `DELETION_PARTIAL_MESSAGE` döner ve
-  // kullanıcıya **başarı** denmez (KVKK eksik silme iddiası olmaz).
+  // daraltıldı.
+  // A1r8: karar artık önce GoTrue'nun **mühürlü hata kodunu** (`error.code`,
+  // kaynak: supabase/auth v2.185.0 `apierrors/errorcode.go` →
+  // `ErrorCodeUserNotFound = "user_not_found"`) okuyor; mesaj deseni ikincil
+  // sinyal olarak kaldı (eski sürüm / vakalar).
+  // `"schema not found"` / `"session not found"` gibi hatalar istisna
+  // fırlatır → çağıran `DELETION_PARTIAL_MESSAGE` döner ve kullanıcıya
+  // **başarı** denmez (KVKK eksik silme iddiası olmaz).
   if (isAlreadyDeletedAuthError({ message: error.message, status: error.status, code: error.code })) {
     // Zaten silinmiş → idempotent başarı.
     return;

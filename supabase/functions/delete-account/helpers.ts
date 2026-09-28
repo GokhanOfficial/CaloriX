@@ -138,40 +138,122 @@ export function assertSafeDeletionOrder(tables: readonly string[] = DATA_TABLES)
  * başarı) olup olmadığını **dar** bir kalıpla belirler.
  *
  * A1r4 bulgusu (P2): eski kod `message.includes("not found")` ile eşleşiyordu.
- * Bu **çok geniş** bir kalıptır: Supabase/GoTrue'nin aşağıdaki gerçek
- * hataları da bu kalıba girer ve **idempotent başarı** sayılır:
+ * Bu **çok geniş** bir kalıptır: GoTrue'nun aşağıdaki gerçek hataları da bu
+ * kalıba girer ve **idempotent başarı** sayılır:
  *
  *   - `"User not found"`                        → doğru (idempotent)
- *   - `"user not found"` / `"User Not Found"`    → doğru (idempotent)
- *   - `"Auth session not found"` / `"session not found"` → **yanlış**: oturum
- *     hatası, silme yapılmadı
+ *   - `"Session not found"`                     → **yanlış**: oturum hatası
+ *   - `"Confirmation Token not found"`          → **yanlış**
+ *   - `"Refresh Token not found"`               → **yanlış**
  *   - `"Database connection failed: schema not found"` → **yanlış**: bağlantı
  *     hatası, auth kaydı duruyor ama kullanıcıya "başarı" deniyor
- *   - `"new row violates row-level security policy"` → "not found" içermese
- *     bile eşleşmezdi; yine de kapsam dışı bırakıldı (aşağıda).
  *
  * Etki (A1r4): "Gerçek bir silme hatası başarı sayılabilir" → KVKK
  * "sil" talebi sessizce karşılanmamış sayılıyor.
  *
- * Çözüm: eşleşme **kullanıcıyı özneye alan** kalıplara daraltıldı
- * (`user ... not found` / `user_not_found` / HTTP 404 + `user`).
- * `row-level security` / `schema` / `session` içeren hatalar artık
- * istisna fırlatır → çağıran `DELETION_PARTIAL_MESSAGE` döner.
+ * ---------------------------------------------------------------------------
+ * A1r8 — KALIP, SÜRÜM-SABİTLİ KAYNAK KODLA DOĞRULANDI
+ * ---------------------------------------------------------------------------
+ * A1r5 "bu kalıplar canlı GoTrue'ye karşı denenmedi" diye raporlamıştı. Bu
+ * turda **doğrulandı** — tahminle değil, **sürüm sabitlenmiş kaynak kodla**
+ * (canlıya bağlanmadan):
+ *
+ *   - Projede bağlı GoTrue sürümü: `supabase/.temp/gotrue-version` →
+ *     **`v2.185.0`**
+ *   - `internal/models/errors.go`:
+ *       `func (e UserNotFoundError) Error() string { return "User not found" }`
+ *   - `internal/api/admin.go` → `loadUser()`:
+ *       `apierrors.NewNotFoundError(apierrors.ErrorCodeUserNotFound, "User not found")`
+ *   - `internal/api/apierrors/errorcode.go`:
+ *       `ErrorCodeUserNotFound ErrorCode = "user_not_found"`
+ *   - `internal/api/apierrors/apierrors.go` → `HTTPError` JSON etiketleri:
+ *       `{"code": <http durumu>, "error_code": "<ErrorCode>", "msg": "<Message>"}`
+ *
+ * `admin.deleteUser()` "kullanıcı yok" durumunda **tam olarak** şunu döner:
+ *
+ *   HTTP 404 · `{"code":404,"error_code":"user_not_found","msg":"User not found"}`
+ *
+ * `supabase-js` bunu `AuthApiError` olarak sarar, alanları şöyle doldurur
+ * (`@supabase/auth-js@2.117.2` → `lib/fetch.js` → `handleError`):
+ *   `error.message = data.msg`  → `"User not found"`
+ *   `error.status  = HTTP 404`
+ *   `error.code    = data.error_code` (yoksa `data.code`) → `"user_not_found"`
+ *
+ * ### KALIP NEDEN BÖYLE (ve neden `code` birincil)
+ *
+ * **`code` birincil sinyaldir.** `user_not_found` GoTrue'nun **mühürlü**
+ * hata kodudur. Mesaj metni sürümden sürüme değişebilir (A1r5'in korkusu
+ * buydu) ama hata kodu değişmez. Bu yüzden karar önce `code`'a bakar.
+ *
+ * Mesaj regex'i **ikincil** sinyaldir ve iki amaçla tutulur:
+ *   1) `error_code` alanı gelmeyen ama gövdesi `User not found` olan eski
+ *      sürüm ya da vakalar (ör. hata loglarından kopyalanmış metin).
+ *   2) `status` 404 olmadan gelen ama kodu yine `user_not_found` olan
+ *      yanıtlar (bazı edge ağ geçitleri durum kodunu değiştirir).
+ *
+ * Mesaj deseni **kasıtlı olarak `user ... not found` kalıbına daraltıldı**:
+ * GoTrue'daki diğer `* not found` hataları (`Session`, `Refresh Token`,
+ * `Confirmation Token`, `Identity`, `Factor`, `Flow State`, …) bu kalıba
+ * **giremez** — hiçbiri `user` sözcüğü içermez.
+ *
+ * ### GERİYE UYUM
+ *
+ *  - `error_code` dönmeyen eski GoTrue sürümleri: mesaj regex'i onları
+ *    yakalamaya devam eder (A1r5 davranışı, `user_not_found` snake_case
+ *    kalıbı dâhil, korunur).
+ *  - `message === "" && status === 404` kuralı **korundu**: ters proxy
+ *    (gateway) hata gövdesini yutabiliyor; bu durumda durum kodu tek
+ *    sinyaldir.
+ *  - Varsayılan **kapalıdır**: eşleşmeyen her hata istisna fırlatır
+ *    (`DELETION_PARTIAL_MESSAGE`).
+ *
+ * ### ⭐ A1r8'DE ÖLÇÜLEN DÜZELTME: bilinen ALAKASIZ kod mesajı ezmez
+ *
+ * Yeni test yazarken şu senaryo **kırmızı** çıktı ve gerçek bir açık
+ * gösterdi:
+ *
+ *   `{ message: "", status: 404, code: "session_not_found" }` → `true` idi.
+ *
+ * Sebep: 3. kural (`boş + 404` ⇒ idempotent) `code` alanına **bakmıyordu**.
+ * Yani GoTrue "oturum bulunamadı" dediğinde, hata kodu elinde dururken
+ * fonksiyon bunu "kullanıcı zaten yok" sayıp **başarı** dönüyordu →
+ * `auth.admin.deleteUser()` aslında kullanıcıyı silmemiş olmasına rağmen
+ * KVKK talebi "karşılandı" görünüyordu. Bu, A1r4'ün kapatmaya çalıştığı
+ * açığın `code` alanı üzerinden **yeniden** açılmasıydı.
+ *
+ * Düzeltme: `code` **doluysa** karar `code`'a aittir (birebir `user_not_found`
+ * ⇒ idempotent, aksi hâlde ⇒ istisna). "Boş + 404" kuralı yalnızca hiç
+ * hata kodu gelmemiş yanıtlar için geçerlidir.
  */
 export function isAlreadyDeletedAuthError(error: {
   message?: string | null;
   status?: number | null;
   code?: string | null;
 }): boolean {
-  const message = (error?.message ?? "").toLowerCase();
+  // 1) BİRİNCİL: GoTrue'nun mühürlü hata kodu. `error_code` alanı
+  //    (`user_not_found`) birebir karşılaştırılır — `includes` DEĞİL
+  //    (kısmen eşleşen bir kod "yok" anlamına gelmez).
+  //    Kaynak: apierrors/errorcode.go → ErrorCodeUserNotFound.
+  const code = (error?.code ?? "").trim().toLowerCase();
+  if (code === "user_not_found") return true;
+  // `code` **biliyorsak** ve `user_not_found` DEĞİLSE bu hata başka bir
+  // şeyin yokluğudur (`session_not_found`, `factor_not_found`, …) ve
+  // mesaja bakılmaz. A1r8'de ölçülen hata: boş gövde + 404 + bilinen
+  // alakasız kod, 3. kural yüzünden (aşağıda) yanlışlıkla "idempotent
+  // başarı" sayılıyordu → gerçek silme hatası KVKK "başarı"sına dönüşüyordu.
+  if (code !== "") return false;
 
-  // 1) GoTrue'nin gerçek "kullanıcı yok" hatası: `User not found`.
-  //    `user` **mutlaka** geçmeli; `session not found` / `schema not found`
-  //    gibi "başka bir şey bulunamadı" hataları bu kalıba girmez.
+  // 2) İKİNCİL: mesaj deseni. `user` sözcüğü ZORUNLU; GoTrue'daki
+  //    `Session / Refresh Token / Confirmation Token / Identity / Factor /
+  //    Flow State not found` hataları bu kalıba giremez (models/errors.go).
+  //    A1r5'in `user_not_found` (snake_case, mesaj içinde) kalıbı da korunur.
+  const message = (error?.message ?? "").toLowerCase();
   if (/\buser\b[^a-z0-9_]+(?:was\s+)?not[\s_-]?found\b/.test(message)) return true;
-  // 2) Bazı sürümler snake_case döner: `user_not_found`.
   if (/\buser_not_found\b/.test(message)) return true;
-  // 3) Hata gövdesi boşsa HTTP durumu tek sinyal: 404 = hedef yok.
+
+  // 3) Gövde tamamen boşsa **ve** hata kodu hiç gelmemişse HTTP durumu tek
+  //    sinyal: 404 = hedef yok. (Ters proxy hata gövdesini yutabiliyor.)
+  //    `code` boş olduğu için kural 1'de zaten elendi.
   if (message === "" && error?.status === 404) return true;
 
   return false;

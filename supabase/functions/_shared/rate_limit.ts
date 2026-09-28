@@ -68,16 +68,44 @@
  *    ama **yavaş**sa (`fetch` zaman aşımına uğrar) 60 sn'lik bypass devreye
  *    girer ve sayaç yavaş yola düşer. DoS koruması zayıflar; AI maliyeti
  *    artar. Bu kabul edilmiş bir ödünlemedir: **işlevsizlik (tüm isteklerin
- *    500'le dönmesi)**, sınırlı maliyet artışından kötüdür. Daha iyi bir
- *    çözüm (`p_bucket` ile kova bazlı bypass, Tur 8 adayı) raporlandı.
+ *    500'le dönmesi)**, sınırlı maliyet artışından kötüdür.
+ *    (A1r8 bu riski **kapsamını daraltarak** kısmen çözdü: artık yalnızca
+ *    arızalı olan **kova** bekler — aşağıdaki bölüme bakınız.)
  *
- * KALAN RİSK (düzeltilmedi, gerekçe):
- *  `dbBypassUntil` **modül düzeyi tek bir değişken**dir: bir instance'ta
- *  DB'ye ulaşılamadıysa o instance'taki **tüm** kovalar 60 sn bellek içi yola
- *  düşer (`ai-chat`, `recognize-food`, `delete-account` birlikte). Kova bazlı
- *  ayrım (`dbBypassUntil: Map<bucket, number>`) düzeltilmesi kolaydır ama
- *  davranış değiştirir (bir kovanın arızası başkasını etkilemez) ve
- *  ölçülmüş bir ihtiyaç kanıtı yoktur → **rapora bırakıldı**.
+ * ---------------------------------------------------------------------------
+ * A1r8 — KOVA BAZLI KISA DEVRE (`dbBypassUntilByBucket`)
+ * ---------------------------------------------------------------------------
+ * A1r2'den kalan tek `rate_limit.ts` riski: kısa devre **tek global**
+ * değişkendi, yani bir instance'ta DB'ye ulaşılamadıysa o instance'taki
+ * **tüm** kovalar (`ai-chat`, `recognize-food`, `delete-account`, …) 60 sn
+ * bellem içi yola düşüyordu. Bu birbirinden bağımsız iki hatayı birbirine
+ * bağlıyordu:
+ *
+ *  1. **Birbirini etkilemeyen arızalar birbirini sınırlıyordu.** `recognize-food`
+ *     RPC'si zaman aşımına uğrarsa (8 MB gövde + yavaş DB), aynı instance'a
+ *     düşen `delete-account` isteği de `2/saat` yerine **instance başına**
+ *     sayılıyordu — yani KVKK silme talebi gereksiz yere zayıflıyordu.
+ *  2. **Sıfır maliyetli bir iyileşme kazandırıyordu.** Bugün `delete-account`
+ *     için DB geri geldiği anda o kova da 60 sn boyunca hâlâ bellem içi
+ *     yolda kalıyor (global sayaç sıfırlanmadığı için). Kova bazlı sayaçta
+ *     yalnızca gerçekten arızalı olan kova bekler.
+ *
+ * "DB çalışmıyor" **global** bir arızadır; o durumda tüm kovaların bellem içi
+ * yola düşmesi doğru davranıştır ve bu kod onu bozmaz. Değişen şey yalnızca
+ * **bir kovanın RPC'sinin kendisinin** arızalı olduğu senaryodur.
+ *
+ * GERİYE UYUM: A1r5'teki 60 sn değeri, eşikler ve tüm anahtar biçimleri
+ * **aynen korunur**. Sadece "hangi kova ne zaman bypass ediyor" bilgisi
+ * kova başına tutulur. Dışarıdan görünen davranış değişimi yalnızca
+ * *birbirinden bağımsız* kovalar arasındadır; aynı kovanın kendi penceresi
+ * içindeki davranış (bypass, limit, retryAfter) birebir aynıdır.
+ *
+ * GERİYE UYUMLULUK (gözlem): Modül düzeyinde `dbBypassUntil` **korunur** ve
+ * kova bazlı değerlerin **en büyüğünü** gösterir — yani "bu instance'ta bir
+ * bypass hâlâ aktif mi?" sorusunun eski cevabı. Kova bazlı sayaç bu değeri
+ * **yalnızca yükseltir**; tüm pencereler dolduğunda sıfırlanır. Karar mantığı
+ * artık kova bazlı olduğu için bu gözlem yalnızca **log/teşhis** içindir ve
+ * kararı etkilemez.
  */
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -88,22 +116,85 @@ type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
 /**
- * RPC'nin bir süre boyunca denenmemesi için kısa devre zamanlayıcısı (ms).
+ * Bir **kovanın** RPC'si, bu süre boyunca yeniden denenmez (ms).
  *
- * Modül düzeyinde **tek** bir değerdir; gerekçesi ve güvenlik
+ * Değer A1r5'te ölçülerek 60 saniye seçildi; gerekçesi ve güvenlik
  * değerlendirmesi dosyanın başındaki "A1r5 — `DB_BYPASS_COOLDOWN_MS`
- * GEREKÇESİ" bölümünde yazılıdır. Özetle: DB erişilemediğinde istek
- * **atlanmaz**, yalnızca kova instance başına sayılır (sınır gevşer, kalkmaz).
+ * GEREKÇESİ" bölümünde yazılıdır ve **bu turda değiştirilmemiştir**:
+ * DB erişilemediğinde istek **atlanmaz**, yalnızca kova instance başına
+ * sayılır (sınır gevşer, kalkmaz).
+ *
+ * A1r8 değişikliği yalnızca **neye uygulandığı**: artık kovanın kendisine
+ * (`dbBypassUntilByBucket`), modül geneline değil.
  */
 const DB_BYPASS_COOLDOWN_MS = 60_000;
 
 /**
- * Aktif kısa devre bitişi (epoch ms). Bir sonraki hata türü için
- * `performance.now()` değil `Date.now()` kullanılır: modül düzeyinde
- * tutulan bir zaman damgası başka bir `await` zinciri boyunca
- * karşılaştırıldığı için saat tabanlı olmalıdır.
+ * Kova bazlı kısa devre bitişleri (epoch ms). Anahtar, `checkRateLimitDb`
+ * içinde `key`'den türetilen **kova adıdır** (`<kovalar>:u:<id>` →
+ * `<kovalar>`); yani anahtar ayrımı zaten `rate_limit_hit()` RPC'sine
+ * gönderilen `p_bucket` ile **birebir aynıdır** (kalıcı sayaçla da eşleşir).
+ *
+ * Neden `Map` ve neden kova adı? `checkRateLimit()` çağıranları kova adını
+ * ayrı bir parametre olarak geçirmiyor; kova adı anahtarın ön eki zaten.
+ * Böylece çağrı yerlerinde **hiçbir değişiklik gerekmez** ve yanlış kova
+ * adı geçme ihtimali doğmaz (yeni parametre = yeni hata yüzeyi).
+ */
+const dbBypassUntilByBucket = new Map<string, number>();
+
+/** Süresi dolmuş kısa devre kayıtlarını temizler (bellek sızıntısı olmasın). */
+function pruneBypass(now: number): void {
+  if (dbBypassUntilByBucket.size < 256) return;
+  for (const [bucket, until] of dbBypassUntilByBucket) {
+    if (until <= now) dbBypassUntilByBucket.delete(bucket);
+  }
+}
+
+/**
+ * Belirtilen kova için kısa devre açar.
+ *
+ * `dbBypassUntil` **yalnızca yükseltilir** (`Math.max`): kova bazlı sayaç
+ * diğer kovaların değerini küçültmez, dolayısıyla modül düzeyi "bypass aktif
+ * mi?" gözlemi her zaman güvenli (fazla pozitif) tarafta kalır.
+ */
+function startDbBypass(bucket: string): void {
+  const until = Date.now() + DB_BYPASS_COOLDOWN_MS;
+  const previous = dbBypassUntilByBucket.get(bucket) ?? 0;
+  dbBypassUntilByBucket.set(bucket, Math.max(previous, until));
+  if (until > dbBypassUntil) dbBypassUntil = until;
+  pruneBypass(Date.now());
+}
+
+/**
+ * Geriye uyum gözlemi: bu instance'ta **en az bir** kovanın bypass penceresi
+ * hâlâ açık mı? (Tüm kovaların en büyük bitiş zamanı.)
+ *
+ * Kova bazlı ayrımdan **önce** tek global sayaç buydu. Bugün yalnızca gözlem
+ * içindir; karar mantığı `dbBypassUntilByBucket` üzerinden verilir.
  */
 let dbBypassUntil = 0;
+
+/** Yalnızca test/ölçüm amaçlı: kovanın bypass durumu (true ⇒ pencere açık). */
+export function isDbBypassed(bucket: string, now: number = Date.now()): boolean {
+  const until = dbBypassUntilByBucket.get(bucket);
+  return until !== undefined && until > now;
+}
+
+/**
+ * Tüm kovalarda bypass kalmadıysa eski global değeri de sıfırlar.
+ *
+ * Neden gerekiyor: `dbBypassUntil` yalnızca yükselirse, sonraki bir kovanın
+ * arızası **bitmiş** bir pencerenin bitiş zamanını kalıcı olarak hatırlar ve
+ * gözlemci "bypass hâlâ aktif" der. Bu, karar mantığını etkilemez (karar
+ * kova bazlıdır) ama gözlem yanlış pozitif olur.
+ */
+function resetGlobalWhenAllBypassesExpired(now: number): void {
+  for (const until of dbBypassUntilByBucket.values()) {
+    if (until > now) return; // hâlâ aktif bir kova var
+  }
+  dbBypassUntilByBucket.clear();
+  dbBypassUntil = 0;
+}
 
 /** Anahtar başına izin verilen istek sayısı. */
 export type RateLimitRule = {
@@ -129,16 +220,29 @@ function supabaseServiceClient(): SupabaseClient | null {
  * (çağıran bellek içi yola düşer).
  */
 async function checkRateLimitDb(key: string, rule: RateLimitRule): Promise<RateLimitResult | null> {
-  if (Date.now() < dbBypassUntil) return null;
+  // Kova adı anahtardan türetilir: `<scope>:u:<id>` -> `<scope>`. Bu, RPC'ye
+  // gönderilen `p_bucket` ile birebir aynıdır, yani kısa devre kovası ile
+  // kalıcı sayaç kovası **asla** ayrışamaz.
+  const scope = key.split(":")[0] || "unknown";
+
+  const now = Date.now();
+  // KISA DEVRE KONTROLÜ KOVA BAZLIDIR (A1r8): başka bir kovanın arızası bu
+  // kovanın DB yolunu kapatmaz.
+  const bypassUntil = dbBypassUntilByBucket.get(scope);
+  if (bypassUntil !== undefined && bypassUntil > now) return null;
+  if (bypassUntil !== undefined) {
+    // Bu kovanın penceresi dolmuş: kaydı düşür, sıfırlamadan önce global
+    // gözlemi tazele.
+    dbBypassUntilByBucket.delete(scope);
+    resetGlobalWhenAllBypassesExpired(now);
+  }
 
   const client = supabaseServiceClient();
   if (!client) {
-    dbBypassUntil = Date.now() + DB_BYPASS_COOLDOWN_MS;
+    startDbBypass(scope);
     return null;
   }
 
-  // Kova adı anahtardan türetilir: `<scope>:u:<id>` -> `<scope>`
-  const scope = key.split(":")[0] || "unknown";
   try {
     const { data, error } = await client.rpc("rate_limit_hit", {
       p_key: key.slice(0, 512),
@@ -147,7 +251,7 @@ async function checkRateLimitDb(key: string, rule: RateLimitRule): Promise<RateL
       p_window_seconds: rule.windowSeconds,
     });
     if (error || !data || typeof data !== "object") {
-      dbBypassUntil = Date.now() + DB_BYPASS_COOLDOWN_MS;
+      startDbBypass(scope);
       // Şema/mesaj istemciye ASLA dönmez; yalnızca sunucu logu.
       console.error("Kalici rate limit kullanilamadi, bellek ici yola dusuluyor:", error?.message);
       return null;
@@ -160,7 +264,7 @@ async function checkRateLimitDb(key: string, rule: RateLimitRule): Promise<RateL
         : 0,
     };
   } catch (error) {
-    dbBypassUntil = Date.now() + DB_BYPASS_COOLDOWN_MS;
+    startDbBypass(scope);
     console.error("Kalici rate limit cagrisi basarisiz:", error instanceof Error ? error.message : error);
     return null;
   }

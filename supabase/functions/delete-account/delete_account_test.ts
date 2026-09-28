@@ -477,6 +477,111 @@ Deno.test("404 + boş mesaj → idempotent (yalnızca bu kombinasyon)", () => {
   assert(!isAlreadyDeletedAuthError({ message: "schema not found", status: 404 }));
 });
 
+// ---------------------------------------------------------------------------
+// A1r8 (Görev 4): kalıp GoTrue KAYNAK KODUyla doğrulandı
+// ---------------------------------------------------------------------------
+// A1r5 "canlı GoTrue'ye karşı denenmedi" diye raporlamıştı. Bu turda sürüm
+// sabitlenmiş kaynak kod okundu (`supabase/.temp/gotrue-version` = v2.185.0):
+//   apierrors/errorcode.go : ErrorCodeUserNotFound = "user_not_found"
+//   models/errors.go       : UserNotFoundError.Error() = "User not found"
+//   api/admin.go loadUser(): NewNotFoundError(ErrorCodeUserNotFound, "User not found")
+//   apierrors.go           : {"code":404,"error_code":"user_not_found","msg":"User not found"}
+// Yani GERÇEK yanıt bu üçlüdür ve `code` ALANI en güvenilir sinyaldir.
+
+Deno.test("GERÇEK GoTrue yanıtı (error_code=user_not_found) idempotent başarı", () => {
+  // auth.admin.deleteUser() → HTTP 404 · {"code":404,
+  // "error_code":"user_not_found","msg":"User not found"}
+  // supabase-js bunu AuthApiError'a sarar: message=msg, status=404, code=error_code
+  const gercekGoTrueHatasi = {
+    message: "User not found",
+    status: 404,
+    code: "user_not_found",
+  };
+  assert(
+    isAlreadyDeletedAuthError(gercekGoTrueHatasi),
+    "GoTrue'nun gerçek 'user_not_found' yanıtı idempotent başarı sayılmalı",
+  );
+});
+
+Deno.test("error_code=user_not_found: mesaj değişse de doğru karar verilir", () => {
+  // A1r5'in korkusu buydu: "farklı GoTrue sürümleri 'User not found' yerine
+  // başka bir metin dönebiliyor." Kaynak kod bu korkuyu çürütüyor — HATA KODU
+  // sabit, mesaj değişebilir. Bu test, kararın metne değil **koda** dayandığını
+  // kanıtlar: mesaj Türkçe/bozuk olsa da kod doğruysa idempotent başarıdır.
+  assert(
+    isAlreadyDeletedAuthError({ message: "kullanici bulunamadi", status: 404, code: "user_not_found" }),
+    "karar mesaj metnine göre değil error_code'a göre verilmeli",
+  );
+  assert(
+    isAlreadyDeletedAuthError({ message: "", status: 500, code: "user_not_found" }),
+    "error_code doğruysa HTTP durumu kararı bozmamalı (edge ağ geçidi 404'ü 500'e çevirebilir)",
+  );
+});
+
+Deno.test("BİRİNCİL: error_code okunmadan önce mesaj regex'i de çalışır (geriye uyum)", () => {
+  // A1r5 davranışı korunur: `error_code` alanı dönmeyen eski sürümler /
+  // loglardan kopyalanmış metinler için mesaj deseni hâlâ yakalar.
+  assert(isAlreadyDeletedAuthError({ message: "User not found", status: 404, code: null }));
+  assert(isAlreadyDeletedAuthError({ message: "user_not_found", code: undefined }));
+});
+
+Deno.test("GoTrue'un DİĞER 'not found' hataları idempotent SAYILMAZ (kaynak kod listesi)", () => {
+  // models/errors.go'daki tüm "not found" metinleri. Bunların HİÇBİRİ
+  // "user not found" değildir ve error_code'ları `user_not_found` DEĞİLDİR.
+  // Geçmişteki `includes("not found")` kalıbının hepsini idempotent saydığı
+  // hatalar. `error_code` alanları bu testte bilinçli olarak yanlış/boş
+  // bırakılmıştır çünkü GoTrue her biri için kendi kodunu döner.
+  const digerNotFoundHatalari = [
+    "Session not found",
+    "Refresh Token not found",
+    "Confirmation Token not found",
+    "Confirmation or Recovery Token not found",
+    "Identity not found",
+    "Factor not found",
+    "Challenge not found",
+    "SSO Identity Provider not found",
+    "SAML RelayState not found",
+    "Flow State not found",
+    "OAuth state not found",
+  ];
+  for (const mesaj of digerNotFoundHatalari) {
+    assert(
+      !isAlreadyDeletedAuthError({ message: mesaj, status: 404 }),
+      `"${mesaj}" idempotent başarı sayılmamalı (gerçek silme hatası)`,
+    );
+  }
+  // Bu hataların KENDİ error_code'ları da kabul edilmemeli:
+  for (const kod of [
+    "session_not_found",
+    "refresh_token_not_found",
+    "confirmation_token_not_found",
+    "identity_not_found",
+    "factor_not_found",
+    "flow_state_not_found",
+  ]) {
+    assert(
+      !isAlreadyDeletedAuthError({ message: "", status: 404, code: kod }),
+      `error_code="${kod}" idempotent başarı sayılmamalı`,
+    );
+  }
+});
+
+Deno.test("error_code birebir karşılaştırılır (kısmi eşleşme kabul edilmez)", () => {
+  // `includes("user_not_found")` gibi gevşek bir eşleşme, "my_user_not_found_v2"
+  // gibi ilgisiz bir kodu de kabul ederdi. Birebir karşılaştırma gerekir.
+  assert(
+    !isAlreadyDeletedAuthError({ message: "", status: 404, code: "not_user_not_found" }),
+    "kısmi eşleşen hata kodu kabul edilmemeli",
+  );
+  assert(
+    !isAlreadyDeletedAuthError({ message: "", status: 404, code: "user_not_found_v2" }),
+    "sonuna ek eklenmiş kod kabul edilmemeli",
+  );
+  // Büyük/küçük harf ve çevre boşluk normalleştirilir (savunma).
+  assert(isAlreadyDeletedAuthError({ message: "", status: 404, code: "USER_NOT_FOUND" }));
+  assert(isAlreadyDeletedAuthError({ message: "", status: 404, code: "  user_not_found  " }));
+});
+
 /** Kaynak dosyadan **yalnızca çalıştırılabilir satırları** döndürür
  * (yorumlar, import'lar ve fonksiyon imzaları atlanır) — böylece bir
  * **yorumda** geçen desen yanlışlıkla "kodda var" sayılmaz. */
