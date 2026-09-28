@@ -4,6 +4,28 @@ name: Flutter CI
 # tetiklenir. `tool/check_i18n.cjs` + `tool/check_versions.cjs` repo kökünden
 # çalışır ve Flutter kodu + çevirileri okuduğu için `tool/**` ve
 # `CHANGELOG.md` de path listesinde.
+#
+# ⭐ **YOL KAPSAMI DENETİMİ (Tur 13, A6r13) — 3 P0 boşluk kapatıldı.**
+# "Workflow ne zaman tetiklenir" sorusu 13 turda hiç sorulmadı; sonuç, kapının
+# **kendi girdisini tetiklememesi** oldu. Üçü de ölçüldü:
+#
+#   1. **`.env.example`** — `flutter.yml:109` ve `:224` bu dosyayı kopyalıyor
+#      (`cp .env.example .env`) çünkü `.env` gitignore'da ama pubspec'te asset
+#      olarak paketleniyor. Dosya bozulursa/anahtarları kaybolursa **her iki
+#      job** "unable to find directory entry" ile kırılır — ama hiçbir
+#      workflow bu dosyayı tetiklemediği için kırıklık **PR'da görünmüyordu**.
+#   2. **`README.md` / `README_EN.md`** — `check_versions.cjs:752` README'i
+#      okuyor (yayın talimatındaki sürüm örneği `pubspec` ile eşleşmeli).
+#      README'de sürüm kayması oluşursa kapı kırmızı olmalı ama tetiklenmiyordu.
+#   3. **`flutter_app/analysis_options.yaml`** — `flutter analyze
+#      --fatal-infos --fatal-warnings` bu dosyadan lint kuralı okur. Lint
+#      kuralı değişikliği tetiklenmiyordu; yeni bir kural eklendiğinde
+#      doğrulamasızdı.
+#
+# Ek olarak `public/locales/**` **flutter.yml**'e de eklendi: React'in
+# çalışma zamanı çeviri kaynağıdır ve `check_i18n.cjs` orphan sınıflandırması
+# bunu okur (bkz. ORPHAN_BASELINE yorumu) — bir React çeviri anahtarı silinirse
+# Flutter CI'si de haberdar olmalı.
 # TETİKLEME KAPSAMI (Tur 5 kararı)
 #
 # `push` **tüm branch'lere** açıldı. Önceden yalnız `main` ve
@@ -27,13 +49,21 @@ on:
     paths:
       - "flutter_app/**"
       - "tool/**"
+      - "public/locales/**"
       - "CHANGELOG.md"
+      - "README.md"
+      - "README_EN.md"
+      - ".env.example"
       - ".github/workflows/flutter.yml"
   pull_request:
     paths:
       - "flutter_app/**"
       - "tool/**"
+      - "public/locales/**"
       - "CHANGELOG.md"
+      - "README.md"
+      - "README_EN.md"
+      - ".env.example"
       - ".github/workflows/flutter.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.

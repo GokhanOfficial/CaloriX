@@ -25,6 +25,9 @@ on:
       - "public/locales/**"
       - "tool/**"
       - "CHANGELOG.md"
+      - "README.md"
+      - "README_EN.md"
+      - ".env.example"
       - ".github/workflows/react.yml"
   pull_request:
     paths:
@@ -41,6 +44,9 @@ on:
       - "public/locales/**"
       - "tool/**"
       - "CHANGELOG.md"
+      - "README.md"
+      - "README_EN.md"
+      - ".env.example"
       - ".github/workflows/react.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.

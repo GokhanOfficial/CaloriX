@@ -6,13 +6,23 @@ name: Supabase Edge CI
 # (ör. push şifreleme, hesap silme) regresyona uğrasa CI sessizce yeşil
 # kalırdı. Flutter CI yalnızca Dart, React CI yalnızca `src/**` kapsıyordu.
 #
-# NOT (deneyim, 2026-09-28): supabase CLI'nin Docker'ı bu ortamda **yok**
-# (`psql`/`supabase` kurulu değil). Postgres 16'yı `docker exec ... psql`
-# ile sıralı uygulama yöntemi A1r2/A1r3'te kullanıldı ve **gereksiz
-# container + image indirme (dakikalar)** getiriyordu. Bu yüzden
-# 15 sıfır-hatalı migration Postgres'e doğrulanmış durumdadır; bu workflow
-# edge TypeScript katmanını kapsar. Migration/RLS testlerini CI'a almak
-# `supabase start` gerektirir (bkz. rapor: "Doğrulayamadığım şeyler").
+# NOT (deneyim, 2026-09-28 → güncellendi): supabase CLI'nin Docker'ı bu
+# ortamda **yok** (`psql`/`supabase` kurulu değil). Postgres 16'yı
+# `docker exec ... psql` ile sıralı uygulama yöntemi A1r2/A1r3'te kullanıldı
+# ve **gereksiz container + image indirme (dakikalar)** getiriyordu.
+#
+# ⭐ **Güncelleme (Tur 13, A6r13): `supabase start` GEREKMEDİĞİ kanıtlandı.**
+# Bu dosya önceden "Migration/RLS testlerini CI'a almak `supabase start`
+# gerektirir" diyordu; gerekçe **ölçümle çürütüldü** ve aşağıya `sql`
+# job'u eklendi. Repo'nun Supabase'den ihtiyaç duyduğu yüzey ölçüldü:
+# `auth.users`/`auth.uid()`/`auth.role()`, `storage.buckets`/
+# `storage.objects`/`storage.foldername()` ve üç rol
+# (`anon`/`authenticated`/`service_role`). Bunların tamamı
+# `supabase/tests/auth_shim.sql` + `supabase/tests/storage_shim.sql` ile
+# stock `postgres:16` üzerinde karşılanıyor; `cron`/`net`/`vault` için zaten
+# `tests/a1r10_cron_shim.sql` vardı. `tool/run_sql_tests.sh` her şeyi
+# sırayla kurar, 19 migration'ı + `full_setup.sql`'i (3× idempotans) uygular
+# ve 5 SQL regresyon testini **ayrı ayrı, taze veritabanında** çalıştırır.
 # TETİKLEME KAPSAMI (Tur 5 kararı — flutter.yml ile aynı gerekçe)
 # `push` tüm branch'lere açık: `fix/...`/`tur5/...` gibi branch'lerde
 # edge function değişikliği `deno check`/`deno test` kapısını atlıyordu.
@@ -26,10 +36,16 @@ on:
   push:
     paths:
       - "supabase/**"
+      # `sql` job'ı `tool/run_sql_tests.sh`'i çalıştırıyor: shim'leri kuruyor,
+      # migration'ları uyguluyor ve 5 SQL testini taze veritabanında
+      # koşturuyor. Harness değişirse (örn. izolasyon kuralı) CI'nin
+      # tetiklenmemesi, **güncellenmemiş bir test koşucusu** demektir.
+      - "tool/run_sql_tests.sh"
       - ".github/workflows/supabase.yml"
   pull_request:
     paths:
       - "supabase/**"
+      - "tool/run_sql_tests.sh"
       - ".github/workflows/supabase.yml"
 
 # Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
@@ -123,12 +139,11 @@ jobs:
       - name: Test edge functions
         run: deno test --frozen=true --allow-env --allow-read --allow-net functions/
 
+      # ⭐ Bu adım artık SQL'i **gerçekten doğruluyor** (aşağıdaki `sql` job).
       # Migration dosya adlarının sırası ve biçimi ucuz bir denetimle
       # denetlenir: Supabase migration'ları **kronolojik olarak** uygular
       # (şema geçmişi `history` tablosundaki sıraya göre), yani yanlış ad
-      # = yanlış uygulama sırası. Bu adım SQL **sözdizimini doğrulamaz**;
-      # gerçek sözdizimi doğrulaması Postgres gerektirir (bkz. yukarıdaki
-      # not ve rapor) — uydurma bir "SQL geçerli" adımı eklenmedi.
+      # = yanlış uygulama sırası.
       - name: Validate migration file names and order
         run: |
           set -euo pipefail
@@ -150,3 +165,71 @@ jobs:
               sys.exit(f"yinelenen migration zaman damgası: {sorted(dupes)}")
           print(f"✓ {len(files)} migration adı geçerli ve kronolojik sıralı")
           PY
+
+  # ===================================================================
+  # `sql` job — migration + RLS + CHECK + cron regresyon testleri
+  # ===================================================================
+  # ⭐ A1r5 / A1r8 / A1r10 bu eksikliği **üç kez** raporladı:
+  # "supabase/tests/*.sql CI'a bağlı değil". Üç tur boyunca gerekçe
+  # "supabase CLI'nin Docker'ı yok, `supabase start` gerekiyor" idi.
+  #
+  # ### Ölçüm bu gerekçeyi çürüttü
+  # Repo'daki SQL testlerinin ihtiyaç duyduğu Supabase yüzeyi **iki
+  # şemadan** ibaret (ölçüldü: `grep -o "auth\.[a-zA-Z_.]*"` ve
+  # `grep -o "storage\.[a-zA-Z_.]*"`):
+  #
+  #   - `auth.users` (yalnız `id`/`email`/`raw_user_meta_data`),
+  #     `auth.uid()`, `auth.role()`
+  #   - `storage.buckets`, `storage.objects`, `storage.foldername()`
+  #   - `cron`/`net`/`vault` → zaten `tests/a1r10_cron_shim.sql` var
+  #   - roller (`anon`/`authenticated`/`service_role`) → Supabase
+  #     veritabanı kurulumunda yaratır, migration'lar değil
+  #
+  # Yani `supabase start` **gerekmiyor**: stock `postgres:16` + iki shim
+  # yeterli. Shim'ler `supabase/tests/auth_shim.sql` ve
+  # `supabase/tests/storage_shim.sql` — **test dosyası değil, koşul
+  # sağlayıcı**, ikisi de `tool/run_sql_tests.sh` tarafından
+  # migration'lardan **önce** yüklenir.
+  #
+  # ### Bu job neyi kanıtlıyor (yerelde ölçüldü, 2026-09-28)
+  #   - 19 migration sıfırdan **0 hata**
+  #   - `full_setup.sql` **3× üst üste 0 hata** (idempotans sözleşmesi)
+  #   - `rls_policies.sql` → **49 test / 0 başarısız** (BOLA, WITH CHECK,
+  #     `anon` erişimi, değişmez kolonlar)
+  #   - `check_constraints.sql` → **58** pozitif/negatif yazma denemesi
+  #   - `schema_contract.sql` → 16 tablo + 14 FK sahipliği + silme sırası
+  #   - `foods_cascade.sql`, `account_deletion_scope.sql`,
+  #     `cron_reminders_job.sql` → geçti
+  #
+  # ### ⭐ Negatif ölçüm (kapının gerçekten etkin olduğu kanıtlandı)
+  # `foods.created_by` FK'si `ON DELETE CASCADE`'ten `SET NULL`'a
+  # düşürüldü → **3 test kırmızıya döndü** ve `schema_contract` hatayı adıyla
+  # söyledi: `[KALDI] foods.created_by ON DELETE CASCADE (3-A) -- confdeltype=n`.
+  # Sonra geri alındı. Ayrıntı: RAPOR-A6r13.
+  #
+  # ### Bilinen kısıtlar (gizlenmiyor)
+  #   - `pg_cron`/`pg_net` uzantıları stock imajda **yok**; migration'daki
+  #     `CREATE EXTENSION` satırları harness'te yorum satırına çevrilir.
+  #     Davranış `a1r10_cron_shim.sql` + `cron_reminders_job.sql` ile
+  #     doğrulanıyor; **gerçek Zamanlayıcı tetiklemesi test edilemez**.
+  #   - `auth` shimi GoTrue değildir: parola/oturum/OAuth yok. Testlerin
+  #     konusu RLS ve FK zinciri olduğu için bu doğru soyutlamadır.
+  #   - Storage shimi dosya **içeriği** saklamaz; politika ifadeleri
+  #     (BOLA: klasör öneki ↔ `auth.uid()`) kanıtlanır.
+  sql:
+    name: migration + SQL regresyon testleri
+    runs-on: ubuntu-latest
+    # postgres:16 imajını çekme (~30 sn) + 19 migration + full_setup 3×
+    # + 5 testin her biri için veritabanı klonu. Soğuk koşuda ölçüldü:
+    # 4-5 dakika. 20 dakika bol.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # `postgres:16` sürümü `PG_IMAGE` ile sabitlenir. "latest" yazmak
+      # major sürüm atlamasına yol açardı (16 → 17'de `confdeltype`
+      # anlamı veya politika davranışı değişebilir).
+      - name: Run SQL regression tests
+        env:
+          PG_IMAGE: "postgres:16"
+        run: bash tool/run_sql_tests.sh
