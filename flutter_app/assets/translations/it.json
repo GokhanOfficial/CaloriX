@@ -568,7 +568,11 @@
     "checkFailed": "Verifica aggiornamenti non riuscita",
     "notesTitle": "Novità",
     "openFailed": "Impossibile aprire la pagina di download",
-    "unsafeUrl": "Questo link di aggiornamento non è valido. Aggiornamento annullato."
+    "unsafeUrl": "Questo link di aggiornamento non è valido. Aggiornamento annullato.",
+    "unverified": "Non è stato possibile verificare l'integrità di questo aggiornamento. L'installazione prosegue comunque.",
+    "integrityFailed": "Il file di aggiornamento sembra corrotto e non è stato installato. Controlla la connessione e riprova.",
+    "tooLarge": "Il file di aggiornamento è più grande del previsto. Installazione annullata.",
+    "downloadFailed": "Impossibile scaricare l'aggiornamento. Controlla la connessione e riprova."
   },
   "errors": {
     "notFound": "Pagina non trovata"

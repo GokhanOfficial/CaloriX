@@ -568,7 +568,11 @@
     "checkFailed": "Update check failed",
     "notesTitle": "What's new",
     "openFailed": "Could not open the download page",
-    "unsafeUrl": "This update link is not valid. Update was cancelled."
+    "unsafeUrl": "This update link is not valid. Update was cancelled.",
+    "unverified": "This update could not be integrity-checked. Installation will continue anyway.",
+    "integrityFailed": "The update file looks corrupted and was not installed. Check your connection and try again.",
+    "tooLarge": "The update file is larger than expected. Installation was cancelled.",
+    "downloadFailed": "The update could not be downloaded. Check your connection and try again."
   },
   "errors": {
     "notFound": "Page not found"

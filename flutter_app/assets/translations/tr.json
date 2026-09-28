@@ -568,7 +568,11 @@
     "checkFailed": "Güncelleme kontrolü yapılamadı",
     "notesTitle": "Bu sürümde",
     "openFailed": "İndirme sayfası açılamadı",
-    "unsafeUrl": "Bu güncelleme bağlantısı geçerli değil. Güncelleme iptal edildi."
+    "unsafeUrl": "Bu güncelleme bağlantısı geçerli değil. Güncelleme iptal edildi.",
+    "unverified": "Bu güncelleme için bütünlük doğrulaması yapılamadı. Kurulum yine de devam ediyor.",
+    "integrityFailed": "Güncelleme dosyası bozuk görünüyor ve kurulmadı. İnternet bağlantını kontrol edip tekrar dene.",
+    "tooLarge": "Güncelleme dosyası beklenenden büyük, kurulum iptal edildi.",
+    "downloadFailed": "Güncelleme indirilemedi. İnternet bağlantını kontrol edip tekrar dene."
   },
   "errors": {
     "notFound": "Sayfa bulunamadı"

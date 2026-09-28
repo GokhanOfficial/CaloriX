@@ -568,7 +568,11 @@
     "checkFailed": "更新检查失败",
     "notesTitle": "更新内容",
     "openFailed": "无法打开下载页面",
-    "unsafeUrl": "此更新链接无效，已取消更新。"
+    "unsafeUrl": "此更新链接无效，已取消更新。",
+    "unverified": "无法验证此更新的完整性，安装仍将继续。",
+    "integrityFailed": "更新文件似乎已损坏，未予安装。请检查网络连接后重试。",
+    "tooLarge": "更新文件比预期更大，已取消安装。",
+    "downloadFailed": "无法下载更新。请检查网络连接后重试。"
   },
   "errors": {
     "notFound": "页面未找到"

@@ -6,10 +6,12 @@
 /// + `chat_repository.dart`). Yeni bir repository aynı deseni kopyalarsa
 /// davranış sessizce ayrışır; tek uygulama burada toplanır.
 ///
-/// Bu dosya `lib/core/utils/` altındadır; `core/utils/calculations.dart`
-/// (A3 alanı) ve `core/notifications/**` (A3 alanı) **kasten değiştirilmedi** —
-/// A3'ün `widget_snapshot.dart` kendi `formatEntryDate` kopyasını taşıyor ve
-/// dokunulmaması kararlaştırıldı. Aktarım: `plans/.../RAPOR-A2r2-*.md`.
+/// Bu dosya `lib/core/utils/` altındadır ve `core/**` tarafından da
+/// tüketilir: `data/repositories/diary_repository.dart` → `formatEntryDate`
+/// bu dosyaya devrediyor, `core/widgets/widget_snapshot.dart` de
+/// `formatEntryDate` üzerinden aynı uygulamayı kullanıyor. Yani
+/// `core/widgets/**` içinde ikinci bir kopyası **yok** (A3r2 turunda
+/// doğrulandı).
 library;
 
 import 'dart:math';

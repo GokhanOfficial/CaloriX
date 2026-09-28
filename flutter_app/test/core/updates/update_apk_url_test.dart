@@ -95,15 +95,29 @@ void main() {
   });
 
   group('sürüm notu fallback zinciri', () {
-    test('boş string not boş döner (bilinen tuzak) — ister', () {
-      // `'' ?? y` → boş string. Mevcut (A6 testinde kilitlenmiş) davranış.
+    test('boş string not "yok" sayılır, diğer dile düşer', () {
+      // A3r2 düzeltmesi: `'' ?? y` → boş string döndürüyordu ve UI'da
+      // "Bu sürümde" başlıklı boş kart gösteriliyordu. Boş string artık
+      // "yok" muamelesi görür, `en` notuna düşer.
       final m = UpdateManifest.fromJson(const {
         'versionName': '1.0.0',
         'versionCode': 1,
         'apkUrl': 'https://example.com/a.apk',
         'notes': {'tr': '', 'en': 'en notu'},
       });
-      expect(m.notesFor('tr'), '');
+      expect(m.notesTr, '');
+      expect(m.notesFor('tr'), 'en notu');
+    });
+
+    test('iki dil de boşsa null döner (boş kart gösterilmez)', () {
+      final m = UpdateManifest.fromJson(const {
+        'versionName': '1.0.0',
+        'versionCode': 1,
+        'apkUrl': 'https://example.com/a.apk',
+        'notes': {'tr': '', 'en': ''},
+      });
+      expect(m.notesFor('tr'), isNull);
+      expect(m.notesFor('en'), isNull);
     });
   });
 }

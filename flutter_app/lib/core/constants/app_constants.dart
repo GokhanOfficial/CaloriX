@@ -14,10 +14,20 @@ abstract final class AppConstants {
       'https://github.com/GokhanOfficial/CaloriX/releases/latest/download/latest.json';
 
   /// Varsayılan hedefler (hesaplama yapılamazsa).
+  ///
+  /// Makro değerleri `Calculations.macros()` ile **birebir** aynı olmalıdır:
+  /// %30 protein / %40 karbonhidrat / %30 yağ, `2000 kcal` için
+  /// `2000*0.30/4 = 150`, `2000*0.40/4 = 200`, `2000*0.30/9 = 66.67 → 67`.
+  ///
+  /// Geçmişte yağ hedefi 65 idi; bu değer `Calculations.macros(2000).fat`
+  /// ile (67) çelişiyordu ve iki ekran (onboarding önizleme ↔ hedef kartı) farklı
+  /// sayı gösteriyordu. `tool/check_versions.cjs` bu sapmayı CI kapısı olarak
+  /// denetler. NOT: `src/lib/constants.ts` (React/web, bakım modunda)
+  /// hâlâ 65 tutuyor — iki istemci arasındaki bu fark A5'e aktarıldı.
   static const int defaultCalories = 2000;
   static const int defaultProtein = 150;
   static const int defaultCarbs = 200;
-  static const int defaultFat = 65;
+  static const int defaultFat = 67;
   static const int defaultWater = 2500;
 
   /// Su hızlı ekleme miktarları (ml).

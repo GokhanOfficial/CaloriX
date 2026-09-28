@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/diary_repository.dart';
 import '../constants/app_constants.dart';
+import '../utils/num_parsing.dart';
 import 'widget_settings.dart';
 import 'widget_strings.dart';
 
@@ -264,9 +265,13 @@ List<int> weeklyCalorieValues({
 }) {
   final byDate = <String, double>{};
   for (final row in mealRows) {
-    final date = row['entry_date'] as String;
-    byDate[date] =
-        (byDate[date] ?? 0) + (row['calculated_kcal'] as num).toDouble();
+    // `as String` / `as num` elle yazılmış ya da beklenmeyen bir sütun tipinde
+    // geldiğinde `TypeError` fırlatıyor ve **haftalık widget'ın tamamını**
+    // düşürüyordu. Bozuk satır atlanır; diğer günler grafiğe girer.
+    final date = row['entry_date'];
+    if (date is! String || date.isEmpty) continue;
+    final kcal = numOr(row['calculated_kcal']);
+    byDate[date] = (byDate[date] ?? 0) + kcal;
   }
   return [
     for (var i = 6; i >= 0; i--)
@@ -299,12 +304,20 @@ bool shouldSendNudge({
 }) {
   if (!settings.nudgeEnabled || hasMealsToday) return false;
   if (lastNudgeDate == formatEntryDate(now)) return false;
-  final scheduled = DateTime(
-    now.year,
-    now.month,
-    now.day,
-    settings.nudgeHour,
-    settings.nudgeMinute,
-  );
+  final hour = _clampHour(settings.nudgeHour);
+  final minute = _clampMinute(settings.nudgeMinute);
+  final scheduled = DateTime(now.year, now.month, now.day, hour, minute);
   return !now.isBefore(scheduled);
 }
+
+/// Gece yarısı–23:59 arasına kırpar.
+///
+/// `nudgeHour: 99` kalıcı ayarda `DateTime(y, m, d, 99, 0)` **ertesi güne**
+/// normalize olur; `!now.isBefore(scheduled)` her zaman true olur ve bildirim
+/// **her gün** tetiklenir. `reminder_settings.dart` bu kırpmayı zaten
+/// yapıyor; widget ayarları kendi kalıcı anahtarlarını okuduğu için aynı
+/// savunma burada da gerekli.
+int _clampHour(int hour) => hour < 0 ? 0 : (hour > 23 ? 23 : hour);
+
+/// 0–59 arasına kırpar.
+int _clampMinute(int minute) => minute < 0 ? 0 : (minute > 59 ? 59 : minute);

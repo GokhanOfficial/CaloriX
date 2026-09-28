@@ -109,9 +109,10 @@ void main() {
       expect(m.notesFor('en'), 'sadece tr');
     });
 
-    test('boş string not, null değil — fallback zincirini kırar', () {
-      // Bilinen tuzak: `'' ?? 'tr notu'` → boş string döner, UI'da
-      // boş sürüm notu gösterilir. KIRILAN davranış — kilitleniyor.
+    test('boş string not alanı boş kalır ama notesFor diğer dile düşer', () {
+      // A3r2 düzeltmesi: `'' ?? fallback` → boş string döner, UI'da boş
+      // sürüm notu gösteriliyordu. Alan (`notesTr`) ham değerini korur,
+      // `notesFor` boş string'i "yok" sayıp diğer dile düşer.
       final m = UpdateManifest.fromJson(const {
         'versionName': '2.0.0',
         'versionCode': 7,
@@ -119,7 +120,8 @@ void main() {
         'notes': {'tr': '', 'en': 'en notu'},
       });
       expect(m.notesTr, '');
-      expect(m.notesFor('tr'), '');
+      expect(m.notesFor('tr'), 'en notu');
+      expect(m.notesFor('en'), 'en notu');
     });
 
     test('sha256/releasedAt opsiyonel — null döner', () {
@@ -142,16 +144,70 @@ void main() {
       );
     });
 
-    test('versionCode JSON double olarak gelirse cast hatası', () {
-      // tool/release_android.sh `int(code)` yazdığı için normalde int
-      // gelir; elle düzenlenmiş manifest'te 7.0 yazılırsa patlar.
+    test('versionCode JSON double olarak gelirse toleranslı kabul edilir', () {
+      // A3r2 düzeltmesi: `as int` bu payload'da TypeError fırlatıyor ve
+      // `check()` catch'e düşüp **önbelleğe** geri dönüyordu — yani geçerli
+      // bir manifest yüzünden uygulama eski sürüm kararını kullanmaya
+      // devam ediyordu (sessiz "upToDate" yanılgısı).
+      final m = UpdateManifest.fromJson(const {
+        'versionName': '2.0.0',
+        'versionCode': 7.0,
+        'apkUrl': 'u',
+      });
+      expect(m.versionCode, 7);
+    });
+
+    test('versionCode kesirli double ise reddedilir (FormatException)', () {
       expect(
         () => UpdateManifest.fromJson(const {
           'versionName': '2.0.0',
-          'versionCode': 7.0,
+          'versionCode': 7.5,
           'apkUrl': 'u',
         }),
-        throwsA(isA<TypeError>()),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('versionCode string ise reddedilir', () {
+      expect(
+        () => UpdateManifest.fromJson(const {
+          'versionName': '2.0.0',
+          'versionCode': '7',
+          'apkUrl': 'u',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('minSupportedVersionCode double/string/eksik toleranslı okunur', () {
+      // 4.0 → 4
+      expect(
+        UpdateManifest.fromJson(const {
+          'versionName': '2.0.0',
+          'versionCode': 7,
+          'minSupportedVersionCode': 4.0,
+          'apkUrl': 'u',
+        }).minSupportedVersionCode,
+        4,
+      );
+      // "5" → varsayılan 1 (parse edilemez, cutoff uydurulmaz)
+      expect(
+        UpdateManifest.fromJson(const {
+          'versionName': '2.0.0',
+          'versionCode': 7,
+          'minSupportedVersionCode': '5',
+          'apkUrl': 'u',
+        }).minSupportedVersionCode,
+        1,
+      );
+      // yok → 1
+      expect(
+        UpdateManifest.fromJson(const {
+          'versionName': '2.0.0',
+          'versionCode': 7,
+          'apkUrl': 'u',
+        }).minSupportedVersionCode,
+        1,
       );
     });
   });

@@ -102,31 +102,51 @@ class WidgetSettingsNotifier extends Notifier<WidgetSettings> {
       encouragementEnabled:
           prefs.getBool(WidgetSettingsKeys.encouragement) ?? true,
       nudgeEnabled: prefs.getBool(WidgetSettingsKeys.nudgeEnabled) ?? false,
-      nudgeHour: prefs.getInt(WidgetSettingsKeys.nudgeHour) ?? 20,
-      nudgeMinute: prefs.getInt(WidgetSettingsKeys.nudgeMinute) ?? 0,
+      // Saat bileşenleri kırpılır: bozuk kalıcı değer (99) `DateTime`'in
+      // ertesi güne normalize edilmesine ve `shouldSendNudge`'un her gün
+      // true dönmesine yol açıyordu (P3, Tur 1). `reminder_settings.dart`
+      // ile aynı savunma.
+      nudgeHour: _clampHour(prefs.getInt(WidgetSettingsKeys.nudgeHour) ?? 20),
+      nudgeMinute:
+          _clampMinute(prefs.getInt(WidgetSettingsKeys.nudgeMinute) ?? 0),
     );
   }
 
+  static int _clampHour(int hour) => hour < 0 ? 0 : (hour > 23 ? 23 : hour);
+
+  static int _clampMinute(int minute) =>
+      minute < 0 ? 0 : (minute > 59 ? 59 : minute);
+
   /// Ayarları uygular ve tüm alanları kalıcıya yazar — widget yeniden
   /// çizimi arka plan görevi bu anahtarları okuyarak ayağa kalkar.
+  ///
+  /// Saat bileşenleri yazılmadan **önce** kırpılır: bozuk bir değer kalıcıya
+  /// yazılırsa her uygulama açılışında yeniden kırpılır ama native taraf
+  /// (Kotlin) kalıcı değeri doğrudan okuyup normalize edilmemiş saati
+  /// kullanabilirdi.
   Future<void> update(WidgetSettings settings) async {
-    state = settings;
+    final sanitized = settings.copyWith(
+      nudgeHour: _clampHour(settings.nudgeHour),
+      nudgeMinute: _clampMinute(settings.nudgeMinute),
+    );
+    state = sanitized;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(WidgetSettingsKeys.showMacros, settings.showMacros);
-    await prefs.setBool(WidgetSettingsKeys.showWater, settings.showWater);
-    await prefs.setBool(WidgetSettingsKeys.showWeight, settings.showWeight);
-    await prefs.setBool(WidgetSettingsKeys.weeklyAvg, settings.weeklyShowAvg);
+    await prefs.setBool(WidgetSettingsKeys.showMacros, sanitized.showMacros);
+    await prefs.setBool(WidgetSettingsKeys.showWater, sanitized.showWater);
+    await prefs.setBool(WidgetSettingsKeys.showWeight, sanitized.showWeight);
+    await prefs.setBool(WidgetSettingsKeys.weeklyAvg, sanitized.weeklyShowAvg);
     await prefs.setBool(
       WidgetSettingsKeys.weeklyDaysOnTarget,
-      settings.weeklyShowDaysOnTarget,
+      sanitized.weeklyShowDaysOnTarget,
     );
     await prefs.setBool(
       WidgetSettingsKeys.encouragement,
-      settings.encouragementEnabled,
+      sanitized.encouragementEnabled,
     );
-    await prefs.setBool(WidgetSettingsKeys.nudgeEnabled, settings.nudgeEnabled);
-    await prefs.setInt(WidgetSettingsKeys.nudgeHour, settings.nudgeHour);
-    await prefs.setInt(WidgetSettingsKeys.nudgeMinute, settings.nudgeMinute);
+    await prefs.setBool(
+        WidgetSettingsKeys.nudgeEnabled, sanitized.nudgeEnabled);
+    await prefs.setInt(WidgetSettingsKeys.nudgeHour, sanitized.nudgeHour);
+    await prefs.setInt(WidgetSettingsKeys.nudgeMinute, sanitized.nudgeMinute);
   }
 }
 

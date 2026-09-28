@@ -568,7 +568,11 @@
     "checkFailed": "Update-Prüfung fehlgeschlagen",
     "notesTitle": "Neu in dieser Version",
     "openFailed": "Download-Seite konnte nicht geöffnet werden",
-    "unsafeUrl": "Dieser Update-Link ist ungültig. Das Update wurde abgebrochen."
+    "unsafeUrl": "Dieser Update-Link ist ungültig. Das Update wurde abgebrochen.",
+    "unverified": "Dieses Update konnte nicht auf Integrität geprüft werden. Die Installation wird trotzdem fortgesetzt.",
+    "integrityFailed": "Die Updatedatei wirkt beschädigt und wurde nicht installiert. Prüfe deine Verbindung und versuche es erneut.",
+    "tooLarge": "Die Updatedatei ist größer als erwartet. Die Installation wurde abgebrochen.",
+    "downloadFailed": "Das Update konnte nicht heruntergeladen werden. Prüfe deine Verbindung und versuche es erneut."
   },
   "errors": {
     "notFound": "Seite nicht gefunden"

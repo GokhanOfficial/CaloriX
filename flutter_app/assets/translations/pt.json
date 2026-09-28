@@ -568,7 +568,11 @@
     "checkFailed": "Falha ao verificar atualização",
     "notesTitle": "Novidades",
     "openFailed": "Não foi possível abrir a página de download",
-    "unsafeUrl": "Este link de atualização não é válido. A atualização foi cancelada."
+    "unsafeUrl": "Este link de atualização não é válido. A atualização foi cancelada.",
+    "unverified": "Não foi possível verificar a integridade desta atualização. A instalação continuará mesmo assim.",
+    "integrityFailed": "O ficheiro de atualização parece estar corrompido e não foi instalado. Verifica a tua ligação e tenta novamente.",
+    "tooLarge": "O ficheiro de atualização é maior do que o esperado. A instalação foi cancelada.",
+    "downloadFailed": "Não foi possível transferir a atualização. Verifica a tua ligação e tenta novamente."
   },
   "errors": {
     "notFound": "Página não encontrada"

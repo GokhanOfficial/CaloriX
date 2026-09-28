@@ -19,6 +19,11 @@ class UpdateManifest {
   final int versionCode;
   final int minSupportedVersionCode;
   final String apkUrl;
+
+  /// APK'nın SHA-256 özeti (hex). `tool/release_android.sh` her release'de
+  /// `sha256sum` ile yazar. Doğrulama `core/updates/apk_integrity.dart`
+  /// içindedir; **eksikse reddetmek yerine "doğrulanamaz" sayılır**
+  /// (gerekçe: `apk_integrity.dart` başlığındaki karar notu).
   final String? sha256;
 
   /// Sürüm notları (release notes) — mevcut dile göre seçilir.
@@ -30,18 +35,39 @@ class UpdateManifest {
   /// yalnızca açıkça cutoff girildiğinde devreye girer).
   static const int _defaultMinSupported = 1;
 
-  factory UpdateManifest.fromJson(Map<String, dynamic> json) =>
-      UpdateManifest(
-        versionName: json['versionName'] as String,
-        versionCode: json['versionCode'] as int,
-        minSupportedVersionCode: (json['minSupportedVersionCode'] as int?) ??
-            _defaultMinSupported,
-        apkUrl: json['apkUrl'] as String,
-        sha256: json['sha256'] as String?,
-        notesTr: (json['notes'] as Map<String, dynamic>?)?['tr'] as String?,
-        notesEn: (json['notes'] as Map<String, dynamic>?)?['en'] as String?,
-        releasedAt: json['releasedAt'] as String?,
-      );
+  factory UpdateManifest.fromJson(Map<String, dynamic> json) {
+    // `versionCode` elle düzenlenmiş bir manifest'te `7.0` (double) gelebilir.
+    // `as int` bu durumda `TypeError` fırlatıyor ve `check()` catch'e
+    // düşüp **önbelleğe** geri dönüyordu — yani geçerli bir manifest
+    // yüzünden uygulama eski sürüm kararını kullanmaya devam ediyordu.
+    // Toleranslı parse: tam sayıya yakın double kabul, kesirli/çöp red.
+    final rawVersionCode = json['versionCode'];
+    final versionCode = switch (rawVersionCode) {
+      final int v => v,
+      final num v when v == v.roundToDouble() => v.toInt(),
+      _ => throw FormatException(
+          'versionCode sayı olmalı, alınan: ${rawVersionCode.runtimeType}'),
+    };
+    return UpdateManifest(
+      versionName: json['versionName'] as String,
+      versionCode: versionCode,
+      minSupportedVersionCode:
+          _intOr(json['minSupportedVersionCode']) ?? _defaultMinSupported,
+      apkUrl: json['apkUrl'] as String,
+      sha256: json['sha256'] as String?,
+      notesTr: (json['notes'] as Map<String, dynamic>?)?['tr'] as String?,
+      notesEn: (json['notes'] as Map<String, dynamic>?)?['en'] as String?,
+      releasedAt: json['releasedAt'] as String?,
+    );
+  }
+
+  /// `int` alanı toleranslı okur: `7` ve `7.0` kabul, `7.5` / `"7"` / `null`
+  /// için `null` döner (çağıran varsayılanı kullanır).
+  static int? _intOr(Object? value) {
+    if (value is int) return value;
+    if (value is num && value == value.roundToDouble()) return value.toInt();
+    return null;
+  }
 
   /// APK adresi **güvenli mi**? (https + APK dosya uzantısı)
   ///
@@ -66,8 +92,16 @@ class UpdateManifest {
   }
 
   /// Aktif dile uygun sürüm notu (yoksa null).
-  String? notesFor(String languageCode) =>
-      languageCode.startsWith('tr') ? (notesTr ?? notesEn) : (notesEn ?? notesTr);
+  ///
+  /// `??` zinciri tek başına **boş string'i** geçirirdi
+  /// (`notes: {tr: '', en: 'not'}` iken `notesFor('tr')` → `''`, UI'da boş
+  /// "Bu sürümde" kartı). Boş string de "yok" sayılır.
+  String? notesFor(String languageCode) {
+    final preferred = languageCode.startsWith('tr') ? notesTr : notesEn;
+    if (preferred != null && preferred.isNotEmpty) return preferred;
+    final fallback = languageCode.startsWith('tr') ? notesEn : notesTr;
+    return (fallback != null && fallback.isNotEmpty) ? fallback : null;
+  }
 }
 
 /// Cihaz sürümüne göre güncelleme kararı.
