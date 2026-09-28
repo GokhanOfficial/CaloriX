@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/profile_repository.dart';
+import 'widgets/delete_account_dialog.dart';
 import 'widgets/goals_dialog.dart';
 import 'widgets/notifications_dialog.dart';
 import 'widgets/password_dialog.dart';
@@ -181,6 +182,25 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ---- Tehlikeli bölge: hesap silme (KVKK / Google Play) ----
+          //
+          // Bilinçli olarak listenin **en altında** ve "Hakkında" bölümünden
+          // sonra: kazara tıklanması en kolay yer olmamalıdır. Aynı zamanda
+          // "Hesap" bölümündeki normal çıkış işleminin yanına konmamıştır —
+          // `Çıkış Yap` (veri kalır) ile `Hesabımı Sil` (veri gider) iki
+          // farklı risk seviyesidir ve görsel olarak ayrışmalıdır.
+          Card(
+            color: AppColors.destructive.withValues(alpha: 0.08),
+            child: _Tile(
+              icon: Icons.delete_forever_outlined,
+              title: 'settings.deleteAccount.entry'.tr(),
+              subtitle: 'settings.deleteAccount.entryDesc'.tr(),
+              iconColor: AppColors.destructive,
+              onTap: () => DeleteAccountDialog.show(context),
             ),
           ),
           const SizedBox(height: 24),
