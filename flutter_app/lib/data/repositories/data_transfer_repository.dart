@@ -5,8 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/observability/app_logger.dart';
 import '../supabase/supabase_client_provider.dart';
 import 'auth_repository.dart';
+import 'data_transfer_import.dart';
+
+export 'data_transfer_import.dart';
 
 /// Web `useDataExport.ts` karşılığı — tüm kullanıcı verilerini JSON olarak
 /// dışa aktarır ve yedekten içe aktarır (yalnızca eklemeli, dedup'lı).
@@ -35,12 +39,39 @@ class DataTransferRepository {
   /// 414 alırdı. Daha küçük dilimler yalnızca daha çok istek demek.
   static const int inFilterChunkSize = 100;
 
+  /// İçe aktarımda tek HTTP isteğinde gönderilecek en fazla satır.
+  ///
+  /// PostgREST çok satırlı `POST`'u **tek SQL deyimi** olarak gönderir, yani
+  /// bir dilim ya tamamen yazılır ya hiç — kısmi yazım mümkün değildir.
+  /// Sınır iki kısıtla belirlenir:
+  ///
+  ///  * **Postgres parametre tavanı 65535.** En geniş tablo `meal_entries`
+  ///    (14 kolon) → 500 satır = 7000 parametre (%11).
+  ///  * **Gövde boyutu.** 500 öğün ≈ 200 KB; mobil bağlantıda güvenli, ama
+  ///    daha büyük dilimler uygulamanın bellek bütçesini gereksiz zorlar.
+  ///
+  /// Ölçüm (bkz. rapor): 2000 öğün + 2000 su + 400 kilo + 40 gıda yedeği
+  /// satır satır yazıldığında **4506 istek** üretiyordu; toplu yazımda
+  /// **62 istek** (~72× azalma), `importBatchSize = 1`'deki 4506 isteğe göre
+  /// hata toleransı da yine tek deyimlik bloklarla korunur.
+  static const int importBatchSize = 500;
+
+  /// `meal_entries.amount_g_ml` CHECK üst sınırı
+  /// (`20260927120000_security_hardening_round1.sql:389`).
+  static const double maxAmountGMl = 10000;
+
+  /// `water_entries.amount_ml` CHECK üst sınırı (aynı migration :395).
+  static const int maxAmountMl = 10000;
+
+  /// `weight_entries.weight_kg` CHECK üst sınırı (aynı migration :401).
+  static const double maxWeightKg = 1000;
+
   /// `meal_type` DB değerleri — PostgreSQL `meal_type` ENUM ve DB CHECK
   /// kısıtı (migration `20260111041204_...sql:11`, `full_setup.sql:23`).
   ///
   /// Yedek içe aktarımında geçersiz bir `meal_type` insert'i CHECK ihlaliyle
-  /// 400 döndürür ve **tüm içe aktarma** orada durur; [sanitizeMealEntry]
-  /// bu listeyi kullanır. `MealType` enum'u ile küme olarak birebir eşit
+  /// 400 döndürür ve **tüm içe aktarma** orada durur; içe aktarma planı bu
+  /// listeyi kullanır. `MealType` enum'u ile küme olarak birebir eşit
   /// olmalıdır (`import_sanitize_test.dart` sözleşme testiyle denetlenir).
   static const Set<String> mealTypeDbValues = {
     'breakfast',
@@ -133,192 +164,661 @@ class DataTransferRepository {
   }
 
   // ------------------------------------------------------------------
-  // IMPORT — web `importData` parity: doğrulama + dedup'lu eklemeli insert
+  // IMPORT — "önce doğrula, sonra yaz" üç fazlı akış
   // ------------------------------------------------------------------
 
-  /// Yedek JSON'unu doğrular ve eklemeli olarak içe aktarır.
+  /// Yedek JSON'unu eklemeli olarak içe aktarır ve **dokunulan kayıt
+  /// sayılarını** döndürür (web `importData` parity, sadeleştirilmiş sözleşme).
   ///
-  /// Döndürülen map eklenen kayıt sayılarını içerir.
-  /// Geçersiz dosyada [FormatException] fırlatır.
+  /// Hata hâlinde eklenen kayıt sayısı **istisnada** taşınır
+  /// ([ImportWriteError.report]) — kısmi import'un sayısı kaybolmaz.
+  /// Ayrıntılı rapor isteyen çağıran [importBackup]'ı kullanmalıdır.
+  Future<Map<String, int>> importData(String userId, String jsonString) async =>
+      (await importBackup(userId, jsonString)).counts;
+
+  /// Yedek içe aktarımı — **doğrula → yaz → (hata olursa) telafi et**.
   ///
-  /// **Yumuşak silinen kayıtlar yeniden eklenmez.** Yedek `exportData`
-  /// tarafından üretildiğinde zaten `deleted_at IS NULL` süzgecinden geçer,
-  /// ancak elle düzenlenmiş bir yedek silinmiş satırlar içerebilir; bu
-  /// durumda eski sürüm onları **yeniden "canlandırırdı"** (yeni `id` ile
-  /// `deleted_at` boş bir satır) ve kullanıcı ilk sildiği öğünü geri
-  /// buluyordu. Üç tablo (`meal_entries`, `water_entries`, `weight_entries`)
-  /// yumuşak silme kullanır; `foods` tablosunda `deleted_at` kolonu yoktur.
-  Future<Map<String, int>> importData(String userId, String jsonString) async {
-    final decoded = jsonDecode(jsonString);
+  /// ## Neden bu akış
+  ///
+  /// PostgREST'te çok istekli bir yazma dizisi **atomik değildir**: her
+  /// `POST` kendi transaction'ıdır. Önceki sürümde `importData` satır satır
+  /// yazıyordu; 500. öğünde bir CHECK ihlali (`23514`) oluştuğunda 2000 öğünlük
+  /// bir yedekte `foods` + `food_nutrition` + 500 öğün **yazılmış** kalıyor,
+  /// `counts` hiç dönmüyordu ve `transfer_dialogs.dart` `catch (_)` ile
+  /// yutuyordu. Kullanıcı "hata" görüyor, hangi öğünlerin geldiğini
+  /// bilmiyordu — bu bir **veri bozulması** senaryosudur.
+  ///
+  /// ## Üç faz
+  ///
+  /// 1. **Ön-uçu (ağ yok).** Yedek ayrıştırılır ve tüm satırlar DB sözleşmesine
+  ///    göre denetlenir. **Tek bir ölümcül ihlalde hiçbir istek atılmaz**
+  ///    ([ImportValidationError]) — "önce doğrula, sonra yaz".
+  /// 2. **Varlık kontrolü (yalnız GET).** Dedup anahtarları dilimli `in`
+  ///    sorgularıyla okunur; yazma yine yapılmaz.
+  /// 3. **Yazma (toplu + telafili).** Tablolar bağımlılık sırasıyla yazılır.
+  ///    Hata olursa o turda yazılan satırların `id`'leri toplanır ve
+  ///    **fiziksel olarak silinir**; ardından ne yazıldığını tam olarak
+  ///    söyleyen bir [ImportReport] ile [ImportWriteError] fırlatılır.
+  ///    Telafi de başarısız olursa `rolledBack = false` ile rapor **yazılan
+  ///    satırları tek tek sayar** — yani her durumda görünür bir sonuç üretilir.
+  ///
+  /// ## Doğrulama sözleşmesi (testlerle sabitli)
+  ///
+  /// | Durum | Sonuç |
+  /// |---|---|
+  /// | Dosya CaloriX yedeği değil | [ImportFormatError] — ağ hiç çağrılmaz |
+  /// | Satır zorunlu kolonlara DB'nin **kabul etmeyeceği** değer yazıyor (aralık dışı miktar/kilo, sayı olmayan zorunlu sayı) | [ImportValidationError] + tüm ihlaller listesi — **hiçbir yazma yok** |
+  /// | Satır kimliksiz/gereksiz (isimsiz gıda, anahtarsız öğün, `deleted_at` dolu, yinelenen dedup anahtarı) | atlanır, [ImportReport.skipped] + [ImportIssue] |
+  /// | Alan güvenli varsayılana çekilebiliyor (geçersiz `meal_type`→snack, `source`→manual, `amount_ml` 250.4→250) | yazılır, [ImportReport.coerced] artar |
+  /// | Yazma hatası | telafi + [ImportWriteError] (rapor her zaman dolu) |
+  Future<ImportReport> importBackup(
+    String userId,
+    String jsonString,
+  ) async {
+    // FAZ 1 — ayrıştırma + ön-uçu doğrulama. **Ağ çağrısı yoktur.**
+    final data = _decodeBackup(jsonString);
+    final plan = buildImportPlan(userId, data);
+
+    // FAZ 2 — varlık kontrolü (yalnızca GET).
+    await _loadExistingKeys(userId, plan);
+
+    // FAZ 3 — yazma (toplu, telafili).
+    return _apply(userId, plan);
+  }
+
+  /// Yedeği ayrıştırır ve biçim sözleşmesini doğrular.
+  ///
+  /// [ImportFormatError], `transfer_dialogs.dart`'ın mevcut
+  /// `on FormatException` koluna düşer (FormatException alt sınıfı) → geçersiz
+  /// dosyada arayüz değişmeden doğru mesajı gösterir.
+  static Map<String, dynamic> _decodeBackup(String jsonString) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(jsonString);
+    } on FormatException catch (e, s) {
+      AppLog.w('Yedek dosyası JSON değil', e, s);
+      throw ImportFormatError('Geçersiz CaloriX yedek dosyası (JSON okunamadı).');
+    }
     if (decoded is! Map<String, dynamic> ||
         decoded['version'] == null ||
         decoded['exportedAt'] == null) {
-      throw const FormatException('Geçersiz CaloriX yedek dosyası');
+      throw const ImportFormatError('Geçersiz CaloriX yedek dosyası');
     }
-    final data = decoded;
-    final counts = <String, int>{
-      'foods': 0,
-      'meal_entries': 0,
-      'water_entries': 0,
-      'weight_entries': 0,
-    };
+    return decoded;
+  }
 
-    // 1) Foods — dedup: name + created_by
-    //
-    // Dedup sorgusu tüm yedek isimlerini `in` filtresiyle **tek seferde**
-    // çeker; döngü içinde `await` ile sorgu yapmak N+1 idi. Liste
-    // [inFilterChunkSize] dilimlerine bölünür, aksi halde binlerce isimli
-    // yedekte tek `in` listesi PostgREST'in ~8 KB URL tavanını aşar (414).
-    // `maybeSingle()` 1'den fazla satırda `PGRST116` fırlattığı için (aynı
-    // isimli iki kullanıcı yemeği mümkün — `foods` üzerinde UNIQUE yok)
-    // liste kullanılır ve ilk eşleşme alınır.
-    final foods = (data['foods'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final oldToNewFoodId = <String, String>{};
+  /// Yedek satırlarını DB sözleşmesine göre **yazmaya hazır** hâle getirir.
+  ///
+  /// **Saf fonksiyon** (ağ yok, yan etki yok) — bu sayede "doğrulama hatasında
+  /// hiçbir yazma olmaması" davranışı testte kanıtlanabilir: fonksiyon
+  /// istisna fırlattığında istemciye hiç dokunulmamıştır.
+  ///
+  /// [userId] yazılacak `user_id`/`created_by` değeridir; yedekteki başka bir
+  /// kullanıcıya ait `user_id` **yok sayılır** (başka birinin yedeği
+  /// kullanıcıya verilse bile kayıtlar doğru sahiplikle yazılır).
+  @visibleForTesting
+  static ImportPlan buildImportPlan(String userId, Map<String, dynamic> data) {
+    final issues = <ImportIssue>[];
+    final coerced = <String, int>{};
 
-    final backupNames = <String>{
-      for (final f in foods)
-        if (f['name'] is String && (f['name'] as String).trim().isNotEmpty)
-          (f['name'] as String).trim(),
-    }.toList();
-    final existingFoods = <String, String>{};
-    for (final chunk in inFilterChunks(backupNames)) {
-      final rows = await _client
-          .from('foods')
-          .select('id, name')
-          .eq('created_by', userId)
-          .inFilter('name', chunk);
-      for (final row in rows as List) {
-        final name = (row as Map)['name'] as String?;
-        if (name != null) existingFoods.putIfAbsent(name, () => row['id'] as String);
-      }
-    }
-
+    // 1) Gıdalar — dedup: `name` + `created_by`.
+    final foods = _rowsOf(data['foods']);
+    final plan = ImportPlan();
+    final seenFoodNames = <String>{};
     for (final food in foods) {
       final name = food['name'];
-      if (name is! String || name.trim().isEmpty) continue;
-      final key = name.trim();
-      final oldId = food['id']?.toString();
-      if (oldId == null) continue;
-
-      final existingId = existingFoods[key];
-      if (existingId != null) {
-        oldToNewFoodId[oldId] = existingId;
+      if (name is! String || name.trim().isEmpty) {
+        _skip(plan, 'foods', issues, 'name', 'Gıdanın adı boş', food['id']);
         continue;
       }
-      final cleaned = sanitizeFood(food)
-        ..['name'] = key
-        ..['created_by'] = userId
-        ..remove('food_nutrition');
-      final inserted = await _client
-          .from('foods')
-          .insert(cleaned)
-          .select('id')
-          .single();
-      oldToNewFoodId[oldId] = inserted['id'].toString();
-      existingFoods[key] = oldToNewFoodId[oldId]!;
-      counts['foods'] = counts['foods']! + 1;
+      final key = name.trim();
+      if (!seenFoodNames.add(key)) {
+        _skip(plan, 'foods', issues, 'name',
+            'Yedekte aynı adı taşıyan ikinci gıda (tekrar sayıldı)', food['id']);
+        continue;
+      }
+      final oldId = food['id']?.toString();
+      if (oldId == null || oldId.isEmpty) {
+        _skip(plan, 'foods', issues, 'id',
+            'Gıdanın kimliği yok — öğünlerle eşleştirilemez', null);
+        continue;
+      }
+      final row = _foodRow(food, userId, key, issues, coerced);
+      plan.foodNames.add(key);
+      plan.foodNameByBackupId[oldId] = key;
+      plan.foods.add(PlannedRow(row, backupId: oldId, backupName: key));
     }
 
-    // 2) food_nutrition — yeni food_id ile yeniden ekle
+    // 2) food_nutrition — `food_id` içe aktarımda **yeni** gıda id'sidir.
     //
     // `food_nutrition.food_id` UNIQUE (`full_setup.sql:121`): aynı gıdaya
     // ikinci besin satırı eklemek `23505 duplicate key` ile **tüm import'u**
-    // düşürürdu. Yedekte aynı `food_id` için birden çok satır varsa ilki
+    // düşürürdü. Yedekte aynı `food_id` için birden çok satır varsa ilki
     // kazanır (deterministik), geri kalanı atlanır.
-    final nutrition =
-        (data['food_nutrition'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final seenFoodIds = <String>{};
+    final nutrition = _rowsOf(data['food_nutrition']);
     for (final n in nutrition) {
-      final newFoodId = oldToNewFoodId[n['food_id']?.toString()];
-      if (newFoodId == null) continue;
-      if (!seenFoodIds.add(newFoodId)) continue;
-      final cleaned = _sanitizeNutrition(n)..['food_id'] = newFoodId;
-      await _client.from('food_nutrition').insert(cleaned);
+      final oldFoodId = n['food_id']?.toString();
+      if (oldFoodId == null || oldFoodId.isEmpty) {
+        _skip(plan, 'food_nutrition', issues, 'food_id',
+            'Besin satırının gıda bağlantısı yok', null);
+        continue;
+      }
+      if (!plan.foods.any((f) => f.backupId == oldFoodId)) {
+        // Yedeğin `foods` listesinde karşılığı yok (elle düzenlenmiş yedek).
+        _skip(plan, 'food_nutrition', issues, 'food_id',
+            'Besin satırının gıdası yedekte yok', oldFoodId);
+        continue;
+      }
+      if (plan.nutritionIds.add(oldFoodId)) {
+        plan.nutrition.add(PlannedRow(
+          _nutritionRow(n, issues, coerced),
+          backupId: oldFoodId,
+        ));
+      } else {
+        _skip(plan, 'food_nutrition', issues, 'food_id',
+            'Aynı gıda için ikinci besin satırı (UNIQUE food_id)', oldFoodId);
+      }
     }
 
-    // 3) meal_entries — dedup: user_id + entry_date + custom_name + meal_type
+    // 3) meal_entries — dedup: `entry_date` + `custom_name` + `meal_type`.
     //
     // `meal_entries` üzerinde bu kombinasyona UNIQUE constraint yoktur, bu
     // yüzden `maybeSingle()` **birden fazla eşleşmede istisna fırlatır** ve
     // içe aktarma tamamen çöker (aynı gün/öğünde iki ayrı "Tavuk" kaydı
     // yedeklenmiş olan kullanıcılar için 100% olası). Varlık kontrolü
     // `in`-filtreli sorgularla yapılır (tarihler dilimli — bkz.
-    // [inFilterChunkSize]), ekleme hâlâ satır satır (aynı `created_at`
-    // sırasını korumak için) yapılır.
+    // [inFilterChunkSize]).
     // Yumuşak silinmiş satırlar **varlık kontrolüne de** girmemeli: aksi
     // halde DB'deki canlı ama farklı kayıtla aynı anahtarı taşıyan bir
     // silinmiş satın varlığı, canlı satırın yeniden eklenmesini engeller.
-    final meals = _liveRows((data['meal_entries'] as List?)?.cast());
-    final existingMealKeys = await _existingMealKeys(userId, meals);
+    final meals = _liveRowsOf(data['meal_entries']);
     for (final m in meals) {
-      // Yumuşak silinmiş kayıt yeniden eklenmez (bkz. [importData] docu).
-      if (isDeleted(m)) continue;
-      final key = _mealKey(m);
-      if (key == null) continue;
-      if (existingMealKeys.contains(key)) continue;
-      final cleaned = _sanitizeMealEntry(m, userId, oldToNewFoodId);
-      await _client.from('meal_entries').insert(cleaned);
-      existingMealKeys.add(key);
-      counts['meal_entries'] = counts['meal_entries']! + 1;
+      // Tarih **çözümlenemiyorsa** ölümcüldür: öğünün nereye yazılacağı
+      // bilinmiyor. Sessizce atlamak kullanıcının yedeğinden bir gün
+      // kaybettirir ve bunu bildirecek bir yer de yoktur (eski sürümde
+      // ham dize gönderilip DB 400 veriyordu → tüm import düşüyordu).
+      final day = _dateString(m['entry_date']);
+      if (day == null) {
+        issues.add(ImportIssue(
+          table: 'meal_entries',
+          rowId: m['id']?.toString(),
+          field: 'entry_date',
+          message: 'Öğünün tarihi okunamadı (beklenen: yyyy-MM-dd)',
+          isFatal: true,
+        ));
+        continue;
+      }
+      // `meal_type` enum dışıysa DB varsayılanına çekilir, ölümcül değildir.
+      final normalized = <String, dynamic>{...m, 'entry_date': day};
+      final key = _mealKey(normalized);
+      if (key == null) {
+        _skip(plan, 'meal_entries', issues, 'meal_type',
+            'Öğünün tipi eksik — nereye yazılacağı bilinmiyor', m['id']);
+        continue;
+      }
+      if (!plan.mealKeys.add(key)) {
+        _skip(plan, 'meal_entries', issues, 'entry_date',
+            'Yedekte aynı gün/öğün/yemek için ikinci kayıt (tekrar sayıldı)',
+            m['id']);
+        continue;
+      }
+      plan.mealDates.add(day);
+      // Öğün yedekteki gıdayı `food_id` ile referanslıyor; import'ta bu id
+      // **yeni** gıda id'sine çevrilir, karşılık yoksa `null` (manuel girdi).
+      plan.meals.add(PlannedRow(
+        _mealRow(m, userId, issues, coerced),
+        backupId: m['id']?.toString(),
+        backupName: plan.foodNameOf(m['food_id']?.toString()),
+        dedupKey: key,
+      ));
     }
 
-    // 4) water_entries — dedup: entry_time
+    // 4) water_entries — dedup: `entry_time`.
     // `entry_time` timestamptz NOT NULL UNIQUE değil → `maybeSingle()` iki
     // kayıtta patlar. Aynı kombinasyon anahtarı ile toplu kontrol yapılır.
-    final waters = _liveRows((data['water_entries'] as List?)?.cast());
-    final existingWaterTimes = await _existingWaterTimes(
-      userId,
-      times: [
-        for (final w in waters)
-          if (w['entry_time'] is String) w['entry_time'] as String,
-      ],
-    );
+    final waters = _liveRowsOf(data['water_entries']);
     for (final w in waters) {
-      if (isDeleted(w)) continue;
-      final time = w['entry_time'];
-      if (time is! String || time.isEmpty) continue;
-      if (existingWaterTimes.contains(time)) continue;
-      final cleaned = _sanitizeWaterEntry(w, userId);
-      await _client.from('water_entries').insert(cleaned);
-      existingWaterTimes.add(time);
-      counts['water_entries'] = counts['water_entries']! + 1;
+      // `entry_time NOT NULL` ve dedup anahtarı bu damga → zamanı
+      // çözümlenemeyen kayıt **ölümcüldür** (sessizce atlanırsa kullanıcının
+      // günlük su toplamı eksik kalır, bildirim de gelmez).
+      final when = _waterInstant(w, issues, coerced);
+      if (when == null) {
+        issues.add(ImportIssue(
+          table: 'water_entries',
+          rowId: w['id']?.toString(),
+          field: 'entry_time',
+          message: 'Su kaydının zamanı okunamadı '
+              '(beklenen ISO-8601 damga veya entry_date)',
+          isFatal: true,
+        ));
+        continue;
+      }
+      final key = when.micros.toString();
+      plan.waterInstants.add(when.iso);
+      if (!plan.waterKeys.add(key)) {
+        _skip(plan, 'water_entries', issues, 'entry_time',
+            'Yedekte aynı anda ikinci su kaydı (tekrar sayıldı)', w['id']);
+        continue;
+      }
+      final row = _waterRow(w, userId, when, issues, coerced);
+      plan.water.add(PlannedRow(row, backupId: w['id']?.toString(), dedupKey: key));
     }
 
-    // 5) weight_entries — dedup: entry_date
+    // 5) weight_entries — dedup: `entry_date`.
     // Aynı gün iki kilo kaydı olabilir (UNIQUE constraint yok) →
     // `maybeSingle()` yerine toplu `in` kontrolü.
-    final weights = _liveRows((data['weight_entries'] as List?)?.cast());
-    final weightDates = <String>{
-      for (final w in weights)
-        if (w['entry_date'] is String) w['entry_date'] as String,
-    }.toList();
-    final existingWeightDates = <String>{};
-    for (final chunk in inFilterChunks(weightDates)) {
+    final weights = _liveRowsOf(data['weight_entries']);
+    for (final w in weights) {
+      // Kilo kaydının günü **ölümcüldür**: `entry_date DATE NOT NULL` ve
+      // dedup anahtarı da bu gün. Tarihi okunamayan bir kilo kaydı sessizce
+      // atlanırsa kullanıcının kilo trendi eksik kalır ve bunu öğrenemez
+      // (eski sürüm ham dizeyi gönderip DB 400 veriyordu → tüm import
+      // düşüyordu, yine de kullanıcı "hangi kilo kaydı bozukdu?" öğrenemiyordu).
+      final day = _dateString(w['entry_date']);
+      if (day == null) {
+        issues.add(ImportIssue(
+          table: 'weight_entries',
+          rowId: w['id']?.toString(),
+          field: 'entry_date',
+          message: 'Kilo kaydının tarihi okunamadı (beklenen: yyyy-MM-dd)',
+          isFatal: true,
+        ));
+        continue;
+      }
+      plan.weightDates.add(day);
+      if (!plan.weightKeys.add(day)) {
+        _skip(plan, 'weight_entries', issues, 'entry_date',
+            'Yedekte aynı gün için ikinci kilo kaydı (tekrar sayıldı)', w['id']);
+        continue;
+      }
+      plan.weights.add(PlannedRow(
+        _weightRow(w, userId, day, issues, coerced),
+        backupId: w['id']?.toString(),
+        dedupKey: day,
+      ));
+    }
+
+    // Ölümcül ihlal varsa **hiçbir yazma yapılmadan** dur.
+    final fatal = issues.where((i) => i.isFatal).toList(growable: false);
+    if (fatal.isNotEmpty) {
+      throw ImportValidationError(fatal, totalIssues: issues.length);
+    }
+    plan.coerced.addAll(coerced);
+    plan.issues.addAll(issues);
+    return plan;
+  }
+
+  // ------------------------------------------------------------------
+  // FAZ 2 — varlık kontrolü (yalnız GET)
+  // ------------------------------------------------------------------
+
+  /// DB'de zaten var olan dedup anahtarlarını plana işaretler.
+  ///
+  /// Tüm sorgular `in` listesi dilimlenir (bkz. [inFilterChunkSize]): yedek
+  /// binlerce günü kapsadığında tek `in` listesi ~8 KB URL tavanını aşar ve
+  /// sorgu 414/431 ile düşer (içe aktarma 2000+ kayıtta çalışmıyordu).
+  Future<void> _loadExistingKeys(String userId, ImportPlan plan) async {
+    for (final chunk in inFilterChunks(plan.foodNames.toList())) {
+      final rows = await _client
+          .from('foods')
+          .select('id, name')
+          .eq('created_by', userId)
+          .inFilter('name', chunk);
+      for (final row in rows as List) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final name = map['name'] as String?;
+        final id = map['id']?.toString();
+        if (name != null && name.trim().isNotEmpty) {
+          final key = name.trim();
+          plan.existingFoodNames.add(key);
+          // Aynı adlı iki kullanıcı yemeği olabilir (`foods` üzerinde UNIQUE
+          // yok) → ilk eşleşme kazanır.
+          if (id != null) plan.existingFoodIds.putIfAbsent(key, () => id);
+        }
+      }
+    }
+
+    for (final chunk in inFilterChunks(plan.mealDates.toList())) {
+      final rows = await _client
+          .from('meal_entries')
+          .select('entry_date, custom_name, meal_type')
+          .eq('user_id', userId)
+          .inFilter('entry_date', chunk);
+      for (final row in rows as List) {
+        final k = _mealKey(Map<String, dynamic>.from(row as Map));
+        if (k != null) plan.existingMealKeys.add(k);
+      }
+    }
+
+    // `entry_time` karşılaştırması **dize değil, epoch mikrosaniye** üzerinden
+    // yapılır: Postgres `timestamptz` çıktısı ile yedeğin damga biçimi
+    // farklı olabilir (`+00:00` ↔ `Z`), dize karşılaştırması dedup'ı kırar
+    // ve aynı su kaydı iki kez eklenirdi.
+    for (final chunk in inFilterChunks(plan.waterInstants.toList())) {
+      final rows = await _client
+          .from('water_entries')
+          .select('entry_time')
+          .eq('user_id', userId)
+          .inFilter('entry_time', chunk);
+      for (final row in rows as List) {
+        final t = _epochMicros((row as Map)['entry_time']);
+        if (t != null) plan.existingWaterKeys.add(t.toString());
+      }
+    }
+
+    for (final chunk in inFilterChunks(plan.weightDates.toList())) {
       final rows = await _client
           .from('weight_entries')
           .select('entry_date')
           .eq('user_id', userId)
           .inFilter('entry_date', chunk);
       for (final row in rows as List) {
-        final d = (row as Map)['entry_date'] as String?;
-        if (d != null) existingWeightDates.add(d);
+        final d = _dateString((row as Map)['entry_date']);
+        if (d != null) plan.existingWeightDates.add(d);
       }
     }
-    for (final w in weights) {
-      if (isDeleted(w)) continue;
-      final date = w['entry_date'];
-      if (date is! String || date.isEmpty) continue;
-      if (existingWeightDates.contains(date)) continue;
-      final cleaned = _sanitizeWeightEntry(w, userId);
-      await _client.from('weight_entries').insert(cleaned);
-      existingWeightDates.add(date);
-      counts['weight_entries'] = counts['weight_entries']! + 1;
-    }
-
-    return counts;
   }
 
-  /// `meal_entries` yedeğini DB sözleşmesine göre beyaz listeler.
+  // ------------------------------------------------------------------
+  // FAZ 3 — yazma (toplu + telafili)
+  // ------------------------------------------------------------------
+
+  /// Planı uygular. Hata olursa o turda yazılanları geri alır ve
+  /// [ImportWriteError] fırlatır.
+  Future<ImportReport> _apply(String userId, ImportPlan plan) async {
+    final counts = <String, int>{for (final t in importTables) t: 0};
+    // Telafi için yazılan satır id'leri (tablo → id'ler). Bağımlılık
+    // sırasının **tersinde** silinir; `foods` silinince `food_nutrition`
+    // `ON DELETE CASCADE` ile zaten gider.
+    final written = <String, List<String>>{};
+    var stage = 'foods';
+    try {
+      // 1) foods + food_nutrition (besin satırları yeni gıda id'sine bağlı).
+      //
+      // `plan.existingFoodNames` içindeki gıdalar **yeniden yazılmaz**;
+      // öğünler/besin satırları onların **mevcut** id'sine bağlanır (ad
+      // bazlı dedup — `foods` üzerinde UNIQUE yok, ilk eşleşme kazanır).
+      stage = 'foods';
+      final foodIdByName = <String, String>{...plan.existingFoodIds};
+      final toInsert = [
+        for (final r in plan.foods)
+          if (!plan.existingFoodNames.contains(r.backupName)) r,
+      ];
+      if (toInsert.isNotEmpty) {
+        final inserted =
+            await _insertBatched('foods', [for (final r in toInsert) r.values]);
+        foodIdByName.addAll(_idMapByBackupName(toInsert, inserted));
+        counts['foods'] = inserted.length;
+        written['foods'] = inserted.map((r) => r['id'].toString()).toList();
+      }
+
+      stage = 'food_nutrition';
+      // Besin satırı, gıdası **zaten DB'de**yse yazılmaz: `food_nutrition`
+      // `UNIQUE(food_id)` (`full_setup.sql:121`) ve mevcut gıdanın besin
+      // satırı büyük olasılıkla zaten var → `23505 duplicate key` ile tüm
+      // import'u düşürürdü. Yeni eklenen gıdaların satırları yazılır.
+      final nutritionRows = [
+        for (final r in plan.nutrition)
+          if (!plan.existingFoodNames.contains(plan.foodNameOf(r.backupId)))
+            {
+              ...r.values,
+              'food_id': foodIdByName[plan.foodNameOf(r.backupId)],
+            },
+      ];
+      if (nutritionRows.isNotEmpty) {
+        final unresolved =
+            nutritionRows.where((r) => r['food_id'] == null).length;
+        if (unresolved > 0) {
+          throw StateError(
+              'Besin satırının gıdası içe aktarımda eşleştirilemedi '
+              '($unresolved satır)');
+        }
+        await _insertBatched('food_nutrition', nutritionRows);
+        counts['food_nutrition'] = nutritionRows.length;
+      }
+
+      // 2) Günlük kayıtlar.
+      stage = 'meal_entries';
+      final meals = [
+        for (final r in plan.meals)
+          if (!plan.existingMealKeys.contains(r.dedupKey))
+            {
+              ...r.values,
+              // Yedekteki `food_id` eski UUID'dir; yoksa manuel girdidir.
+              'food_id': r.backupName == null ? null : foodIdByName[r.backupName],
+            },
+      ];
+      final newMeals = await _insertBatched('meal_entries', meals);
+      counts['meal_entries'] = newMeals.length;
+      if (newMeals.isNotEmpty) {
+        written['meal_entries'] = newMeals.map((r) => r['id'].toString()).toList();
+      }
+
+      stage = 'water_entries';
+      final waters = [
+        for (final r in plan.water)
+          if (!plan.existingWaterKeys.contains(r.dedupKey)) r.values,
+      ];
+      final newWaters = await _insertBatched('water_entries', waters);
+      counts['water_entries'] = newWaters.length;
+      if (newWaters.isNotEmpty) {
+        written['water_entries'] = newWaters.map((r) => r['id'].toString()).toList();
+      }
+
+      stage = 'weight_entries';
+      final weights = [
+        for (final r in plan.weights)
+          if (!plan.existingWeightDates.contains(r.dedupKey)) r.values,
+      ];
+      final newWeights = await _insertBatched('weight_entries', weights);
+      counts['weight_entries'] = newWeights.length;
+      if (newWeights.isNotEmpty) {
+        written['weight_entries'] = newWeights.map((r) => r['id'].toString()).toList();
+      }
+
+      return ImportReport(
+        counts: counts,
+        skipped: plan.skipped,
+        issues: plan.issues,
+        coerced: plan.coerced,
+      );
+    } catch (error, stackTrace) {
+      final code = error is PostgrestException ? error.code : null;
+      AppLog.e(
+        'Yedek içe aktarma "$stage" adımında durdu; telafi ediliyor',
+        error,
+        stackTrace,
+      );
+      // Telafi. Başarılıysa **hiçbir kayıt kalmaz**: `counts` sıfırlanır ve
+      // kullanıcıya "0 kayıt eklendi, yedek yarım uygulanmadı" görünür.
+      // Başarısızsa kalan satırların id'leri `survivors` içinde **tek tek**
+      // sayılır — "kısmi sonuç" varsayımı yapılmaz, ölçülür.
+      final survivors = <String, List<String>>{};
+      for (final entry in written.entries) {
+        if (entry.value.isNotEmpty) survivors[entry.key] = entry.value;
+      }
+      final rolledBack = await _rollback(written, survivors);
+      if (rolledBack) {
+        for (final t in survivors.keys) {
+          counts[t] = 0;
+        }
+      }
+      final report = ImportReport(
+        counts: counts,
+        skipped: plan.skipped,
+        issues: plan.issues,
+        coerced: plan.coerced,
+        failedStage: stage,
+        rolledBack: rolledBack,
+        // Telafi başarısızsa **kalan** satırlar raporlanır; başarılıysa liste
+        // boştur (hiçbir şey kalmadı).
+        writtenTables: rolledBack ? const {} : survivors,
+      );
+      throw ImportWriteError(
+        stage: stage,
+        report: report,
+        cause: error,
+        stackTrace: stackTrace,
+        code: code,
+      );
+    }
+  }
+
+  /// [importBatchSize]'lık dilimlerle toplu `insert` + `.select('id')`.
+  ///
+  /// Dönen satırlar **yazılan** satırlardır (telafi için id gerekir). Boş
+  /// girdi **hiç istek atmaz** (`POST /tablo []` `PGRST102` verir).
+  Future<List<Map<String, dynamic>>> _insertBatched(
+    String table,
+    List<Map<String, dynamic>> rows,
+  ) async {
+    final out = <Map<String, dynamic>>[];
+    for (final batch in _batches(rows, importBatchSize)) {
+      // `insert(...)` varsayılanı `defaultToNull: true` → PostgREST gövdeyi
+      // göndermeden önce `null` değerli **alanları düşürür** (`Prefer`
+      // başlığını kaldırır, `postgrest_query_builder.dart:106-110`). Yani
+      // `created_at: null` güvenlidir: alan gönderilmez ve DB'nin
+      // `NOT NULL DEFAULT now()`'u devreye girer. Anahtar kümesi yine de
+      // her dilimde sabittir (`PGRST102`).
+      final res = await _client
+          .from(table)
+          .insert(_uniform(batch, _columnsOf(table)))
+          .select('id');
+      out.addAll(res);
+    }
+    return out;
+  }
+
+  /// O turda yazılan satırları **fiziksel olarak** siler.
+  ///
+  /// Telafi bir "yumuşak silme" değildir: içe aktarma yedekten türetilmiş
+  /// satırlar ekliyordu, DB'de kullanıcının kendi kaydı yok; `DELETE`
+  /// politikaları `auth.uid()` kapsamıyla var
+  /// (`20260111041204_...sql:365/382/399`, `foods` için
+  /// `20260927120000_...:75`), yani istemci kendi yazdığı satırları silebilir.
+  ///
+  /// `id` listesi de `in` filtresi olduğu için **dilimlenir** (2000 UUID tek
+  /// sorguda ~78 KB → 414). Dönen değer: geri alınan tablo sayısı > 0 ise
+  /// `true`; bir tablo silinemezse `false` (rapor `rolledBack = false`).
+  Future<bool> _rollback(
+    Map<String, List<String>> written,
+    Map<String, List<String>> survivors,
+  ) async {
+    var allRolled = true;
+    // Bağımlılık sırasının tersi: günlük kayıtlar → besin satırları → gıdalar.
+    for (final table in importTables.reversed) {
+      final ids = written[table];
+      if (ids == null || ids.isEmpty) continue;
+      var remaining = ids.length;
+      for (final chunk in inFilterChunks(ids)) {
+        try {
+          await _client.from(table).delete().inFilter('id', chunk);
+          remaining -= chunk.length;
+        } catch (e, s) {
+          AppLog.e('Telafi: $table silinemedi (${e.toString()})', e, s);
+        }
+      }
+      if (remaining > 0) {
+        allRolled = false;
+        // Silinemeyen satırlar **kalan** olarak raporlanır (varsayım yok):
+        // hangi dilimlerin sildiğini bilmiyoruz, bu yüzden en kötü senaryo
+        // (hiçbiri silinmedi) varsayılır ve id'ler tam olarak raporlanır.
+        survivors[table] = ids;
+      }
+    }
+    return allRolled;
+  }
+
+  // ------------------------------------------------------------------
+  // Satır dönüştürücüleri (saf)
+  // ------------------------------------------------------------------
+
+  /// `foods` yedeğini DB sözleşmesine göre beyaz listeler.
+  ///
+  /// **Beyaz liste uygulanır, kara liste değil.** Kara liste kullanan eski
+  /// sürümde yedekteki tanınmayan her kolon (`barcode`, `last_synced_at`,
+  /// `sync_state`, eski web istemcisinin eklediği alanlar) insert'e gönderiliyor
+  /// ve PostgREST `PGRST204` ile **400** dönüyordu: "Could not find the
+  /// 'column' in the schema cache". Bu, tek bozuk alanın **tüm içe aktarmayı**
+  /// düşürmesidir.
+  ///
+  /// `verified` ve `popularity_count` **bilinçli olarak dışarıda**: ikisi de
+  /// sistem tarafından türetilir (`popularity_count`'i
+  /// `increment_food_popularity` trigger'ı artırır) ve web istemcisi de
+  /// yedekten kopyalamayı reddeder (`src/hooks/useDataExport.ts:154`).
+  /// `created_by` de dışarıda: her zaman oturumdaki kullanıcı yazılır.
+  static Map<String, dynamic> _foodRow(
+    Map<String, dynamic> food,
+    String userId,
+    String name,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    final out = <String, dynamic>{
+      'name': name,
+      'brand': _str(food['brand']),
+      'serving_size_g': _positiveNum(food['serving_size_g']) ?? 100,
+      'serving_description': _str(food['serving_description']),
+      'source': _enumValue(
+        food['source'],
+        _sanitizeFoodSource,
+        'manual',
+        'source',
+        'foods',
+        food['id'],
+        issues,
+        coerced,
+      ),
+      'image_url': _str(food['image_url']),
+      'created_by': userId,
+    };
+    return out;
+  }
+
+  /// `food_nutrition` yedeğini DB sözleşmesine göre beyaz listeler.
+  ///
+  /// `kcal/protein_g/carbs_g/fat_g` `NOT NULL` olduğu için sayısal olmayan
+  /// (null/string) değer 0'a **çevrilmez** — önce 0'a çevrilip yazılıyordu ve
+  /// sessizce yanlış besin değeri kaydediliyordu. Sayı değilse satır ölümcül
+  /// ihlalle reddedilir (DB'nin de reddedeceği değer).
+  ///
+  /// `nova_score` `smallint` (yorum: 1..4). El yazımı bir yedek 10^9 gönderirse
+  /// PostgREST 400 döner ve **tüm import** düşerdi; bu yüzden aralık dışı
+  /// değer alan boş bırakılır (nullable) ve sayılır.
+  static Map<String, dynamic> _nutritionRow(
+    Map<String, dynamic> n,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    String num(String field) => _requireNum(
+          n[field],
+          field,
+          'food_nutrition',
+          n['food_id'],
+          issues,
+          finite: true,
+        );
+    final nova = _positiveNum(n['nova_score']);
+    final row = <String, dynamic>{
+      'per_100_g_ml': n['per_100_g_ml'] is bool ? n['per_100_g_ml'] : true,
+      'kcal': num('kcal'),
+      'protein_g': num('protein_g'),
+      'carbs_g': num('carbs_g'),
+      'fat_g': num('fat_g'),
+      'fiber_g': _nonNegativeNum(n['fiber_g']),
+      'sugar_g': _nonNegativeNum(n['sugar_g']),
+      'salt_g': _nonNegativeNum(n['salt_g']),
+      'saturated_fat_g': _nonNegativeNum(n['saturated_fat_g']),
+      'trans_fat_g': _nonNegativeNum(n['trans_fat_g']),
+      'nova_score': nova != null && nova >= 1 && nova <= 4
+          ? nova.toInt()
+          : (_count(coerced, 'food_nutrition.nova_score')),
+      'nutri_score': _str(n['nutri_score']),
+    };
+    return row;
+  }
+
+  /// `meal_entries` yedeğini beyaz listeler.
   ///
   /// `meal_type` ve `source` enum alanları: yedek bozuk/eskiden kalma bir
   /// değer taşırsa (`'brunch'`, `'barcode'`) insert CHECK ihlaliyle 400 döner
@@ -327,88 +827,209 @@ class DataTransferRepository {
   ///
   /// `food_id` yedeğin eski UUID'sidir → içe aktarımda kullanıcının yeni
   /// gıda id'siyle değiştirilir; karşılık yoksa `null` (manuel girdi).
-  static Map<String, dynamic> _sanitizeMealEntry(
+  /// `created_at` yedeğin damgasıdır: toplu yazımda satır sırası `created_at`'i
+  /// taşımadığı için tüm öğünler aynı `now()`'u alır ve eski sürümdeki
+  /// "ekleme sırası" koruması kaybolur; damga gövdede taşınır.
+  static Map<String, dynamic> _mealRow(
     Map<String, dynamic> m,
     String userId,
-    Map<String, String> oldToNewFoodId,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
   ) {
-    const allowed = <String>[
-      'entry_date',
-      'meal_type',
-      'custom_name',
-      'amount_g_ml',
-      'calculated_kcal',
-      'calculated_protein',
-      'calculated_carbs',
-      'calculated_fat',
-      'note',
-      'photo_url',
-      'source',
-    ];
-    final out = <String, dynamic>{
-      for (final k in allowed)
-        if (m.containsKey(k) && m[k] != null) k: m[k],
+    final row = <String, dynamic>{
+      'user_id': userId,
+      'entry_date': _dateString(m['entry_date']) ??
+          _requireStr(m['entry_date'], 'entry_date', 'meal_entries', m['id'], issues),
+      'meal_type': _enumValue(
+        m['meal_type'],
+        mealTypeDbValues,
+        'snack',
+        'meal_type',
+        'meal_entries',
+        m['id'],
+        issues,
+        coerced,
+      ),
+      'food_id': m['food_id']?.toString(),
+      'custom_name': _str(m['custom_name']),
+      'amount_g_ml': _requireRange(
+        m['amount_g_ml'],
+        'amount_g_ml',
+        'meal_entries',
+        m['id'],
+        issues,
+        min: 0.0001,
+        max: maxAmountGMl,
+        finite: true,
+      ),
+      'calculated_kcal': _requireRange(
+        m['calculated_kcal'],
+        'calculated_kcal',
+        'meal_entries',
+        m['id'],
+        issues,
+        min: 0,
+        max: 9999999,
+        finite: true,
+      ),
+      'calculated_protein': _requireRange(
+        m['calculated_protein'],
+        'calculated_protein',
+        'meal_entries',
+        m['id'],
+        issues,
+        min: 0,
+        max: 9999999,
+        finite: true,
+      ),
+      'calculated_carbs': _requireRange(
+        m['calculated_carbs'],
+        'calculated_carbs',
+        'meal_entries',
+        m['id'],
+        issues,
+        min: 0,
+        max: 9999999,
+        finite: true,
+      ),
+      'calculated_fat': _requireRange(
+        m['calculated_fat'],
+        'calculated_fat',
+        'meal_entries',
+        m['id'],
+        issues,
+        min: 0,
+        max: 9999999,
+        finite: true,
+      ),
+      'note': _str(m['note']),
+      'photo_url': _str(m['photo_url']),
+      'source': _enumValue(
+        m['source'],
+        _sanitizeFoodSource,
+        'manual',
+        'source',
+        'meal_entries',
+        m['id'],
+        issues,
+        coerced,
+      ),
+      'created_at': _createdAt(m['created_at']),
     };
-    out['user_id'] = userId;
-    out['food_id'] = oldToNewFoodId[m['food_id']?.toString()];
-    if (!DataTransferRepository.mealTypeDbValues.contains(out['meal_type'])) {
-      out['meal_type'] = 'snack';
-    }
-    if (!_sanitizeFoodSource.contains(out['source'])) {
-      out['source'] = 'manual';
-    }
-    return out;
+    return row;
   }
 
-  /// `water_entries` yedeğini beyaz listeler — `amount_ml` `INTEGER NOT NULL`
-  /// olduğu için küsüratlı/string değer 400 üretir.
-  static Map<String, dynamic> _sanitizeWaterEntry(
+  /// `water_entries` yedeğini beyaz listeler.
+  ///
+  /// `amount_ml` `INTEGER NOT NULL` olduğu için küsüratlı/string değer 400
+  /// üretir: küsüratlı değer **yuvarlanır** (250.4 → 250), tam sayı olmayan
+  /// (string/null/NaN) değer ise ölümcül ihlaldir. Eski sürüm bunları `0`'a
+  /// çeviriyordu ve `water_entries_amount_positive` CHECK'i (`full_setup.sql:618`)
+  /// 400 döndürüyordu → **mevcut öğünler yazıldıktan sonra** import su
+  /// adımında ölüyordu.
+  static Map<String, dynamic> _waterRow(
     Map<String, dynamic> w,
     String userId,
+    WaterInstant when,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
   ) {
-    const allowed = <String>['entry_date', 'entry_time', 'amount_ml'];
-    final out = <String, dynamic>{
-      for (final k in allowed)
-        if (w.containsKey(k) && w[k] != null) k: w[k],
-    };
-    out['user_id'] = userId;
-    final ml = out['amount_ml'];
-    if (ml is num && ml.isFinite) {
-      out['amount_ml'] = ml.round();
-    } else {
-      out['amount_ml'] = 0;
+    final raw = w['amount_ml'];
+    var ml = 0;
+    if (raw is num && raw.isFinite) {
+      final rounded = raw.round();
+      if (rounded > 0 && rounded <= maxAmountMl) {
+        ml = rounded;
+        if (rounded != raw) _count(coerced, 'water_entries.amount_ml');
+      }
     }
-    return out;
+    if (ml == 0) {
+      issues.add(ImportIssue(
+        table: 'water_entries',
+        rowId: w['id']?.toString(),
+        field: 'amount_ml',
+        message: 'Su miktarı $maxAmountMl ml aralığında değil '
+            '(DB CHECK: amount_ml > 0 AND amount_ml <= $maxAmountMl)',
+        isFatal: true,
+      ));
+    }
+    return {
+      'user_id': userId,
+      'entry_date': when.day,
+      'entry_time': when.iso,
+      'amount_ml': ml,
+      'created_at': _createdAt(w['created_at']),
+    };
   }
 
-  /// `weight_entries` yedeğini beyaz listeler — `weight_kg NUMERIC(5,2)
-  /// NOT NULL`; negatif/bozuk değer 400 üretir.
-  static Map<String, dynamic> _sanitizeWeightEntry(
+  /// `weight_entries` yedeğini beyaz listeler — `weight_kg NUMERIC(5,2) NOT NULL`
+  /// ve `weight_entries_weight_range` CHECK (`full_setup.sql:620`).
+  ///
+  /// Eski sürüm geçersiz kilo için `0.0` yazıyordu; DB `0 > 0` CHECK'ini
+  /// reddedip **tüm import'u** düşürüyordu (öğünler ve su kayıtları yazılmış
+  /// hâlde). Artık ölümcül ihlal → **hiçbir şey yazılmadan** durur.
+  static Map<String, dynamic> _weightRow(
     Map<String, dynamic> w,
     String userId,
+    String day,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
   ) {
-    const allowed = <String>['entry_date', 'weight_kg', 'note'];
-    final out = <String, dynamic>{
-      for (final k in allowed)
-        if (w.containsKey(k) && w[k] != null) k: w[k],
+    final kg = _requireRange(
+      w['weight_kg'],
+      'weight_kg',
+      'weight_entries',
+      w['id'],
+      issues,
+      min: 0.0001,
+      max: maxWeightKg,
+      finite: true,
+    );
+    return {
+      'user_id': userId,
+      'entry_date': day,
+      'weight_kg': kg,
+      'note': _str(w['note']),
+      'created_at': _createdAt(w['created_at']),
     };
-    out['user_id'] = userId;
-    final kg = out['weight_kg'];
-    out['weight_kg'] = (kg is num && kg.isFinite && kg > 0) ? kg.toDouble() : 0.0;
-    return out;
   }
+
+  // ------------------------------------------------------------------
+  // Saf alan yardımcıları
+  // ------------------------------------------------------------------
 
   /// `food_source` enum değerleri (`20260822000000_remove_barcode.sql`).
   static const Set<String> _sanitizeFoodSource = {'photo', 'text', 'manual'};
 
-  /// `food_nutrition` yedeğini DB sözleşmesine göre beyaz listeler.
+  /// `importData` sırasında yazılan/yazılabilecek tablolar — sıra **bağımlılık
+  /// sırasıdır** (`foods` → `food_nutrition` → günlük kayıtlar) ve telafi
+  /// bu sıranın tersinde yürür.
+  static const List<String> importTables = <String>[
+    'foods',
+    'food_nutrition',
+    'meal_entries',
+    'water_entries',
+    'weight_entries',
+  ];
+
+  /// Toplu `insert`'te gönderilecek kolonlar.
   ///
-  /// Aynı nedenle kara liste uygulanmaz: yedekteki tanınmayan kolon
-  /// PostgREST 400'üne ve import'un tamamının düşmesine yol açar.
-  /// `kcal/protein_g/carbs_g/fat_g` `NOT NULL` olduğu için sayısal olmayan
-  /// (null/string) değerler 0'a çevrilir — aksi halde 400.
-  static Map<String, dynamic> _sanitizeNutrition(Map<String, dynamic> n) {
-    const allowed = <String>[
+  /// PostgREST çok satırlı `POST`'ta **tüm nesnelerin anahtar kümesinin aynı
+  /// olmasını şart koşar** (`PGRST102` — "All object keys must match"). Bu
+  /// yüzden her tablo için sabit bir kolon listesi vardır ve her satır o
+  /// listenin **tamamına** sahiptir (null değerler de yazılır).
+  static const Map<String, List<String>> _insertColumns = <String, List<String>>{
+    'foods': <String>[
+      'name',
+      'brand',
+      'serving_size_g',
+      'serving_description',
+      'source',
+      'image_url',
+      'created_by',
+    ],
+    'food_nutrition': <String>[
+      'food_id',
       'per_100_g_ml',
       'kcal',
       'protein_g',
@@ -421,66 +1042,117 @@ class DataTransferRepository {
       'trans_fat_g',
       'nova_score',
       'nutri_score',
-    ];
-    final out = <String, dynamic>{
-      for (final k in allowed)
-        if (n.containsKey(k) && n[k] != null) k: n[k],
-    };
-    for (final k in const ['kcal', 'protein_g', 'carbs_g', 'fat_g']) {
-      final v = out[k];
-      if (v is! num) {
-        out[k] = 0;
-      } else {
-        final d = v.toDouble();
-        out[k] = d.isFinite ? d : 0;
+    ],
+    'meal_entries': <String>[
+      'user_id',
+      'entry_date',
+      'meal_type',
+      'food_id',
+      'custom_name',
+      'amount_g_ml',
+      'calculated_kcal',
+      'calculated_protein',
+      'calculated_carbs',
+      'calculated_fat',
+      'note',
+      'photo_url',
+      'source',
+      'created_at',
+    ],
+    'water_entries': <String>[
+      'user_id',
+      'entry_date',
+      'entry_time',
+      'amount_ml',
+      'created_at',
+    ],
+    'weight_entries': <String>[
+      'user_id',
+      'entry_date',
+      'weight_kg',
+      'note',
+      'created_at',
+    ],
+  };
+
+  static List<String> _columnsOf(String table) =>
+      _insertColumns[table] ??
+      (throw StateError('Bilinmeyen içe aktarma tablosu: $table'));
+
+  /// Her satırı tablonun **sabit** kolon kümesine eşitler.
+  ///
+  /// PostgREST çok satırlı `POST`'ta anahtar kümelerinin aynı olmasını şart
+  /// koşar (`PGRST102` — "All object keys must match"), bu yüzden anahtar
+  /// kümesi **tablodan** gelir, satırdan değil: her satır tam kolon kümesine
+  /// sahiptir. Eksik kolon sözleşmeyi ihlal eder ve `StateError` fırlatır
+  /// (sessiz `PGRST102` yerine, nerede bozulduğu belli olur).
+  ///
+  /// `null` değerli alanlar **yazılır** — Postgres `DEFAULT`'i değil `NULL`'ı
+  /// alır. Bu yüzden `created_at` gibi `NOT NULL DEFAULT now()` kolonlarda
+  /// `null` gönderilmez: [_stampOf] geçersiz damga için `null` döner ve
+  /// [_insertBatched] o satırları **damgasız** ayrı dilimlere koyar.
+  static List<Map<String, dynamic>> _uniform(
+    List<Map<String, dynamic>> rows,
+    List<String> columns,
+  ) {
+    if (rows.isEmpty) return const [];
+    for (final r in rows) {
+      for (final c in columns) {
+        if (!r.containsKey(c)) {
+          throw StateError(
+            'Toplu insert satırı "$c" kolonunu içermiyor — tablo sözleşmesi '
+            'ile satır kümesi ayrışmış (beklenen: $columns)',
+          );
+        }
       }
     }
-    return out;
+    return [
+      for (final r in rows)
+        <String, dynamic>{for (final c in columns) c: r[c]},
+    ];
   }
 
-  /// `foods` yedeğini DB sözleşmesine göre beyaz listeler.
+  /// [values] listesini [size] boyutunda dilimlere böler.
   ///
-  /// `_stripIds` **beyaz liste değil, kara liste** uygular: yedekte
-  /// tanımadığı her kolon (`dietary_...`, `barcode`, `last_synced_at`,
-  /// `sync_state`, eski web istemcisinin eklediği alanlar) insert'e
-  /// gönderilir ve PostgREST `PGRST204` ile **400** döner:
-  /// "Could not find the 'column' in the schema cache". Bu, tek bozuk alanın
-  /// **tüm içe aktarımı** düşürmesidir (`importData` satır satır yazıyor,
-  /// hata fırlıyor, geri kalan kayıtlar hiç eklenmiyor).
-  ///
-  /// `foods.source` allow-list'i de burada uygulanır: enum
-  /// (`photo|text|manual`) dışı bir değer (`barcode` gibi eski bir yedek)
-  /// insert'i CHECK ihlaliyle reddeder. Web (`src/hooks/useDataExport.ts:162`)
-  /// aynı korumayı yapıyor; burada liste genişletilmiştir.
-  static Map<String, dynamic> sanitizeFood(Map<String, dynamic> food) {
-    const allowed = <String>[
-      'name',
-      'brand',
-      'serving_size_g',
-      'serving_description',
-      'source',
-      'image_url',
-      'popularity_count',
-      'verified',
-      'created_by',
+  /// Boş girdi **hiç dilim üretmez**: PostgREST'e `[]` göndermek
+  /// `PGRST102` ("All object keys must match") verir.
+  static List<List<T>> _batches<T>(List<T> values, int size) {
+    if (values.isEmpty) return const [];
+    return [
+      for (var i = 0; i < values.length; i += size)
+        values.sublist(i, (i + size).clamp(0, values.length)),
     ];
-    final out = <String, dynamic>{
-      for (final k in allowed)
-        if (food.containsKey(k) && food[k] != null) k: food[k],
-    };
-    // Enum dışı `source` → DB varsayılanı ('manual').
-    const sources = <String>{'photo', 'text', 'manual'};
-    final source = out['source'];
-    if (source is! String || !sources.contains(source)) out['source'] = 'manual';
-    return out;
+  }
+
+  /// Dönen satırların `id`'lerini **plan sırasına** göre geri eşler.
+  ///
+  /// Postgres `INSERT … RETURNING` satırları giriş sırasıyla döndürür, ancak
+  /// buna güvenmek yerine **ad** üzerinden eşleme yapılır: dedup zaten ad
+  /// bazlıdır ve plan içinde adlar benzersizdir. Sıra bozulsa bile yanlış
+  /// gıda `food_id`'si yazılmaz.
+  static Map<String, String> _idMapByBackupName(
+    List<PlannedRow> plan,
+    List<Map<String, dynamic>> inserted,
+  ) {
+    if (inserted.length != plan.length) {
+      throw StateError(
+          'Gıda ekleme cevabı beklenmedik: ${inserted.length}/${plan.length}');
+    }
+    final ids = <String, String>{};
+    for (var i = 0; i < plan.length; i++) {
+      final id = inserted[i]['id'];
+      final name = plan[i].backupName;
+      if (id != null && name != null) ids[name] = id.toString();
+    }
+    return ids;
   }
 
   /// Yedeğin `meal_entries` dedup anahtarları
   /// (`entry_date|custom_name|meal_type`).
   ///
-  /// Saf yardımcı — içe aktarma yolunda kullanılmaz (varlık kontrolü
-  /// `_existingMealKeys` ile yapılır) ama sözleşmesi testte doğrulanır:
-  /// anahtar biçimi değişirse dedup sessizce bozulur.
+  /// Saf yardımcı — içe aktarma yolunda `buildImportPlan` tarafından kullanılır
+  /// ama sözleşmesi testte doğrulanır: anahtar biçimi değişirse dedup sessizce
+  /// bozulur.
   static List<String> mealKeysOf(List<Map<String, dynamic>> rows) {
     final out = <String>{};
     for (final m in rows) {
@@ -503,33 +1175,254 @@ class DataTransferRepository {
     ];
   }
 
-  /// Yedek satırlarından `deleted_at` **dolu** olanları ayıklar.
-  ///
-  /// Eleme yapılmazsa sessiz veri bozulması olur: `_stripIds` `deleted_at`
-  /// kolonunu kaldırdığı için silinmiş bir kayıt yeniden eklenirse
-  /// **canlanır** (yeni `id`, `deleted_at = NULL`) ve kullanıcı ilk sildiği
-  /// öğünü/kilo kaydını geri bulur. Yedek `exportData` tarafından üretilmişse
-  /// zaten süzgeçten geçmiş olur; elle düzenlenmiş yedeklerde bu eleme
-  /// asıl korumadır.
-  static List<Map<String, dynamic>> _liveRows(List<Map<String, dynamic>>? raw) =>
-      [
-        for (final row in raw ?? const <Map<String, dynamic>>[])
-          if (!isDeleted(row)) row,
-      ];
-
   /// Satır yumuşak silinmiş mi (`deleted_at` dolu)?
   ///
-  /// `_stripIds` `deleted_at` kolonunu içe aktarımda zaten kaldırıyor —
-  /// **bu olmadan** silinmiş bir kayıt yeniden eklenirdi. Kullanıcı ilk
-  /// sildiği öğünü/su kaydını yedekten geri getirdiğinde "sildim ama geri
-  /// geldi" diyecekti. `deleted_at` kolonu **yalnız bu üç tabloda** vardır
-  /// (`foods` tablosunda yoktur); eksik alan silinmemiş sayılır.
+  /// Yumuşak silinen kayıt yedekten **yeniden eklenmez**. Yedek `exportData`
+  /// tarafından üretildiğinde zaten `deleted_at IS NULL` süzgecinden geçer,
+  /// ancak elle düzenlenmiş bir yedek silinmiş satırlar içerebilir; eski
+  /// sürüm onları **yeniden "canlandırıyordu** (yeni `id` ile `deleted_at` boş
+  /// bir satır) ve kullanıcı ilk sildiği öğünü geri buluyordu. Üç tablo
+  /// (`meal_entries`, `water_entries`, `weight_entries`) yumuşak silme kullanır;
+  /// `foods` tablosunda `deleted_at` kolonu yoktur; eksik alan silinmemiş
+  /// sayılır.
   @visibleForTesting
   static bool isDeleted(Map<String, dynamic> row) {
     final v = row['deleted_at'];
     if (v == null) return false;
     if (v is String) return v.isNotEmpty;
     return true;
+  }
+
+  /// Yedekteki tablo satırlarını `Map<String, dynamic>` listesine çevirir.
+  ///
+  /// Bozuk girdi (null / liste değil) **hata fırlatmaz**, boş liste sayılır:
+  /// kullanıcı el yazımı bir yedekte `meal_entries: "abc"` yazdıysa import
+  /// bu tabloyu atlayıp devam etmelidir, çökmemelidir.
+  static List<Map<String, dynamic>> _rowsOf(Object? raw) {
+    if (raw is! List) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final row in raw) {
+      if (row is Map) out.add(Map<String, dynamic>.from(row));
+    }
+    return out;
+  }
+
+  /// Yumuşak silinmiş satırları ayıklar (bkz. [isDeleted]).
+  static List<Map<String, dynamic>> _liveRowsOf(Object? raw) =>
+      _rowsOf(raw).where((row) => !isDeleted(row)).toList();
+
+  static void _skip(
+    ImportPlan plan,
+    String table,
+    List<ImportIssue> issues,
+    String field,
+    String message,
+    Object? rowId,
+  ) {
+    plan.skipped[table] = (plan.skipped[table] ?? 0) + 1;
+    issues.add(ImportIssue(
+      table: table,
+      rowId: rowId?.toString(),
+      field: field,
+      message: message,
+    ));
+  }
+
+  static int _count(Map<String, int> counter, String key) {
+    counter[key] = (counter[key] ?? 0) + 1;
+    return counter[key]!;
+  }
+
+  static String? _str(Object? v) {
+    if (v is String) {
+      final t = v.trim();
+      return t.isEmpty ? null : t;
+    }
+    return null;
+  }
+
+  /// DB'nin `NUMERIC`/CHECK sözleşmesine **girmeyen** zorunlu sayısal alan.
+  ///
+  /// Ölümcül ihlal üretir: eski sürüm `0`'a çeviriyordu ve DB 400 döndürüp
+  /// **tüm import'u** düşürüyordu (kısmi yazmış hâlde).
+  static double _requireRange(
+    Object? v,
+    String field,
+    String table,
+    Object? rowId,
+    List<ImportIssue> issues, {
+    required double min,
+    required double max,
+    bool finite = true,
+  }) {
+    if (v is num) {
+      final d = v.toDouble();
+      final okValue = finite ? d.isFinite : !d.isNaN;
+      if (okValue && d >= min && d <= max) return d;
+    }
+    issues.add(ImportIssue(
+      table: table,
+      rowId: rowId?.toString(),
+      field: field,
+      message: '$field DB sözleşmesinin dışında ($min < değer <= $max olmalı)',
+      isFatal: true,
+    ));
+    return min;
+  }
+
+  static String _requireNum(
+    Object? v,
+    String field,
+    String table,
+    Object? rowId,
+    List<ImportIssue> issues, {
+    bool finite = true,
+  }) {
+    if (v is num) {
+      final d = v.toDouble();
+      if ((!finite || d.isFinite) && d >= 0) {
+        return finite ? d.toString() : d.toString();
+      }
+    }
+    issues.add(ImportIssue(
+      table: table,
+      rowId: rowId?.toString(),
+      field: field,
+      message: '$field sayı değil (DB NOT NULL numeric)',
+      isFatal: true,
+    ));
+    return '0';
+  }
+
+  static String _requireStr(
+    Object? v,
+    String field,
+    String table,
+    Object? rowId,
+    List<ImportIssue> issues,
+  ) {
+    final s = _str(v);
+    if (s != null) return s;
+    issues.add(ImportIssue(
+      table: table,
+      rowId: rowId?.toString(),
+      field: field,
+      message: '$field boş veya çözümlenemedi',
+      isFatal: true,
+    ));
+    return '1970-01-01';
+  }
+
+  /// ENUM/CHECK alanı — geçersizse DB varsayılanına çekilir ve sayılır.
+  static String _enumValue(
+    Object? v,
+    Set<String> allowed,
+    String fallback,
+    String field,
+    String table,
+    Object? rowId,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    if (v is String && allowed.contains(v)) return v;
+    _count(coerced, '$table.$field');
+    return fallback;
+  }
+
+  static double? _positiveNum(Object? v) {
+    if (v is num) {
+      final d = v.toDouble();
+      if (d.isFinite && d > 0) return d;
+    }
+    return null;
+  }
+
+  static double? _nonNegativeNum(Object? v) {
+    if (v is num) {
+      final d = v.toDouble();
+      if (d.isFinite && d >= 0) return d;
+    }
+    return null;
+  }
+
+  /// `yyyy-MM-dd` dizesi üretir; `Date`/`DateTime`/ISO dizesi kabul eder.
+  static String? _dateString(Object? v) {
+    if (v is DateTime) {
+      final u = v.toUtc();
+      return '${u.year.toString().padLeft(4, '0')}-'
+          '${u.month.toString().padLeft(2, '0')}-'
+          '${u.day.toString().padLeft(2, '0')}';
+    }
+    if (v is! String) return null;
+    final t = v.trim();
+    if (t.length < 8) return null;
+    final parsed = DateTime.tryParse(t);
+    if (parsed == null) return null;
+    return '${parsed.year.toString().padLeft(4, '0')}-'
+        '${parsed.month.toString().padLeft(2, '0')}-'
+        '${parsed.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Yedekteki `created_at` damgasını taşır (toplu yazım sıra koruması).
+  ///
+  /// Gerçekçi olmayan damgalar (2000 öncesi, gelecek) yok sayılır: DB
+  /// `now()` varsayılanı yazılır. Böylece el yazımı bir yedekteki bozuk
+  /// tarih **tüm günlük ekranını** bozamaz.
+  static String? _createdAt(Object? v) {
+    if (v is! String) return null;
+    final parsed = DateTime.tryParse(v.trim());
+    if (parsed == null) return null;
+    if (parsed.year < 2000) return null;
+    if (parsed.isAfter(DateTime.now().toUtc().add(const Duration(days: 1)))) {
+      return null;
+    }
+    return parsed.toUtc().toIso8601String();
+  }
+
+  static int? _epochMicros(Object? v) {
+    if (v is DateTime) return v.toUtc().millisecondsSinceEpoch * 1000;
+    if (v is! String) return null;
+    final parsed = DateTime.tryParse(v.trim());
+    if (parsed == null) return null;
+    return parsed.toUtc().millisecondsSinceEpoch * 1000;
+  }
+
+  /// Su kaydının zaman damgası + günü. `entry_time` yoksa `entry_date`
+  /// kullanılır (web `localDateFromIso` davranışının tersi) ve bu türetme
+  /// sayacla bildirilir.
+  static WaterInstant? _waterInstant(
+    Map<String, dynamic> w,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    final micros = _epochMicros(w['entry_time']);
+    final day = _dateString(w['entry_date']);
+    if (micros == null) {
+      if (day == null) return null;
+      // Saat bilgisi yok: günün başlangıcı kullanılır ve türetme raporlanır.
+      _count(coerced, 'water_entries.entry_time');
+      final parsed = DateTime.tryParse('${day}T00:00:00Z');
+      if (parsed == null) return null;
+      return WaterInstant(
+        micros: parsed.toUtc().millisecondsSinceEpoch * 1000,
+        iso: parsed.toUtc().toIso8601String(),
+        day: day,
+      );
+    }
+    return WaterInstant(
+      micros: micros,
+      iso: DateTime.fromMicrosecondsSinceEpoch(micros, isUtc: true)
+          .toIso8601String(),
+      day: day ?? formatUtcDateFromMicros(micros),
+    );
+  }
+
+  /// UTC damga → `yyyy-MM-dd`.
+  static String formatUtcDateFromMicros(int micros) {
+    final d = DateTime.fromMicrosecondsSinceEpoch(micros, isUtc: true);
+    return '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
   }
 
   /// `null` → anahtarsız (import'ta atlanacak satır).
@@ -542,69 +1435,30 @@ class DataTransferRepository {
     return '$date|$name|$type';
   }
 
-  /// Kullanıcının mevcut öğün kayıtlarının dedup anahtarları.
-  ///
-  /// Tarihler [inFilterChunkSize] dilimlerine bölünür: yedek binlerce
-  /// günü kapsadığında tek `in` listesi PostgREST'in ~8 KB URL tavanını
-  /// aşar ve içe aktarma 414 ile düşer.
-  Future<Set<String>> _existingMealKeys(
-    String userId,
-    List<Map<String, dynamic>> backupRows,
-  ) async {
-    final keys = <String>{};
-    final dates = <String>{
-      for (final m in backupRows)
-        if (m['entry_date'] is String && (m['entry_date'] as String).isNotEmpty)
-          m['entry_date'] as String,
-    }.toList();
-    for (final chunk in inFilterChunks(dates)) {
-      final rows = await _client
-          .from('meal_entries')
-          .select('entry_date, custom_name, meal_type')
-          .eq('user_id', userId)
-          .inFilter('entry_date', chunk);
-      for (final row in rows as List) {
-        final k = _mealKey(row as Map<String, dynamic>);
-        if (k != null) keys.add(k);
-      }
-    }
-    return keys;
-  }
+  // --- yedek döndürme uyumluluğu -------------------------------------
 
-  /// Kullanıcının mevcut `entry_time` değerleri — tek sorgu.
-  Future<Set<String>> _existingWaterTimes(
-    String userId, {
-    List<String>? times,
-  }) async {
-    final out = <String>{};
-    if (times == null) {
-      // Tüm zamanlar (yedekte olmayan ama aynı anda yazılan kayıtlar).
-      final rows = await _client
-          .from('water_entries')
-          .select('entry_time')
-          .eq('user_id', userId);
-      for (final row in rows as List) {
-        final t = (row as Map)['entry_time']?.toString();
-        if (t != null) out.add(t);
-      }
-      return out;
-    }
-    final wanted = times.toSet();
-    // `in` filtresi timestamptz için ISO string kabul eder. ISO 8601 damgalar
-    // (`2026-08-15T10:00:00.000Z`, 24 bayt + 2 tırnak) en uzun değerlerdir:
-    // 1000'lik yedek tek sorguda ~27 KB, 5000'lik yedekte 135 KB olurdu.
-    for (final chunk in inFilterChunks(wanted.toList())) {
-      final rows = await _client
-          .from('water_entries')
-          .select('entry_time')
-          .eq('user_id', userId)
-          .inFilter('entry_time', chunk);
-      for (final row in rows as List) {
-        final t = (row as Map)['entry_time']?.toString();
-        if (t != null) out.add(t);
-      }
-    }
-    return out;
+  /// Geriye dönük uyum: eski çağıranlar tek bir gıdayı beyaz listelemek için
+  /// [sanitizeFood] kullanıyordu.
+  ///
+  /// Artık her satır **sabit** kolon kümesiyle üretiliyor (toplu `insert`
+  /// `PGRST102`'yi kırmasın diye) ve `null` alanlar PostgREST tarafından
+  /// gönderilmeden düşürülür (`defaultToNull: true` varsayılanı). Bu
+  /// sarmalayıcı eski sözleşmenin **gözlenen** kısmını korur: `null` alanlar
+  /// anahtarda görünmez. İçe aktarma yolu artık bu metotu kullanmaz, [_foodRow]
+  /// kullanır.
+  static Map<String, dynamic> sanitizeFood(Map<String, dynamic> food) {
+    final name = food['name'];
+    final issues = <ImportIssue>[];
+    final coerced = <String, int>{};
+    final key = name is String && name.trim().isNotEmpty
+        ? name.trim()
+        : (name?.toString() ?? '');
+    final row =
+        _foodRow(food, _str(food['created_by']) ?? '', key, issues, coerced);
+    return <String, dynamic>{
+      for (final e in row.entries)
+        if (e.value != null) e.key: e.value,
+    };
   }
 }
 
