@@ -345,7 +345,8 @@
         "summaryHour": "Hour",
         "channelNote": "Account-level push/e-mail. The switches above apply to every reminder below.",
         "serverScope": "Because they are sent from your account, these reminders keep arriving even if this device is off or changed. Meal reminders in the next section stay on this device only.",
-        "rangeNoNight": "End hour cannot be before the start hour (overnight range is not supported)."
+        "rangeDay": "Reminders are sent in this range ({start} → {end}). For an overnight range, choose an end hour before the start hour, for example 21:00 → 09:00.",
+        "rangeNight": "Overnight range: {start} → {end} (crosses midnight)."
       },
       "weighInFrequencyRange": "Enter a value between 1-{max}",
       "weighInFrequencyHint": "1-{max} days. If left empty, 7 days is used."

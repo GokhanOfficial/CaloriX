@@ -345,7 +345,8 @@
         "summaryHour": "Hora",
         "channelNote": "Push/correo a nivel de cuenta. Los interruptores de arriba se aplican a todos los recordatorios de abajo.",
         "serverScope": "Como se envían desde tu cuenta, estos recordatorios siguen llegando aunque este dispositivo esté apagado o se cambie. Los recordatorios de comidas de la sección siguiente solo se quedan en este dispositivo.",
-        "rangeNoNight": "La hora final no puede ser anterior a la inicial (no se admite rango nocturno)."
+        "rangeDay": "Los recordatorios se envían en este rango ({start} → {end}). Para un rango nocturno, elige una hora final anterior a la inicial, por ejemplo 21:00 → 09:00.",
+        "rangeNight": "Rango nocturno: {start} → {end} (cruza medianoche)."
       },
       "weighInFrequencyRange": "Introduce un valor entre 1-{max}",
       "weighInFrequencyHint": "1-{max} días. Si se deja vacío, se usan 7 días."

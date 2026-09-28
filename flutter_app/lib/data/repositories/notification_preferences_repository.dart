@@ -177,17 +177,29 @@ class NotificationPreference {
   /// Bu yüzden **`1`** seçildi: CHECK'e uyar, `NULL`'ın taşıdığı "sunucu
   /// varsayılana düşer" belirsizliğini bırakma. `0` **asla** gönderilmez.
   Map<String, dynamic> toRow(String userId) {
-    // `check-reminders/index.ts:356` koşulu:
-    //   `normalizedHour >= startHour && normalizedHour <= endHour`
-    // `start > end` ise **hiçbir saatte** sağlanmaz → `water` hatırlatması
-    // sessizce hiç gönderilmez. DB CHECK'i bunu reddetmez (iki saat de
-    // 0..23 olduğu için kabul eder), yani istemci tarafında düzeltilir.
-    // Gece aralığı (örn. 21→09) **desteklenmez**; kullanıcı 09→21 isterse
-    // bu şekilde yazılır. Kullanıcı "tüm gün" isterse `0`/`23` seçer.
+    // ⭐ Gece aralığı (21 → 09) **artık gerçekten destekleniyor** (A1r10,
+    // `supabase/functions/check-reminders/helpers.ts:251-263`):
+    //
+    // ```ts
+    // if (s === e) return h === s;        // start == end → tek saat
+    // if (s < e)  return h >= s && h <= e; // gündüz aralığı
+    // return h >= s || h <= e;             // s > e → gece aralığı (sarma)
+    // ```
+    //
+    // A1r8/A4r10 döneminde buradaki `end >= start ? end : 23` ifadesi
+    // **kullanıcının seçimini sessizce değiştiriyordu**: 21→09 seçen kullanıcı
+    // 21→23 kaydediliyor ve ne yaptığını bilmiyordu. Kısıt arayüzdeydi
+    // (`endHourOptions` = `start..23`) ve kullanıcıya "gece aralığı
+    // yazılamaz" notu gösteriliyordu — oysa `isWithinHourWindow` +
+    // `zonedMinutesBetween` (gece yarısı damga tuzağı) sunucuda **ölçülmüş**
+    // olarak çalışıyor.
+    //
+    // A1r8'in CHECK kısıtı (`notification_preferences_hours_range`) `start` ve
+    // `end`'i **ayrı ayrı** 0..23 kabul eder → `start > end` veritabanında
+    // **geçerlidir**. Yani burada sadece aralık doğrulaması yeter; sıralama
+    // hakkında bir kural yok.
     final start = _clamp(startHour, 0, 23, 9);
-    final end = endHour >= 0 && endHour <= 23 && endHour >= start
-        ? endHour
-        : 23;
+    final end = _clamp(endHour, 0, 23, 21);
     return {
       'user_id': userId,
       'notification_type': type.wire,

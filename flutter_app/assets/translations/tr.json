@@ -345,7 +345,8 @@
         "summaryHour": "Saat",
         "channelNote": "Hesap seviyesinde push/e-posta. Yukarıdaki anahtarlar aşağıdaki tüm hatırlatıcılara uygulanır.",
         "serverScope": "Hesabınızdan gönderildikleri için bu hatırlatıcılar, cihazınız kapalıyken veya değişse de gelmeye devam eder. Sonraki bölümdeki öğün hatırlatıcıları yalnızca bu cihazda kalır.",
-        "rangeNoNight": "Bitiş saati başlangıçtan önce olamaz (gece aralığı desteklenmiyor)."
+        "rangeDay": "Bu aralıkta hatırlatma gönderilir ({start} → {end}). Gece aralığı için bitişi başlangıçtan önceki bir saat seçin, örneğin 21:00 → 09:00.",
+        "rangeNight": "Gece aralığı: {start} → {end} (gece yarısı geçer)."
       },
       "weighInFrequencyRange": "1-{max} gün arasında bir değer girin",
       "weighInFrequencyHint": "1-{max} gün arası. Boş bırakılırsa 7 gün kullanılır."

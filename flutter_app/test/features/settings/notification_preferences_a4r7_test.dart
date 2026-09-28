@@ -126,41 +126,77 @@ void main() {
       );
       final row = bad.toRow('u1');
       expect(row['start_hour'], 9, reason: 'varsayılana döner (25 geçersiz)');
-      // `end` yalnız `0..23` **ve** `start`'tan büyük/equal ise korunur;
-      // 30 hem aralık dışı hem `start(9) < end` koşulunu da sağlamıyor →
-      // güvenli tarafa (`23` = gün sonu) düşer. Ölçülen davranış.
-      expect(row['end_hour'], 23,
-          reason: 'geçersiz `end` → 23 (tüm gün); `check-reminders` '
-              '`normalizedHour <= endHour` koşulunu her saat sağlasın');
+      // ⭐ A2r12 (Tur 12): `end` artık yalnızca **0..23** aralığına
+      // kırpılır. 30 geçersiz → 23 ("gün sonu"). Sıralama (`end >= start`)
+      // kontrolü **kaldırıldı**: A1r10 (`ff25bf7`) sunucuyu gece aralığı için
+      // gerçekten destekler (`check-reminders/helpers.ts:251-263`), A1r8'in
+      // CHECK'i (`notification_preferences_hours_range`) da `start > end`'i
+      // reddetmez. Kalan `end < start` → 23 normalleştirmesi kullanıcının
+      // seçimini sessizce değiştiriyordu.
+      expect(row['end_hour'], 21,
+          reason: 'geçersiz `end` (30) → varsayılan 21 (0..23 aralığında). '
+              'Eski davranış `23` idi ama o değer `end < start` kontrolünden '
+              'geliyordu; A2r12 o kontrolü kaldırdı.');
       expect(row['interval_hours'], 3, reason: 'CHECK 1..24, 99 geçersiz');
       expect(row['summary_day'], 1, reason: 'CHECK 0..6, 9 geçersiz');
       expect(row['summary_hour'], 9, reason: 'CHECK 0..23, 30 geçersiz');
     });
 
-    // ⭐ `start_hour > end_hour` DB tarafından reddedilmez (ikisi de 0..23),
-    // ama `check-reminders/index.ts:356` koşulu
-    // `normalizedHour >= startHour && normalizedHour <= endHour` **hiçbir
-    // saatte** sağlanmaz → `water` hatırlatması sessizce hiç gönderilmez.
-    // İstemci tarafında düzeltilmeli (gece aralığı desteklenmiyor).
-    test('start > end yazılmaz: sessizce kapalı hatırlatma olmaz', () {
-      const bad = NotificationPreference(
+    // ⭐ `start_hour > end_hour` DB tarafından reddedilmez (ikisi de 0..23)
+    // ve A1r10'dan sonra **sunucu da destekler** (`isWithinHourWindow` sarma
+    // dalı). A2r12, A4r8'in "23'e çek" normalleştirmesini kaldırdı.
+    test('gece aralığı (21→09) OLDUĞU GİBİ yazılır (A2r12)', () {
+      const night = NotificationPreference(
         type: ServerNotificationType.water,
         startHour: 21,
-        endHour: 6, // gece aralığı — sunucu desteklemiyor
+        endHour: 9, // gece aralığı — sunucu destekliyor (A1r10)
       );
-      final row = bad.toRow('u1');
+      final row = night.toRow('u1');
       expect(row['start_hour'], 21);
-      expect(row['end_hour'], 23,
-          reason: 'end < start ise aralık **hiçbir saatte** sağlanmaz → '
-              '23\'e çekilir, en azından 21-23 arası çalışır');
-      // `row` değerleri `dynamic`; karşılaştırma öncesi `int`'e alınır
-      // (`strict-casts` altında `as int` ifadesi `dynamic` üzerinde
-      // `num` bekliyor ve derleme hatası veriyor).
-      final start = row['start_hour'] as int;
-      final end = row['end_hour'] as int;
-      expect(start <= end, isTrue,
-          reason: 'yazılan satır sunucunun saat aralığı koşulunu '
-              'sağlayabilmeli');
+      expect(row['end_hour'], 9,
+          reason: 'kullanıcının seçimi sessizce değiştirilmemeli; eski davranış '
+              '`end = 23` idi ve kullanıcı istediği aralığı almıyordu');
+      // Ham değer denetimi: 23'e değil 9'a yazıldı.
+      final written = row['end_hour'] as int;
+      expect(written, lessThan(21));
+    });
+
+    test('start == end yazılır (tek saat — weigh_in 9→9 buna dayanır)', () {
+      const single = NotificationPreference(
+        type: ServerNotificationType.water,
+        startHour: 6,
+        endHour: 6,
+      );
+      final row = single.toRow('u1');
+      expect(row['start_hour'], 6);
+      expect(row['end_hour'], 6);
+    });
+
+    test('sınırlar 0 ve 23 kırpılmadan yazılır', () {
+      for (final pair in const [(0, 23), (23, 0), (0, 0), (23, 23)]) {
+        final row = NotificationPreference(
+          type: ServerNotificationType.water,
+          startHour: pair.$1,
+          endHour: pair.$2,
+        ).toRow('u1');
+        expect(row['start_hour'], pair.$1);
+        expect(row['end_hour'], pair.$2,
+            reason: '${pair.$1}→${pair.$2}: sınır değerleri dokunulmamalı');
+      }
+    });
+
+    test('end aralık dışıysa güvenli tarafa kırpılır (0..23)', () {
+      for (final bad in const [24, 30, 99, -1, -5]) {
+        final row = NotificationPreference(
+          type: ServerNotificationType.water,
+          startHour: 9,
+          endHour: bad,
+        ).toRow('u1');
+        expect(row['end_hour'], 21,
+            reason: 'end=$bad geçersiz → varsayılana (21) döner; '
+                'A1r8 CHECK\'i 0..23 kabul ettiği için 23514 bütün ayar '
+                'kaydını düşürürdü');
+      }
     });
 
     test('geçerli değerler dokunulmadan yazılır', () {

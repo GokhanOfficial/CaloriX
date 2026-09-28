@@ -345,7 +345,8 @@
         "summaryHour": "时间",
         "channelNote": "账户级别的推送/电子邮件。上方开关适用于下方所有提醒。",
         "serverScope": "由于这些提醒从你的账户发送，即使本设备关闭或更换也仍会送达。下一节中的用餐提醒仅保留在此设备上。",
-        "rangeNoNight": "结束时间不能早于开始时间（不支持跨夜区间）。"
+        "rangeDay": "提醒会在此时间段内发送（{start} → {end}）。如需跨夜区间，请选择早于开始时间的结束时间，例如 21:00 → 09:00。",
+        "rangeNight": "跨夜区间：{start} → {end}（跨越午夜）。"
       },
       "weighInFrequencyRange": "请输入 1 到 {max} 之间的值",
       "weighInFrequencyHint": "1-{max} 天。留空则使用 7 天。"

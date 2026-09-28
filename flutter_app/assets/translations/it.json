@@ -345,7 +345,8 @@
         "summaryHour": "Ora",
         "channelNote": "Push/e-mail a livello di account. Le interruttori sopra si applicano a tutti i promemoria qui sotto.",
         "serverScope": "Essendo inviati dal tuo account, questi promemoria continuano ad arrivare anche quando questo dispositivo è spento o cambiato. I promemoria dei pasti nella sezione successiva restano solo su questo dispositivo.",
-        "rangeNoNight": "L’orario di fine non può precedere quello di inizio (intervallo notturno non supportato)."
+        "rangeDay": "I promemoria vengono inviati in questo intervallo ({start} → {end}). Per un intervallo notturno scegli un orario di fine precedente a quello di inizio, ad esempio 21:00 → 09:00.",
+        "rangeNight": "Intervallo notturno: {start} → {end} (attraversa la mezzanotte)."
       },
       "weighInFrequencyRange": "Inserisci un valore tra 1 e {max}",
       "weighInFrequencyHint": "1-{max} giorni. Se lasciato vuoto, vengono usati 7 giorni."

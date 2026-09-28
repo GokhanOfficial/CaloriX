@@ -273,23 +273,46 @@ void main() {
   });
 
   // =======================================================================
-  // 3) start_hour > end_hour → sessiz hiç gönderilmeme
+  // 3) start_hour > end_hour — ⭐ A2r12 ile TERSİNE döndü
   // =======================================================================
-  group('saat aralığı tutarlılığı (check-reminders koşulu)', () {
-    // `check-reminders/index.ts:356`:
+  group('saat aralığı (check-reminders koşulu — A1r10 sonrası)', () {
+    // A4r8'in varsayımı: `check-reminders/index.ts:356`
     //   if (normalizedHour >= startHour && normalizedHour <= endHour) { … }
-    // `start_hour = 21`, `end_hour = 9` → hiçbir `normalizedHour` ikisini birden
-    // sağlamaz → `water` hatırlatması **hiç gönderilmez**, kullanıcı hata da
-    // görmez. DB CHECK'i iki değeri de 0..23 olduğu için **kabul eder**.
-    test('gece aralığı (21→09) CHECK reddi olmadan da normalleştirilir', () {
+    // `start=21, end=9` → hiçbir saat ikisini birden sağlamaz → gece aralığı
+    // **imkânsız**. O gün doğruydu.
+    //
+    // ⭐ A1r10 (`ff25bf7`) bu koşulu `isWithinHourWindow`'a taşıdı ve sarma
+    // mantığı ekledi (`helpers.ts:251-263`):
+    //   if (s === e) return h === s;
+    //   if (s < e)  return h >= s && h <= e;
+    //   return h >= s || h <= e;          // ← gece aralığı
+    // Artık `start > end` **geçerli** bir aralıktır. Bu blok ölçümü günceller.
+    test('gece aralığı (21→09) artık sunucunun sarma kuralına uyar', () {
+      bool serverSends(int h, int s, int e) {
+        if (s == e) return h == s;
+        if (s < e) return h >= s && h <= e;
+        return h >= s || h <= e;
+      }
+
+      expect(serverSends(21, 21, 9), isTrue, reason: '21:00 pencere içinde');
+      expect(serverSends(3, 21, 9), isTrue, reason: '03:00 pencere içinde');
+      expect(serverSends(12, 21, 9), isFalse, reason: '12:00 pencere dışında');
+    });
+
+    test('⭐ gece aralığı toRow\'da OLDUĞU GİBİ yazılır (A2r12)', () {
       const night = NotificationPreference(
         type: ServerNotificationType.water,
         startHour: 21,
         endHour: 9,
       );
       final row = night.toRow('u1');
-      expect(row['start_hour'], lessThanOrEqualTo(row['end_hour'] as int),
-          reason: 'start > end → check-reminders koşulu hiç sağlanmaz');
+      // ⭐ Ham değer denetimi: 23 değil **9** yazılıyor. A4r8'in eski
+      // beklentisi (`start <= end`) burada **yanlış** olurdu — ve test
+      // yeşil görünürken üretim kodu kullanıcının seçimini değiştirirdi.
+      expect(row['start_hour'], 21);
+      expect(row['end_hour'], 9);
+      expect((row['end_hour'] as int) < (row['start_hour'] as int), isTrue,
+          reason: 'sarma aralığı; sunucu `h >= s || h <= e` uyguluyor');
     });
   });
 }

@@ -380,85 +380,51 @@ void main() {
   });
 
   // =======================================================================
-  // 4) ⭐ Gece aralığı (21 → 09) arayüzden yazılamaz
+  // 4) ⭐ Gece aralığı (21 → 09) — A4r10 bunu YASAKLAMISTI
+  //
+  //    ⭐ Bu blok A2r12 (Tur 12) tarafından **yeniden yazıldı**. A4r10'ın
+  //    ölçümü (`start > end` → sunucuda hiçbir saatte sağlanmaz) A1r10
+  //    (`ff25bf7`) sonrası **eskidi**: `isWithinHourWindow` artık sarma
+  //    mantığı uyguluyor ve `zonedMinutesBetween` gece yarısı tuzağını
+  //    kapatıyor. A4r10'ın testleri de bu yüzden "gece aralığı SEÇİLEMEZ"
+  //    diye ölçüyordu — yani yeşil testler **eskimiş bir gerçeği** koruyordu.
+  //
+  //    Ölçülen yeni gerçekler `notification_night_range_a2r12_test.dart`
+  //    içinde.
   // =======================================================================
-  group('⭐ gece aralığı arayüzden seçilemez (sunucu desteklemiyor)', () {
-    test('sunucu koşulu start > end için HİÇBİR saatte sağlanmaz', () {
-      // `check-reminders/index.ts:356`:
-      //   normalizedHour >= startHour && normalizedHour <= endHour
-      // 21→09: hiçbir `h` için `h >= 21 && h <= 9` doğru değildir.
-      bool serverSends(int hour, int start, int end) =>
-          hour >= start && hour <= end;
+  group('gece aralığı sunucu kuralı (A1r10 ölçümü)', () {
+    test('isWithinHourWindow üç dalı: tek saat / gündüz / gece (sarma)', () {
+      // `check-reminders/helpers.ts:259-262` — birebir kopyalandı.
+      bool serverSends(int h, int s, int e) {
+        if (s == e) return h == s;
+        if (s < e) return h >= s && h <= e;
+        return h >= s || h <= e;
+      }
 
-      expect(serverSends(21, 21, 9), isFalse);
-      expect(serverSends(9, 21, 9), isFalse);
-      expect(serverSends(0, 21, 9), isFalse);
-      // Karşılaştırma: gündüz aralığı **çalışır** → sunucu mantığı sağlam,
-      // yalnız gece aralığı temsil edilemiyor.
-      for (var h = 9; h <= 21; h++) {
-        expect(serverSends(h, 9, 21), isTrue, reason: '09→21 saat $h çalışır');
+      // 1) start == end → TEK saat (weigh_in 9→9, daily_log 18→18 buna dayanır)
+      expect(serverSends(9, 9, 9), isTrue);
+      expect(serverSends(8, 9, 9), isFalse);
+      expect(serverSends(10, 9, 9), isFalse);
+
+      // 2) start < end → normal pencere
+      expect(serverSends(9, 9, 21), isTrue);
+      expect(serverSends(21, 9, 21), isTrue);
+      expect(serverSends(22, 9, 21), isFalse);
+
+      // 3) start > end → GECE aralığı 21..23 ∪ 0..9
+      for (var h = 0; h <= 23; h++) {
+        expect(serverSends(h, 21, 9), h <= 9 || h >= 21,
+            reason: 'gece 21→09: saat $h');
       }
     });
 
-    test('bitiş saati seçenekleri start\'tan küçük saatleri İÇERMEZ', () {
-      // Saf liste ölçümü. Menü **tembel** (lazy) kurulduğu için
-      // `find.text('08')` yalnız **görünen** öğeleri yakalar ve
-      // "listede yok" iddiası kanıtlamaz (A4r7b'in dersi).
-      //
-      // Varsayılan `water.startHour = 9` → 00..08 **sunulamaz**.
-      expect(endHourOptions(9), equals([for (var h = 9; h <= 23; h++) h]));
-      expect(endHourOptions(9), isNot(contains(8)));
-      expect(endHourOptions(9), isNot(contains(0)));
-    });
-
-    test('endHourOptions her start için start..23 aralığını verir', () {
-      for (var start = 0; start <= 23; start++) {
-        final options = endHourOptions(start);
-        expect(options.first, start);
-        expect(options.last, 23);
-        expect(options.length, 24 - start);
-        // ⭐ Sözleşme: `start > end` **hiçbir seçenek çiftinde** oluşamaz.
-        for (final end in options) {
-          expect(end, greaterThanOrEqualTo(start),
-              reason: 'start=$start end=$end → check-reminders koşulu '
-                  'hiçbir saatte sağlanmaz');
-        }
-      }
-    });
-
-    test('21:00 → 09:00 gibi bir gece aralığı SEÇİLEMEZ', () {
-      // start = 21 iken 09 listede **yok** → gece aralığı arayüzden
-      // yazılamaz. Kullanıcı 21:00–23:00 arasını seçebilir (tek akşam
-      // dilimi) ama 09:00'a **uzatamaz**.
-      expect(endHourOptions(21), equals([21, 22, 23]));
-      expect(endHourOptions(21), isNot(contains(9)));
-    });
-
-    test('aralık dışı start değeri (DB bozuk satırı) çökertmez', () {
-      // `fromRow` `_asInt` ile güvenli değer üretir ama veri katmanı
-      // `clamp` da uygular; savunma derinliği için `endHourOptions`
-      // **kendi** sınırını koyar: 30 → 23, -5 → 0.
-      expect(endHourOptions(30), equals([23]));
-      expect(endHourOptions(-5).first, 0);
-    });
-
-    testWidgets('su bölümü varsayılanı 09→21 (gece değil)', (tester) async {
-      final profileRepo = _MockProfileRepository();
-      final prefsRepo = _MockNotificationPrefsRepository();
-      when(() => prefsRepo.fetch(any())).thenAnswer((_) async => {});
-
-      await _pumpDialog(tester, profileRepo: profileRepo, prefsRepo: prefsRepo);
-
-      // `defaultServerPreference(water)` = start 9, end 21 → **gece değil**.
-      // Doğrulama mesajı ekranda görünür olmalı.
-      expect(find.text('Su İçme Hatırlatıcısı'), findsOneWidget);
-      expect(
-        find.text(
-          'Bitiş saati başlangıçtan önce olamaz (gece aralığı desteklenmiyor).',
-        ),
-        findsOneWidget,
-        reason: 'kısıt sessiz olmamalı — kullanıcı nedenini bilmeli',
-      );
+    test('arayüz listesi artık tam 0..23 (gece saatleri sunuluyor)', () {
+      expect(endHourOptions(), equals([for (var h = 0; h < 24; h++) h]));
+      // A4r10'ın `start..23` listesi geri açıldı: 21→09 **yazılabilir**.
+      expect(endHourOptions(21), contains(9),
+          reason: 'gece aralığı seçilebilmeli');
+      expect(endHourOptions(21), contains(0));
+      expect(endHourOptions(21), contains(23));
     });
   });
 

@@ -213,26 +213,64 @@ List<DropdownMenuItem<int>> _hourItems(TextStyle? style) => [
     ),
 ];
 
-/// `startHour`..23 arası saat **değerleri** — **bitiş** saati için.
+/// ⭐ Saat seçenekleri — `0..23` arası **tam** liste.
 ///
-/// ⭐ A4r10: `check-reminders/index.ts:356`
-/// (`normalizedHour >= startHour && normalizedHour <= endHour`) `start > end`
-/// iken hiçbir saatte sağlanmaz. Bitiş listesini `start`'tan başlatmak
-/// **yazılamaz** bir kısıt yerine **yazılabilir** bir kısıt koyar: kullanıcıya
-/// gösterilen her saat dilimi gerçekten çalışır ve `toRow`'nun `end = 23`
-/// normalleştirmesine arayüzden bir yol kalmaz.
+/// ## A4r10'un `start..23` sınırlaması **geri açıldı** (A2r12, Tur 12)
 ///
-/// **Dışa aktarıldı** çünkü `DropdownButton`ın `items` listesi
+/// A4r10 bitiş saatini `start`'tan başlayan bir listeyle sınırlamıştı; gerekçe
+/// "`check-reminders` `start > end` iken hiçbir saatte sağlanmaz" idi. Bu
+/// ölçüm **eskimişti**: A1r10 (`ff25bf7`) `isWithinHourWindow`
+/// (`check-reminders/helpers.ts:251-263`) sarma mantığını ve
+/// `zonedMinutesBetween`'ı (gece yarısını geçen damga tuzağı) ekledi ve
+/// `check-reminders/night_window_test.ts` ile ölçtü. Yani **sunucu** artık
+/// 21→09'u gerçekten destekliyor ve `NotificationPreference.toRow`'daki
+/// `end = 23` normalleştirmesinin tek işlevi kullanıcının seçimini sessizce
+/// bozmaktı.
+///
+/// ## ⭐ İmza neden değişti? (`int startHour` → `int?`)
+///
+/// A4r10'ın listesinin `start`'a bağlı olması **ölçülebilir** bir yanlış
+/// bilgiydi: `endHourOptions(21)` = `[21, 22, 23]` ve bu liste "09 da
+/// kullanamazsın" diyen bir kısıttı. Kısıt kalktığında parametreye **hiçbir
+/// şey** kalmıyordu; parametreyi kaldırmak yerine **isteğe bağlı** yapıp
+/// çağıranları bozmamak seçildi (A2r12 geriye dönük uyum tercihi — testler
+/// hâlâ `endHourOptions(21)` diyebilsin, parametreyi verdiğinde de aynı
+/// tam liste döner). Sıfır bağımlılığı için ikinci konum **nullable** oldu.
+///
+/// ## Neden `clamp` yine de var?
+///
+/// Saf savunma: liste dışa aktarılmış bir **saf** fonksiyondur ve veri katmanı
+/// `toRow`'da da `0..23`'e kırpar. Testler 30/-5 gibi bozuk değerle çağırır;
+/// çökme yerine `clamp` dönmesi beklenir.
+///
+/// **Dışa aktarıldığı** çünkü `DropdownButton`'ın `items` listesi
 /// `DropdownButtonFormField` üzerinden okunamıyor (`FormField` alanı
 /// gizliyor) ve menü **tembel** kurulduğu için `find.text('08')` gibi
 /// gözlemler yalnız görünen öğeleri yakalar. Saf liste, arayüzün
 /// **gerçekten** ne sunduğunu ölçmenin tek yoludur (A4r7b'in
 /// "yeşil test ≠ etkin test" dersi).
-List<int> endHourOptions(int startHour) => [
-      for (var h = startHour.clamp(0, 23); h < 24; h++) h,
+List<int> endHourOptions([int? startHour]) => [
+      for (var h = 0; h < 24; h++) h,
     ];
 
-/// [endHourOptions]'ı `DropdownMenuItem` listesine çevirir.
+/// ⭐ Bu bir **gece aralığı mı**? (A2r12)
+///
+/// `isWithinHourWindow`'ın üç dalı (`helpers.ts:259-262`) birebir kopyalanır:
+/// `start == end` → **tek saat**, `start > end` → **gece aralığı** (21→09 =
+/// 21..23 ∪ 0..9), `start < end` → normal pencere.
+///
+/// Arayüzde neden var? Kullanıcı 21→09 seçtiğinde ekranda **hiçbir şey**
+/// söylemiyordu; yalnız iki açılır menü vardı ve "09'u neden seçemiyorum"
+/// sorusunun cevabı yoktu. Kullanıcıya **ne yazacağını** söylemek, sessiz
+/// bir kısıttan çok daha iyidir. A4r10'un "gece aralığı yazılamaz" notu bu
+/// yüzden kaldırıldı: kısıt yok, **açıklama** var.
+bool isNightHourRange(int startHour, int endHour) {
+  final s = startHour.clamp(0, 23);
+  final e = endHour.clamp(0, 23);
+  return s > e;
+}
+
+/// Bitiş saati `DropdownMenuItem` listesi — artık `start`'tan bağımsız.
 List<DropdownMenuItem<int>> _hourItemsFrom(int startHour, TextStyle? style) => [
       for (final h in endHourOptions(startHour))
         DropdownMenuItem(
@@ -244,49 +282,44 @@ List<DropdownMenuItem<int>> _hourItemsFrom(int startHour, TextStyle? style) => [
 /// `water` — saat aralığı (`start_hour`/`end_hour`) + aralık saati
 /// (`interval_hours`, DB CHECK 1..24).
 ///
-/// ## ⭐ Gece aralığı (21:00 → 09:00) **desteklenmiyor** (A4r10, Tur 11)
+/// ## ⭐ Gece aralığı (21:00 → 09:00) **destekleniyor** (A1r10 + A2r12)
 ///
-/// **Sunucu tarafı ölçümü** — `check-reminders/index.ts:356`:
+/// **Sunucu tarafı ölçümü** — `check-reminders/helpers.ts:251-263`:
 ///
 /// ```ts
-/// if (normalizedHour >= startHour && normalizedHour <= endHour) { … }
+/// if (s === e) return h === s;          // tek saat
+/// if (s < e)  return h >= s && h <= e;  // gündüz
+/// return h >= s || h <= e;              // gece (sarma)
 /// ```
 ///
-/// Bu koşul `start > end` iken **hiçbir saatte** sağlanmaz (ör. 21:00'de
-/// `21 >= 9` doğru ama `21 <= 9` yanlış; 09:00'de tersi). Yani gece aralığı
-/// **sunucuda da** imkânsız; yalnız istemcide `end`'i 23'e çekmek hatırlatmayı
-/// **sessizce 09:00–23:00**e dönüştürüyordu (A4r8'in düzeltmesi) — kullanıcı
-/// istediği şeyi almıyor, üstelik "23:00'e kadar" diye de bilmiyor.
-///
-/// Bu yüzden arayüz **aralığı sınırlar**: bitiş saati `>=` başlangıç saati
-/// seçeneklerinden oluşur. Böylece
-///
-/// - gece aralığı **yazılamaz** → sessizce bozulmaz,
-/// - `NotificationPreference.toRow`'ın `end = 23` normalleştirmesi
-///   (veri katmanı savunması) arayüzden **gelen** bir değer için tetiklenmez,
-/// - kullanıcı gece hatırlatması isterse bile **doğru davranış** "gün içinde
-///   hatırlat" olur ve uygulama sessizce farklı bir davranış üretmez.
-///
-/// **Gerekçe raporda:** gece aralığını **gerçekten** desteklemek
-/// `check-reminders`'ta iki koşul gerektirir (gece ise `h >= start ||
-/// h <= end`, artı "gece yarısını geçen `last_water_reminder` damgasının
-/// hangi güne ait olduğu" mantığı) ve `supabase/**` A1'in alanıdır. Kullanıcı
-/// etkisi doğrudan olduğu için **AKTARIM** bölümüne yazıldı.
+/// A4r10'ın "sarma tek başına yeter" gözlemi **doğruydu** ve A1r10 onu
+/// ikinci bir koşulla kapattı: `zonedMinutesBetween(last_water_reminder, now)`
+/// damga yaşını kullanıcının **kendi saat diliminde** ölçer, yani dün 23:50
+/// → bugün 00:10 arası "20 dakika" der (sarma tek başına "1 saat" derdi →
+/// art arda çift gönderim). Ölçüm: `interval_hours = 1` + sarma → eski
+/// mantıkta **günde 13 gönderim**.
 class _HourRangeFields extends StatelessWidget {
   const _HourRangeFields({required this.pref, required this.onChanged});
 
   final NotificationPreference pref;
   final void Function(NotificationPreference Function(NotificationPreference))
-  onChanged;
+      onChanged;
+
+  /// `9` → `"09:00"`. Arayüz metninde saat **dakika** olmadan gösterilmez
+  /// (kullanıcı 09:30 seçemiyor); `{start} → {end}` okunur bir aralık verir.
+  static String _hhmm(int hour) => '${hour.toString().padLeft(2, '0')}:00';
 
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall;
     final start = pref.startHour.clamp(0, 23);
-    // `end` kayıtlı değer `start`'tan küçükse (eski veri / `toRow`'nun 23'e
-    // çektiği bir satır) listede **bulunmayan** bir değer olurdu ve Flutter
-    // `DropdownButton` "no item" hatası verirdi → en az `start`'a sabitlenir.
-    final end = pref.endHour.clamp(start, 23);
+    // ⭐ `end` artık `start`'tan **bağımsız** bir 0..23 değeri: gece aralığı
+    // (`end < start`) **verilir** ve listede **bulunur**. `clamp` artık yalnız
+    // bozuk/eskiden kalmış satırlar (30, -5) için güvenli tarafa çeker;
+    // `DropdownButtonFormField` `initialValue`'da olmayan değer alırsa
+    // "no item" hatası verdiği için bu korunmalı.
+    final end = pref.endHour.clamp(0, 23);
+    final night = isNightHourRange(start, end);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -315,8 +348,8 @@ class _HourRangeFields extends StatelessWidget {
                   labelText: 'settings.notifications.server.endHour'.tr(),
                   isDense: true,
                 ),
-                // ⭐ `start`'tan **küçük** saatler sunucuda hiçbir koşulu
-                // sağlamaz → listede **gösterilmezler** (A4r10).
+                // ⭐ Tam 0..23 listesi — gece aralığı **seçilebilir**
+                // (A2r12; sunucu desteği: A1r10 `ff25bf7`).
                 items: _hourItemsFrom(start, style),
                 onChanged: (v) {
                   if (v == null) return;
@@ -349,8 +382,25 @@ class _HourRangeFields extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 4),
+          // ⭐ A4r10'un "gece aralığı yazılamaz" notu yerine **açıklama**
+          // (A2r12): seçilen aralığın ne anlama geldiğini kullanıcıya söyler.
+          // `night` dalı, `end < start` olduğunda gece aralığını **adıyla**
+          // söyler ve iki saati de yazar — kullanıcı 21→09'un "09'dan 21'e
+          // kadar" değil "gece 21:00 → 09:00" olduğunu görür.
           child: Text(
-            'settings.notifications.server.rangeNoNight'.tr(),
+            night
+                ? 'settings.notifications.server.rangeNight'.tr(
+                    namedArgs: {
+                      'start': _hhmm(start),
+                      'end': _hhmm(end),
+                    },
+                  )
+                : 'settings.notifications.server.rangeDay'.tr(
+                    namedArgs: {
+                      'start': _hhmm(start),
+                      'end': _hhmm(end),
+                    },
+                  ),
             style: style?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

@@ -345,7 +345,8 @@
         "summaryHour": "Hora",
         "channelNote": "Push/e-mail ao nível da conta. Os interruptores acima aplicam-se a todos os lembretes abaixo.",
         "serverScope": "Como são enviados a partir da sua conta, estes lembretes continuam a chegar mesmo quando este dispositivo está desligado ou é trocado. Os lembretes de refeições da secção seguinte ficam apenas neste dispositivo.",
-        "rangeNoNight": "A hora final não pode ser anterior à inicial (intervalo noturno não é suportado)."
+        "rangeDay": "Os lembretes são enviados neste intervalo ({start} → {end}). Para um intervalo noturno, escolha um horário final anterior ao inicial, por exemplo 21:00 → 09:00.",
+        "rangeNight": "Intervalo noturno: {start} → {end} (atravessa a meia-noite)."
       },
       "weighInFrequencyRange": "Insira um valor entre 1 e {max}",
       "weighInFrequencyHint": "1 a {max} dias. Se ficar vazio, serão usados 7 dias."
