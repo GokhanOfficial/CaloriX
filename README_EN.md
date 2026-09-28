@@ -47,6 +47,32 @@ CaloriX is a modern PWA (Progressive Web App) that allows you to track daily cal
 > meal-based reminders, data export/import, forced update gate and **home
 > screen widgets**. Details: [CHANGELOG.md](CHANGELOG.md).
 
+### 📱 Flutter 1.3.0 — the primary app's features
+
+The React PWA is in maintenance mode; the **primary app is Flutter**
+(`flutter_app/`). Everything listed here belongs to the Flutter client only.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Home screen widgets** | ✅ working | Daily calorie/points and weekly summary cards on the Android home screen. Adding a meal, changing a setting and the "Refresh" button update the widget **immediately**. *Android only*; iOS is not targeted. |
+| **Account deletion** | ✅ working | Settings → Account → **"Delete My Account"**. Two-step confirmation + password verification. All account data is permanently deleted (GDPR / Google Play entry point). A partial deletion is never reported as success; you are asked to retry. |
+| **Favorites** | ✅ working | Tap the **star** on a food to add/remove it from favorites. Favorites are stored on your device and are **included in backups** — they come back on restore. |
+| **Server notification preferences** | ✅ working | Water / daily log / weekly summary reminders are sent from your account, so they keep arriving **even if your device is off or replaced**. Time range (including the overnight range **21 → 09**), frequency and weekly summary day/hour are configurable. |
+| **Meal-based reminders** | ✅ working | Separate times for breakfast/lunch/dinner/snack. These run **on the device**. |
+| **Data export / import** | ✅ working | All data is exported as JSON and can be restored. Favorites, recent foods and notification preferences are **included**. Measurement photos are **not** included. |
+| **Forced update** | ✅ working | A minimum version can be set server-side; older versions are forced to update. The APK is verified with `sha256`. |
+| **AI food recognition** | ✅ working | Photo or text. Edge function `recognize-food`. |
+| **AI Chat** | ✅ working | Ask about your logs, goals and nutrition decisions. |
+
+> **An honest note about the numbers.** One of the most important findings
+> of the 13-round audit: **a test hides a bug when it is routed through the
+> very function that fixes it in production code.** Therefore
+> `flutter_app/test/**` and `tool/check_i18n.cjs` follow the rule "assert the
+> **raw** value, never the normalized one", and every new gate has a
+> **negative measurement** in the report (a deliberate error injected, the
+> gate observed turning red, then reverted).
+
+
 ## ✨ Features
 
 > The list below is for the **React PWA (1.1.0)**. The primary app's
@@ -154,6 +180,49 @@ created. The React client no longer swallows this silently (the "Enable Push
 Notifications" button used to do nothing at all); a visible error with a
 "Retry" action is shown instead
 (`src/hooks/useNotifications.ts` → `error.operation === 'push'`).
+
+#### Supabase **Vault** — how to set `INTERNAL_FUNCTION_TOKEN`
+
+The `check-reminders` → `send-notification` flow runs without a JWT (it is
+triggered by cron), so it needs an authorization token. That token lives in
+Supabase **Vault**, not in the edge function's environment, and only
+`service_role` can read it.
+
+```bash
+# 1) Generate the token (it must ALSO be set as an edge function secret)
+openssl rand -hex 32
+
+# 2) Supabase Dashboard → Project Settings → API → add to Vault
+#    (or via the SQL editor, as service_role):
+select vault.create_secret('<TOKEN>', 'internal_function_token');
+```
+
+> ⚠️ **It goes in two places.** `INTERNAL_FUNCTION_TOKEN` must be an edge
+> function **environment variable** (to validate inbound requests), and
+> `internal_function_token` must be in **Vault** (for the cron job to read).
+> The `check-reminders` job reads the latter. If the Vault entry is missing
+> the job still **runs** but cannot send the token → `send-notification`
+> returns 401.
+
+#### `pg_cron` — setting up server-side reminders
+
+The **server** side of meal reminders (`check-reminders`) is triggered by a
+`pg_cron` job. The job is created by a **migration**
+(`20260929010000_check_reminders_cron_job.sql`). If the migration has not
+been applied, reminders **never fire** and there is no UI that tells the
+user so — the toggle simply shows "on".
+
+| Step | How |
+|------|-----|
+| 1. Apply migrations | `supabase db push` (or run them in order in Dashboard → SQL Editor) |
+| 2. Is `pg_cron` active? | `select * from cron.job where jobname = 'check-reminders';` — must return **1 row** |
+| 3. Is `pg_net` active? | `select * from extensions where extname = 'pg_net';` |
+| 4. Schedule | `7-59 * * * *` → **hourly**, between minute 7 and 59 |
+| 5. Token | The Vault section above — the job body sends the `x-calorix-internal-token` header |
+
+`pg_cron` is a **managed** Supabase extension; you cannot install it with
+`CREATE EXTENSION pg_cron` on your own Postgres. It must show as **Active**
+under "Extensions" in the Supabase dashboard.
 
 ### 🔐 Security note — the session token lives in `localStorage`
 

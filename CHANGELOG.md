@@ -132,6 +132,237 @@ gelen düzeltmeler; `pubspec.yaml`'da hâlâ `1.3.0+4`.
 - `ar.json` `dashboard.remaining`: `"kcal متبقية"` (İngilizce "remaining kcal"
   kalıbı harf harfine bırakılmış) → `"متبقٍّ (kcal)"`.
 
+---
+
+## [Unreleased — Tur 6-13] - 2026-09-28
+
+Denetim döngüsünün **Tur 6-13** düzeltmeleri. Tur 3-5 için yukarıdaki
+`[Unreleased]` bölümüne bakın. Sürüm **yükseltilmedi** (`pubspec.yaml`'da
+hâlâ `1.3.0+4`); aşağıdakiler 1.3.0+4 üzerine gelen düzeltmelerdir.
+
+### ⭐ Güvenlik
+- **Widget tazeleme hiç çalışmıyordu (P0, kendi kodumuz).**
+  `HomeWidget.updateWidget(name: name, androidName: name)` çağrılıyordu;
+  `home_widget` 0.10.0 sınıfı `qualifiedAndroidName ?: "$packageName.$className"`
+  ile çözüyor → `applicationId` = `com.calorix.app` olduğu için
+  `com.calorix.app.DailyWidgetProvider` arıyor → `ClassNotFoundException`.
+  **Öğün ekleme, ayar değişimi ve "Güncelle" hiçbiri widget'a ulaşmıyordu.**
+  Derleme ve testler yeşildi. Düzeltme: yalnız `androidName`.
+- **Push gövdesi gerçekten şifrelenmiyordu (P1).** RFC 8188 `aes128gcm`
+  şifreleme eklendi; VAPID imzası bozulmadan. Testler modülün
+  `ecdh_secret`/`PRK`/`CEK`/`NONCE` değerlerini **RFC 8291 Ek A'nın
+  yayımlanmış değerleriyle** karşılaştırıyor.
+- **Push `MAX_PLAINTEXT_BYTES` off-by-one (P1).** Başlık 21 + GCM 16 +
+  delimiter 1 çıkarılmamıştı: 3993-4058 baytlık pencerede uzun HTML'li
+  `weekly_summary` **push'u sessizce kaybediyordu** (e-posta + DB kaydı
+  yazıldığı için görünmüyordu). `rs=32` + 40 bayt da RFC §4 ihlaliydi.
+- **RLS UPDATE politikalarında `WITH CHECK` yazıldı (15 tablo).** Düzeltmenin
+  kendisi P0'ı **yanlış buldu**: Postgres'te `WITH CHECK` yoksa `USING`
+  fallback olarak yeniden değerlendirilir, yani açık zaten kapalıydı.
+  Açıkça yazıldı (savunma derinliği), `tests/rls_policies.sql` ile doğrulandı.
+- **`chat_threads`/`chat_messages` politikaları `TO public` idi** →
+  `TO authenticated`. 5 `SECURITY DEFINER` fonksiyonda `search_path=''`.
+- **`full_setup.sql` yeni kurulumları zayıf korumalı bırakıyordu (P1).**
+  Migration yoluyla **parite**ye getirildi (FK / CHECK / kolon / index /
+  politika `diff`'i boş) ve **idempotent** yapıldı (2. ve 3. çalıştırmada
+  0 gerçek hata).
+- **13 veri bütünlüğü `CHECK` kısıtı** eklendi (negatif kalori, negatif
+  miktar, geçersiz saat aralığı vb.). Canlı veri doğrulanamadığı için
+  ihlalde `RAISE EXCEPTION` veren, **satır değiştirmeyen** tasarım seçildi.
+- **Silme sonrası veri sızıntısı (P1).** `foods.created_by` FK'si
+  `ON DELETE SET NULL` idi → hesap silinince kullanıcının eklediği gıdalar
+  **kalıyordu** (KVKK "silme hakkı"). `ON DELETE CASCADE` yapıldı;
+  topluluk verisi (`created_by IS NULL`) korunuyor. `tests/foods_cascade.sql`
+  4 davranışı kanıtlıyor.
+- **Hesap silme 200 "başarı" dönüyordu kısmi silmede (P1).** Tablo silme
+  hatası `continue` ile yutuluyordu → KVKK gereği eksik silme başarı gibi
+  görünüyordu. `{deleted, failed}` + `retryRecommended` eklendi.
+- **Rate limit kalıcı tablo + atomik RPC'ye taşındı.** 10 paralel istek
+  testinde tam olarak 5 izin. `delete-account` limiti 5/saat → **2/saat**
+  (parola doğrulandığı için 5 gereksizdi; işlem yıkıcı ve geri alınamaz).
+- **4 edge function'da `ValidationError` mesajı istemciye sızıyordu.**
+- **VAPID imzası hiç üretilmiyordu** → web push bildirimleri fiilen hiç
+  gitmiyordu.
+
+### ⭐ Çalışmayan özellikler
+- **`recognize-food*` derlenmiyordu.** Edge function'daki bir tip/sözdizimi
+  hatası yüzünden tanıma hiç çalışmıyordu.
+- **VAPID imzası yoktu** (yukarıda) → web push ölüydü.
+- **Widget'ın native tarafı hiç yazılmamıştı.** `home_widget` +
+  `workmanager` bağımlılıkları vardı, `lib/core/widgets/**` (~700 satır)
+  yalnız testlerden çağrılıyordu. Karar: **widget gerçekten uygulandı**
+  (Kotlin `DailyWidgetProvider` + `WidgetData.kt`), tazeleme köprüsü düzeltildi.
+  `workmanager` (0 referans) kaldırıldı.
+- **`publishWeekly` ve `shouldSendNudge` görünür ama işlevsizdi.**
+  Haftalık widget hep boş; ayar UI'da görünür ama bildirim hiç gitmiyor.
+  İzole edilip işaretlendi (ürün kararı bekliyor).
+- **`cron.schedule` hiçbir yerde yoktu (P0, Tur 1'den beri).**
+  `check-reminders` elle tetikleniyor, **sunucu hatırlatıcıları hiç gitmiyordu.**
+  `pg_cron` job'ı eklendi (`7-59 * * * *`), Vault'tan okunan
+  `x-calorix-internal-token` ile yetkilendiriliyor.
+
+### ⭐ Veri bozulması
+- **Yedek → geri yüklemede favoriler, son kullanılanlar ve bildirim
+  tercihleri kayboluyordu (P1).** `importData` bu üç tabloyu **hiç
+  okumuyordu**. Üçü de içe aktarıma eklendi (`food_id` **ad** üzerinden;
+  eşleşmeyen kayıt atla+raporla, ölümcül değil).
+- **Kısmi import imkânsız hale getirildi (P0/P1).** Üç faz: önce doğrula
+  (ağ yok) → varlık kontrolü → telafili yazma. Tek ölümcül ihlalde hiçbir
+  istek atılmaz; yazma hatasında o turda yazanlar `id` ile silinir.
+- **Eski "güvenli" dönüştürmeler aslında ölümcüldü (P1).** Geçersiz
+  `amount_ml`/`weight_kg` `0`'a yazılıyordu → DB CHECK 400 → **tüm import
+  öğünler yazıldıktan sonra** düşüyordu. Besin satırında sayı olmayan
+  zorunlu alanın `0`'a çevrilmesi = sessiz yanlış besin değeri.
+- **`food_nutrition.nova_score` geçersizde sayaç değeri alıyordu (P1).**
+  `1`/`2`/`3` yazılıyordu; "1 = işlenmemiş" olurdu. 42 test kaçırmıştı.
+- **Su kaydı iki kez ekleniyordu (P1).** Dedup dizeden epoch
+  mikrosaniyeye çevrildi (`+00:00` ↔ `Z` aynı kaydı iki kez ekliyordu).
+- **Topluluk gıdaları "v1.2.0'dan beri Bilinmeyen" görünüyordu (P1).**
+  `fetchDaily` `foods(name)` embed'ini almıyordu. `foods` INSERT yolu ve
+  ölçüsüz öğün düzenlemesi eklendi.
+- **Silinen gıdanın öğünü "Bilinmeyen" oluyordu (P1).**
+- **`exportData` 6 hassas tabloyu sorgulamıyordu.**
+- **2000 istek ölçüldü ve çözüldü: 4506 → 37 istek** (POST 4480 → 9).
+  `importBatchSize = 500` (Postgres parametre tavanı 65535'e karşı 7000
+  = %11).
+- **Kayıp güncelleme (race) kapatıldı.** `updateMealEntry(expectedUpdatedAt:)`
+  + `MealEntryConflictError`; başka cihazda güncellenmişse kullanıcı bilgilendirilir.
+
+### ⭐ Hesap hataları
+- **`bmi(70, -180) = 24.2` (P1).** Kare pozitif olduğu için **imkânsız kayıt
+  geçerli** görünüyordu.
+- **`activity_level` enum uyuşmazlığı (P1).** Flutter `ActivityLevel.name` =
+  `"veryActive"` (camelCase), DB CHECK'i ve edge function `very_active`
+  (snake_case) bekliyordu. "Çok Aktif" seçilince profil yazımı
+  **başarısız** oluyor, hedefler kaydedilmiyordu. Ölçülen etki: TDEE
+  **%18,4 eksik** (30y/erkek/175cm/80kg → 2759 yerine **3382 kcal/gün**).
+- **`Gender.other` iki istemcide farklı hesaplıyordu (P1).** Web `other`/`null`'ı
+  **kadın** formülüne düşürüyordu (BMR 1583↔1749, TDEE 2454↔2711 → günde
+  257 kcal fark), profil kalıcı yazılıyordu. Karar: **erkek (`+5`)**.
+- **`progress` koruması 3 katmanı vardı ama HİÇ çağrılmıyordu.**
+- **`waterTargetMl` NaN'da `UnsupportedError`** → ekran düşüyordu.
+- **`Calculations.bmi` boy 0'da `Infinity.round()` → `UnsupportedError`.**
+- **Sapma (ölçüldü):** `web` `getBMICategory` BMI 0'ı "obez" sayıyordu.
+
+### ⭐ Sessiz kayıplar
+- **Bildirimler sessizce UTC'de planlanıyordu (P1).**
+  `notification_service.dart:50-57` `FlutterTimezone` hatasını `catch (_)`
+  ile yutuyordu; `tz.local` `initializeTimeZones()` sonrası UTC. TR'de
+  hatırlatıcılar **3 saat kaymış** çalışıyordu.
+- **Hatırlatıcılar ilk açılışta hiç planlanmıyordu (P1).**
+  `reschedule()` `!_initialized`'da isteği düşürüyor, kalıcı ayarları
+  sessizce kaybediyordu.
+- **Tam alarm izni kapatılınca hatırlatıcılar sessizce hiç gelmiyordu (P1).**
+  `_exactAllowed` yalnız init'te bir kez okunuyordu.
+- **Bir öğünde `zonedSchedule` patlayınca diğerleri de planlanmıyordu.**
+  `NotificationScheduleOutcome` eklendi.
+- **Bildirim izni reddi hiçbir yerde görünmüyordu.**
+- **Gece saat aralığı (21→09) sessizce yazılıyordu (P1).** Flutter'da
+  `end < start` **seçilemiyordu**, sunucu da desteklemiyordu → kullanıcı
+  seçimi sessizce değişiyordu.
+- **`start_hour > end_hour` sunucuda sessizce hiç göndermiyordu (P1).**
+  `index.ts:356` koşulu hiçbir saatte sağlanmaz; DB CHECK'i iki saati de
+  0..23 olduğu için izin veriyor.
+- **Master anahtar gölgelenmesi (P1).** `preference?.push_enabled ??
+  profile.push_notifications_enabled` — `??` yalnız NULL'a düştüğü için,
+  `notification_preferences`'a satır yazılınca profil master anahtarı
+  **hiç okunmuyordu**. `applyMasterSwitches` (AND) ile kapatıldı
+  (Flutter **ve** web).
+- **Tartılma sıklığı aralık denetimi yoktu (P1).** `0` yazılırsa CHECK
+  reddediyor → profil + sunucu tercihleri **birlikte** düşüyordu.
+- **Yedek içe aktarımında sessiz `catch (_)`** iki farklı hata sınıfını
+  (doğrulama / yazma) birbirine karıştırıyordu.
+- **`try/catch` gerçekten hiç çalışmıyordu (web).** "eklendi" toast'u hiçbir
+  kayıt yazılmadan; `addMealEntry`'de miktar sınırı yoktu; 3 yarış koşulu
+  (kullanıcı B'nin ekranında A'nın verisi); "en son kilo" belirsiz sıralama.
+- **UTC gün kaçıklığı: 4 gerçik desen / 8 çağrı noktası (web).**
+  `toISOString().split("T")[0]` (TR'de onboarding `max` = **yarın**),
+  `new Date("2000-01-15")` (**yaş 1 gün önce** ×3), `Math.floor(/864e5)`
+  (uyarı **1 gün geç**).
+- **`SentryFlutter.init` fırlatırsa `runApp` hiç çağrılmıyordu** → beyaz ekran.
+- **Zorunlu güncelleme ekranı `isApkUrlSafe` süzgecini kullanmıyordu** →
+  açık yönlendirme yüzeyi (13 test `launchUrl` **çağrılmadığını** kanıtlıyor).
+
+### ⭐ Yeni özellikler
+- **Hesap silme arayüzü (KVKK / Google Play giriş noktası).**
+  Edge function hazırdı ama kullanıcıya **hiçbir giriş noktası yoktu** —
+  ölü bir özellik. İki aşamalı onay + parola doğrulamalı diyalog, iki
+  istemcide de. Silme sonrası oturum düşürülür.
+- **Favorilere ekleme/çıkarma arayüzü (ürün kararı 1-A).**
+  `favorite_foods` tablosu şemada vardı ama **hiçbir istemci yazmıyordu**;
+  favoriler son 200 öğünden hesaplıyordu. Favori yıldız arayüzü eklendi.
+- **Sunucu bildirim tercihleri arayüzü (ürün kararı 2-A).**
+  `notification_preferences` tablosu vardı ama **kimse yazmıyordu**; sunucu
+  satır yoksa `water`/`daily_log`/`weekly_summary` bildirimlerini **sessizce
+  kapalı** tutuyordu. Arayüz eklendi, beş tipin satırı yazılıyor.
+- **Gıda silme arayüzü** (yemek tarifindeki beslenme bilgisi düzenleme).
+- **Tartılma sıklığı** tercih tipi.
+- **Ana ekran widget'ları gerçekten uygulandı** (yukarıda).
+- **Gece saat aralığı (21→09)** Flutter'da **ve** sunucuda açıldı.
+
+### i18n
+- **Tur 13 (A6r13) — çeviri *değeri* kapıları.** `check_i18n.cjs`'e 3 yeni
+  hata kapısı: **çevrilmemiş kopya**, **satır sonu sayısı tutarlılığı**,
+  **ayraç (parantez/braçet) dengesi**; artı "aynı metnin bir kopyası
+  çevrilmiş, diğeri çevrilmemişse" kapısı. Bulunan **gerçek** hatalar:
+  `it`/`ru` `notificationTypes.email` çevrilmemişti, `ja`/`ko`
+  `about.footer.copyright` İngilizce kalmıştı.
+  ⭐ "Kırpılmış cümle" kapısı **4 tasarım denendi ve dördü de elendi**
+  (302 yanlış pozitif) — gerekçe kodda belgeli, kapı yazılmadı.
+- **Orphan ratchet 63 → 60.** 3 kanıtlanmış ölü anahtar 12 dilden silindi
+  (`settings.notifications.server.goalAchieved` kodda **açıkça** dışlanmıştı,
+  `serverScope` `channelNote` ile aynı cümleyi söylüyordu,
+  `dialogs.fiberG` hiçbir ekranda gösterilmiyordu). 525 → 522 anahtar.
+- **Ölü anahtar kazandı:** `settings.notifications.server.rangeNoNight`
+  (gece aralığı açıldığında artık kullanılmıyordu) 12 dilden **silindi**.
+
+### CI
+- ⭐ **`supabase/tests/*.sql` artık CI'da** (A1r5/A1r8/A1r10'un üç kez
+  raporladığı boşluk). "supabase start gerekiyor" gerekçesi **ölçümle
+  çürütüldü**: ihtiyaç olan yüzey iki şema (`auth.*`, `storage.*`) + üç rol.
+  `tests/auth_shim.sql` + `tests/storage_shim.sql` + `tool/run_sql_tests.sh`
+  ile stock `postgres:16` üzerinde 19 migration, `full_setup.sql` (3×
+  idempotans) ve 5 SQL regresyon testi çalışıyor.
+  Negatif ölçüm: `foods.created_by` FK'si `CASCADE` → `SET NULL` yapıldığında
+  **3 test kırmızıya döndü** ve hatayı adıyla bildirdi.
+- **P0 — `paths:` kapsam denetimi.** 3 workflow'un **kendi girdileri**
+  `paths` listeleriyle karşılaştırıldı:
+  - `.env.example` **hiçbir** workflow'te tetiklemiyordu ama `flutter.yml`
+    `cp .env.example .env` ile asset paketlemesi yapıyor → bozulunca **her
+    iki** Flutter işi kırılıyor, PR'da görünmüyordu.
+  - `README.md` / `README_EN.md` `check_versions.cjs` tarafından okunuyor
+    ama `flutter.yml`'de yoktu.
+  - `public/locales/**` `react.yml`'de vardı, `flutter.yml`'de yoktu.
+  - `tool/run_sql_tests.sh` `supabase.yml`'e eklendi.
+- **React CI işi** (Node 20, `cache: npm`, `npm ci`, tsc + lint + build).
+- **Android derleme kapısı** `flutter build apk --debug` (~56 sn soğuk,
+  ~33 sn warm). Ölçüm: `./gradlew :app:compileDebugKotlin` 62 sn **ve
+  BAŞARISIZ** → APK build seçildi.
+- **Tüm eylemler 40 haneli commit SHA'sına pinlendi**; `permissions: contents: read`,
+  her işe `timeout-minutes`; `deno check`/`deno test` `--frozen=true`.
+- **`deno.lock` yolu düzeltildi** (`supabase/deno.lock` takipte; kökteki
+  `deno.lock` hiçbir `deno` komutu tarafından okunmuyordu).
+
+### Tests
+- Flutter test paketi **143 → 1156** test. Supabase edge testleri **19 → 124**.
+- **Widget sözleşme testi** (`widget_key_contract_test.dart`): Kotlin
+  `WidgetData.kt` dosyasını metin olarak okuyup 40 sabiti **iki yönde**
+  karşılaştırıyor — Dart↔Kotlin ayrışması build'de yakalanmıyordu.
+- **Yedek round-trip testi** (19 test): tam veri seti → export → import →
+  ikinci export → alan alan karşılaştırma. Sahte DB `RETURNING id` +
+  NOT NULL/FK/UNIQUE/CHECK + `timestamptz` biçimini taklit ediyor.
+- **Kısmi import testleri** (42) ve **telafi sırası** kilidi.
+- **SQL regresyon testleri**: RLS 49/49 · şema sözleşmesi 10/10 ·
+  CHECK 58 deneme · `foods_cascade` 4/4 · `account_deletion` 6/6.
+- **DST testleri hiçbir şey ölçmüyordu** (test ortamında `tz.local` = UTC) →
+  yanlış güven üretiyordu; `now.location` ile saf fonksiyon sözleşmesine çevrildi.
+- **13 turda 7 kez "yeşil test ≠ etkin test"** yakalandı. Bu turun
+  bulguları: 4 tasarım denemesi **elendi** (302 yanlış pozitif), SQL
+  testlerinde **izolasyon** hatası (bir testin bıraktığı tablo diğerini
+  kırmızıya düşürüyordu), ve migration'da enjeksiyon **görünmez** kaldı
+  (`full_setup.sql` `IF NOT EXISTS` olduğu için sonraki adım onu
+  düzeltiyordu) — ancak **davranış** enjeksiyonu 3 testi kırmızıya döndürdü.
+
 ### Fixed — Yedek içe/dışa aktarma (React PWA, `src/lib/import/**`)
 Web tarafı, Flutter'da Tur 4'te düzeltilen **aynı** yedek hatalarını
 taşıyordu. Bu turda akış baştan yazıldı: `src/lib/import/backupImport.ts`

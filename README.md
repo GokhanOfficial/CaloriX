@@ -47,6 +47,32 @@ CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi ya
 > arayüz, öğün bazlı hatırlatıcılar, veri içe/dışa aktarma, zorunlu güncelleme
 > ve **ana ekran widget'ları**. Ayrıntı: [CHANGELOG.md](CHANGELOG.md).
 
+### 📱 Flutter 1.3.0 — ana uygulamanın özellikleri
+
+React PWA bakım modundadır; **ana uygulama Flutter**'dır
+(`flutter_app/`). Burada listelenenler yalnız Flutter istemcisine aittir.
+
+| Özellik | Durum | Not |
+|---------|-------|-----|
+| **Ana ekran widget'ları** | ✅ çalışıyor | Android masaüstüne günlük kalori/ödül ve haftalık özet kartları. Öğün ekleme, ayar değişimi ve "Güncelle" düğmesi widget'ı **anında** tazeler. *Android'e özeldir*; iOS hedeflenmemiştir. |
+| **Hesap silme** | ✅ çalışıyor | Ayarlar → Hesap → **"Hesabımı Sil"**. İki aşamalı onay + parola doğrulaması. Hesaba ait tüm veriler kalıcı olarak silinir (KVKK / Google Play giriş noktası). Kısmi silme başarı gibi gösterilmez; "bazı kayıtlar silinemedi" durumunda tekrar denemeniz istenir. |
+| **Favoriler** | ✅ çalışıyor | Yemek ekranında **yıldız** simgesiyle favorilere ekleme/çıkarma. Favoriler cihazınızda saklanır ve **yedek alırken** dışa aktarılır, geri yüklendiğinde geri gelir. |
+| **Sunucu bildirim tercihleri** | ✅ çalışıyor | Su / günlük kayıt / haftalık özet hatırlatıcıları hesabınızdan gönderilir — **cihazınız kapalıyken veya değişse de** gelir. Saat aralığı (gece aralığı **21 → 09** dahil), sıklık ve haftalık özet günü/saati ayarlanır. |
+| **Öğün bazlı hatırlatıcılar** | ✅ çalışıyor | Kahvaltı/öğle/akşam/atıştırma için ayrı saatler. **Cihazda** çalışır. |
+| **Veri içe/dışa aktarma** | ✅ çalışıyor | Tüm veriler JSON olarak dışa aktarılır; geri yüklenir. Favoriler, son kullanılanlar ve bildirim tercihleri **dahildir**. Ölçüm görselleri **dahil değildir**. |
+| **Zorunlu güncelleme** | ✅ çalışıyor | Sunucu tarafında "minimum sürüm" tanımlanabilir; eski sürümler yükseltmeye zorlanır. APK `sha256` ile doğrulanır. |
+| **AI yemek tanıma** | ✅ çalışıyor | Fotoğraf veya metin. Edge function `recognize-food`. |
+| **AI Chat** | ✅ çalışıyor | Günlük kayıtlar, hedefler ve beslenme kararları hakkında sohbet. |
+
+> **Sihirli sayılar hakkında dürüstlük notu.** 13 tur denetimde ölçülen
+> önemli bir bulgu: **testler, üretim kodunun hatayı düzelten
+> fonksiyonundan geçirildiğinde hatayı gizler.** Bu yüzden
+> `flutter_app/test/**` ve `tool/check_i18n.cjs` "ham değeri denetler,
+> normalize katmanından geçmez" kuralıyla yazıldı ve her yeni kapının
+> **negatif ölçümü** (kasıtlı hata enjekte edilip kırmızı görüldüğü)
+> raporda kanıtlandı.
+
+
 ## ✨ Özellikler
 
 > Aşağıdaki liste **React PWA (1.1.0)** içindir. Ana uygulamanın (Flutter
@@ -157,6 +183,48 @@ React istemcisi bu durumu artık **sessizce yutmaz** ("Push Bildirimlerini
 Etkinleştir" düğmesi basılı kalır ama hiçbir şey olmaz); ayar ekranında
 görünür bir hata ve "Tekrar Dene" gösterilir
 (`src/hooks/useNotifications.ts` → `error.operation === 'push'`).
+
+#### Supabase **Vault** — `INTERNAL_FUNCTION_TOKEN` nasıl konur
+
+`check-reminders` → `send-notification` akışı, JWT'siz (cron) çalıştığı için
+bir yetkilendirme token'ı gerekir. Bu token **edge function ortam
+değişkeninde değil**, Supabase **Vault**'ta tutulur ve yalnızca
+`service_role` okuyabilir.
+
+```bash
+# 1) Token'ı üret (edge function secret'ı olarak da tanımlanmalı)
+openssl rand -hex 32
+
+# 2) Supabase Dashboard → Project Settings → API → Vault'a ekle
+#    (ya da SQL editor'da, service_role ile):
+select vault.create_secret('<TOKEN>', 'internal_function_token');
+```
+
+> ⚠️ **İki yere yazılır.** `INTERNAL_FUNCTION_TOKEN` edge function'ın
+> **ortam değişkeni** olmalı (dışarıdan gelen istekleri doğrulamak için),
+> `internal_function_token` ise **Vault**'ta olmalı (cron işinin okuması için).
+> `check-reminders` işi ikincisini okur. Vault kaydı yoksa iş **çalışır**
+> ama token'ı gönderemez → `send-notification` 401 döner.
+
+#### `pg_cron` — sunucu hatırlatıcılarının kurulumu
+
+Öğün hatırlatıcılarının **sunucu** tarafı (`check-reminders`) bir
+`pg_cron` işiyle tetiklenir. Bu iş **migration ile kurulur**
+(`20260929010000_check_reminders_cron_job.sql`); migration uygulanmamışsa
+hatırlatıcılar **hiç gitmez** ve bunu kullanıcıya gösteren bir arayüz
+yoktur — ayarlarda "açık" görünür.
+
+| Adım | Nasıl |
+|------|-------|
+| 1. Migration'ları uygula | `supabase db push` (ya da Dashboard → SQL Editor'da sırayla çalıştır) |
+| 2. `pg_cron` etkin mi? | `select * from cron.job where jobname = 'check-reminders';` — **1 satır** dönmeli |
+| 3. `pg_net` etkin mi? | `select * from extensions where extname = 'pg_net';` |
+| 4. Zamanlama | `7-59 * * * *` → **saatte bir**, dakikanın 7-59'u arasında |
+| 5. Token | Yukarıdaki Vault bölümü — iş gövdesi `x-calorix-internal-token` başlığını gönderir |
+
+`pg_cron` **Supabase tarafından yönetilen** bir uzantıdır; kendi
+Postgres'inizde `CREATE EXTENSION pg_cron` ile kurulmaz. Supabase
+dashboard'da "Extensions" altında `pg_cron` **Active** olmalıdır.
 
 ### 🔐 Güvenlik notu — oturum token'ı `localStorage`'da
 
