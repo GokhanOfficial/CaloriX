@@ -80,15 +80,30 @@ class RecognizedFood {
       );
 
   factory RecognizedFood.fromJson(Map<String, dynamic> json) {
+    /// Sayısal alan okuyucu — **sonlu olmayan değerleri eler**.
+    ///
+    /// JSON'da `NaN`/`Infinity` yazılamaz ama edge function Deno içinde
+    /// `JSON.parse('1e999')` sonucu `Infinity` üretebilir (aşırı büyük
+    /// üsl) veya bir LLM sağlayıcısı `1e400` gönderebilir. Bu değerler
+    /// `forAmount()` içinde `(Infinity * 200).round()` →
+    /// `UnsupportedError` fırlatır ve **tanıma ekranının tamamını**
+    /// çökertir; ayrıca `addMealEntry` `ArgumentError` ile yazmayı
+    /// reddeder. Varsayılana düşürülür.
     double numOr(String key, double fallback) {
       final v = json[key];
-      if (v is num) return v.toDouble();
+      if (v is num) {
+        final d = v.toDouble();
+        if (d.isFinite) return d;
+      }
       return fallback;
     }
 
     double? numOpt(String key) {
       final v = json[key];
-      if (v is num) return v.toDouble();
+      if (v is num) {
+        final d = v.toDouble();
+        if (d.isFinite) return d;
+      }
       return null;
     }
 
@@ -101,7 +116,11 @@ class RecognizedFood {
     final nova = json['nova_score'];
     return RecognizedFood(
       name: (json['name'] as String?) ?? '',
-      amountGMl: numOr('amount_g_ml', 100),
+      // `amount` ≤ 0 normalize edilir: `toItem()` 100'e düşürüyordu ama
+      // `forAmount(amount)` **negatif** miktarla çalışıp negatif kalori
+      // üretebilirdi. `DiaryRepository` 0'ı zaten reddediyor; burada
+      // varsayılana çekiyoruz ki onay ekranı tutarsız değer göstermesin.
+      amountGMl: numOr('amount_g_ml', 100) > 0 ? numOr('amount_g_ml', 100) : 100,
       caloriesPer100G: calories,
       proteinGPer100G: protein,
       carbsGPer100G: carbs,
@@ -129,9 +148,17 @@ class RecognitionResult {
     final raw = json['foods'];
     final list = raw is List ? raw : const <dynamic>[];
     return RecognitionResult(
-      foods: list
-          .map((e) => RecognizedFood.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      // Satır **başına eleme**: `e as Map<String, dynamic>` zorlaması tek
+      // bozuk eleman (`null`, dize, sayı) yüzünden tüm listeyi ve dolayısıyla
+      // **tanıma ekranını** düşürüyordu. Edge function gövdesi LLM
+      // çıktısını olduğu gibi döndürebildiği için bu bir olasılık değil
+      // varsayım. Diğer katmanlar (`DiaryRepository._mapRows`,
+      // `AnalyticsRepository._liveRows`) aynı "satırı atla, devam et"
+      // desenini uygular.
+      foods: [
+        for (final e in list)
+          if (e is Map) RecognizedFood.fromJson(Map<String, dynamic>.from(e)),
+      ],
       description: json['description'] as String?,
     );
   }

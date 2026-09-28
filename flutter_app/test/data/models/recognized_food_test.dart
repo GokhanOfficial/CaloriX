@@ -94,6 +94,42 @@ void main() {
       });
       expect(f.novaScore, 3);
     });
+
+    test('sonlu olmayan sayılar varsayılana düşer (NaN/Infinity patlatmaz)', () {
+      // JSON'da `NaN` yazılamaz ama edge function `1e999` → `Infinity`
+      // döndürebilir. Bu değer `forAmount()` içinde
+      // `UnsupportedError` fırlatır ve tanıma ekranını çökertirdi.
+      final f = RecognizedFood.fromJson({
+        'name': 'Bozuk',
+        'amount_g_ml': double.infinity,
+        'calories_per_100g': double.infinity,
+        'protein_g_per_100g': double.nan,
+        'carbs_g_per_100g': double.negativeInfinity,
+        'fat_g_per_100g': 12,
+        'fiber_g_per_100g': double.infinity,
+      });
+      expect(f.amountGMl, 100, reason: 'Infinity miktar → DB varsayılanı');
+      expect(f.caloriesPer100G, 0, reason: 'Infinity kalori → 0 (uydurma değer yok)');
+      expect(f.proteinGPer100G, 0);
+      expect(f.carbsGPer100G, 0);
+      expect(f.fatGPer100G, 12, reason: 'geçerli alan korunur');
+      expect(f.fiberGPer100G, isNull, reason: 'Infinity opsiyonel alan → null');
+      // forAmount artık istisna fırlatmaz.
+      expect(() => f.forAmount(200), returnsNormally);
+    });
+
+    test('amount 0/negatif 100\'e normalize edilir', () {
+      // `forAmount(0)` negatif kalori üretebilirdi ve `DiaryRepository`
+      // 0 miktarı zaten reddediyor — onay ekranı tutarsız değer göstermemeli.
+      for (final bad in <double>[0, -50, double.nan, double.infinity]) {
+        final f = RecognizedFood.fromJson({
+          'name': 'X',
+          'amount_g_ml': bad,
+        });
+        expect(f.amountGMl, 100, reason: 'amount=$bad');
+        expect(f.toItem().servingSizeG, 100);
+      }
+    });
   });
 
   group('RecognizedFood.forAmount', () {
@@ -210,6 +246,31 @@ void main() {
 
     test('foods dizi değilse boş liste', () {
       final r = RecognitionResult.fromJson({'foods': 'string'});
+      expect(r.foods, isEmpty);
+    });
+
+    test('foods içindeki bozuk eleman tüm sonucu DÜŞÜRMEZ', () {
+      // `e as Map<String, dynamic>` zorlaması tek `null` eleman yüzünden
+      // listeyi ve dolayısıyla **tanıma ekranının tamamını** çökertiyordu.
+      // Edge function gövdesi LLM çıktısını olduğu gibi döndürebildiği
+      // için bu varsayım değil olasılıktır.
+      final r = RecognitionResult.fromJson({
+        'foods': [
+          null,
+          'metin',
+          42,
+          {'name': 'Geçerli', 'calories_per_100g': 100},
+          {'name': 'Geçerli2'},
+        ],
+      });
+      expect(r.foods, hasLength(2));
+      expect(r.foods.map((f) => f.name), ['Geçerli', 'Geçerli2']);
+    });
+
+    test('tamamen bozuk foods listesi boş döner (istisna değil)', () {
+      final r = RecognitionResult.fromJson({
+        'foods': [null, null],
+      });
       expect(r.foods, isEmpty);
     });
   });
