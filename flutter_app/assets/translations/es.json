@@ -133,7 +133,6 @@
       "conflict": "Este registro se actualizó en otro dispositivo. La lista se ha refrescado.",
       "nameMissing": "Este alimento no tiene nombre guardado. Escribe un nombre para guardar."
     },
-    "fiberG": "Fibra (g)",
     "photoTooLarge": "La foto es demasiado grande",
     "flash": "Flash",
     "amountRequired": "Se requiere la cantidad",
@@ -338,14 +337,12 @@
         "water": "Recordatorio de agua",
         "dailyLog": "Recordatorio de registro diario",
         "weeklySummary": "Resumen semanal",
-        "goalAchieved": "Logro de objetivo",
         "startHour": "Hora de inicio",
         "endHour": "Hora de fin",
         "intervalHours": "Intervalo (horas)",
         "summaryDay": "Día",
         "summaryHour": "Hora",
         "channelNote": "Push/correo a nivel de cuenta. Los interruptores de arriba se aplican a todos los recordatorios de abajo.",
-        "serverScope": "Como se envían desde tu cuenta, estos recordatorios siguen llegando aunque este dispositivo esté apagado o se cambie. Los recordatorios de comidas de la sección siguiente solo se quedan en este dispositivo.",
         "rangeDay": "Los recordatorios se envían en este rango ({start} → {end}). Para un rango nocturno, elige una hora final anterior a la inicial, por ejemplo 21:00 → 09:00.",
         "rangeNight": "Rango nocturno: {start} → {end} (cruza medianoche)."
       },

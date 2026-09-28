@@ -133,7 +133,6 @@
       "conflict": "This entry was updated on another device. The list has been refreshed.",
       "nameMissing": "This food has no saved name. Enter a name to save."
     },
-    "fiberG": "Fiber (g)",
     "photoTooLarge": "Photo is too large",
     "flash": "Flash",
     "amountRequired": "Amount is required",
@@ -338,14 +337,12 @@
         "water": "Water Reminder",
         "dailyLog": "Daily Log Reminder",
         "weeklySummary": "Weekly Summary",
-        "goalAchieved": "Goal Achievement",
         "startHour": "Start hour",
         "endHour": "End hour",
         "intervalHours": "Interval (hours)",
         "summaryDay": "Day",
         "summaryHour": "Hour",
         "channelNote": "Account-level push/e-mail. The switches above apply to every reminder below.",
-        "serverScope": "Because they are sent from your account, these reminders keep arriving even if this device is off or changed. Meal reminders in the next section stay on this device only.",
         "rangeDay": "Reminders are sent in this range ({start} → {end}). For an overnight range, choose an end hour before the start hour, for example 21:00 → 09:00.",
         "rangeNight": "Overnight range: {start} → {end} (crosses midnight)."
       },

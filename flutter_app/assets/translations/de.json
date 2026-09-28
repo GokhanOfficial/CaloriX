@@ -133,7 +133,6 @@
       "conflict": "Dieser Eintrag wurde auf einem anderen Gerät aktualisiert. Die Liste wurde aktualisiert.",
       "nameMissing": "Für dieses Lebensmittel ist kein Name gespeichert. Gib einen Namen ein, um zu speichern."
     },
-    "fiberG": "Ballaststoffe (g)",
     "photoTooLarge": "Foto ist zu groß",
     "flash": "Blitz",
     "amountRequired": "Menge ist erforderlich",
@@ -338,14 +337,12 @@
         "water": "Wassererinnerung",
         "dailyLog": "Tagesprotokoll-Erinnerung",
         "weeklySummary": "Wochenzusammenfassung",
-        "goalAchieved": "Ziel erreicht",
         "startHour": "Startstunde",
         "endHour": "Endstunde",
         "intervalHours": "Intervall (Stunden)",
         "summaryDay": "Tag",
         "summaryHour": "Stunde",
         "channelNote": "Kontowebenebene push/E-Mail. Die Schalter oben gelten für alle Erinnerungen unten.",
-        "serverScope": "Da sie von deinem Konto gesendet werden, kommen diese Erinnerungen auch, wenn dieses Gerät ausgeschaltet oder gewechselt ist. Die Mahnzeiten-Erinnerungen im nächsten Abschnitt bleiben nur auf diesem Gerät.",
         "rangeDay": "In diesem Zeitraum werden Erinnerungen gesendet ({start} → {end}). Für einen Nachtbereich wähle eine Endzeit vor der Startzeit, z. B. 21:00 → 09:00.",
         "rangeNight": "Nachtbereich: {start} → {end} (über Mitternacht)."
       },

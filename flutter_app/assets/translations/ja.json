@@ -133,7 +133,6 @@
       "conflict": "このエントリーは別のデバイスで更新されました。一覧を更新しました。",
       "nameMissing": "この食品には保存された名前がありません。保存するには名前を入力してください。"
     },
-    "fiberG": "食物繊維 (g)",
     "photoTooLarge": "写真が大きすぎます",
     "flash": "フラッシュ",
     "amountRequired": "量を入力してください",
@@ -338,14 +337,12 @@
         "water": "水分補給リマインダー",
         "dailyLog": "記録リマインダー",
         "weeklySummary": "週次サマリー",
-        "goalAchieved": "目標達成",
         "startHour": "開始時刻",
         "endHour": "終了時刻",
         "intervalHours": "間隔（時間）",
         "summaryDay": "曜日",
         "summaryHour": "時刻",
         "channelNote": "アカウントレベルのプッシュ/メール。上のスイッチは下のリマインダーすべてに適用されます。",
-        "serverScope": "アカウントから送信されるため、この端末の電源が切れている場合や端末を交換した場合にも届きます。次のセクションの食事リマインダーはこの端末にのみ保存されます。",
         "rangeDay": "この時間帯に通知が送信されます（{start} → {end}）。夜間の範囲を使う場合は、終了時刻を開始時刻より前にしてください（例：21:00 → 09:00）。",
         "rangeNight": "夜間範囲：{start} → {end}（深夜をまたぎます）。"
       },
@@ -493,7 +490,7 @@
     "footer": {
       "madeWith": "愛を込めて作成",
       "inTurkey": "トルコで",
-      "copyright": "© 2025 CaloriX. All rights reserved."
+      "copyright": "© 2025 CaloriX. All rights reserved.（全権利留保）"
     }
   },
   "addFood": {

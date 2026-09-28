@@ -133,7 +133,6 @@
       "conflict": "该条目已在另一台设备上更新。列表已刷新。",
       "nameMissing": "该食物没有已保存的名称。请输入名称以保存。"
     },
-    "fiberG": "纤维 (克)",
     "photoTooLarge": "照片太大",
     "flash": "闪光灯",
     "amountRequired": "请输入数量",
@@ -338,14 +337,12 @@
         "water": "饮水提醒",
         "dailyLog": "每日记录提醒",
         "weeklySummary": "每周摘要",
-        "goalAchieved": "达成目标",
         "startHour": "开始时间",
         "endHour": "结束时间",
         "intervalHours": "间隔（小时）",
         "summaryDay": "星期",
         "summaryHour": "时间",
         "channelNote": "账户级别的推送/电子邮件。上方开关适用于下方所有提醒。",
-        "serverScope": "由于这些提醒从你的账户发送，即使本设备关闭或更换也仍会送达。下一节中的用餐提醒仅保留在此设备上。",
         "rangeDay": "提醒会在此时间段内发送（{start} → {end}）。如需跨夜区间，请选择早于开始时间的结束时间，例如 21:00 → 09:00。",
         "rangeNight": "跨夜区间：{start} → {end}（跨越午夜）。"
       },

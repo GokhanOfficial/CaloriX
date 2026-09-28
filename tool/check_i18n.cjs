@@ -91,8 +91,31 @@ const EXPECTED_LANGS = 12;
  *   planlanıyor ve maliyeti sıfıra yakın.
  * - Sonuç: **silme yapılmadı**, ratchet eklendi. Bu, görevin kabul
  *   ettiği ikinci seçenektir ve burada kanıtlanmış olarak tercih edilmiştir.
+ *
+ * **Tur 13 yeniden ölçümü (A6r13, 2026-09-28) — sayı DEĞİŞMEDİ (63/63).**
+ * Beklenen değişim gerçekleşmedi, çünkü Tur 12'de (`91439a3`, A2r12) gece
+ * aralığı açıldığında `settings.notifications.server.rangeNoNight` **zaten
+ * silinmişti** (12 dilden düştüğü için `check_i18n`'de hiç görünmüyor).
+ * A2r13'ün "rangeNoNight artık gerçek orphan olmuş olabilir" notu ölçümle
+ * doğrulandı: **bu anahtar artık mevcut değil**, dolayısıyla ratchet
+ * değiştirilmedi.
+ *
+ * Ölçüm ayrıntısı: 63 ölü anahtarın **59'u `public/locales/*` altında hâlâ
+ * var** (React PWA'nın çalışma zamanı kaynağı → silinemez), yalnız **4'ü**
+ * Flutter'a özgü:
+ *
+ * | Anahtar | Durum | Karar |
+ * |---|---|---|
+ * | `settings.notifications.server.goalAchieved` | `server_notification_preferences_section.dart:72` **açıkça** dışlanmış ("bilinçli olarak yok, ürün kararı 2-B") | Silindi ✅ |
+ * | `settings.notifications.server.serverScope` | `channelNote` ile **aynı şeyi** söylüyor, ikisi de hiç bağlanmadı; `channelNote` koda bağlı | Silindi ✅ (`channelNote` kaldı) |
+ * | `dialogs.fiberG` | lif özelliği kullanıcı arayüzüne **hiç bağlı değil**; `food.dart:14` alan var ama gösterilmiyor | Silindi ✅ |
+ * | `settings.widgets.androidOnly` | 1.3.0 widget'ının **ileride** kullanılacak uyarı metni (A6r2 gerekçesi) | **Korundu** (gerekçeli) |
+ *
+ * → Silinen 3 anahtar **12 dilde 36 satır** azalttı (525 → 522 anahtar).
+ * Ratchet **63 → 60** düşürüldü: göreve uygun olarak "sayı azaldıysa
+ * ratchet'i düşür, gevşek kapı bırakma" kuralı uygulandı.
  */
-const ORPHAN_BASELINE = 63;
+const ORPHAN_BASELINE = 60;
 
 /** Klasör ağacını dosya listesine çevirir. */
 function walk(dir, filter) {
@@ -516,6 +539,181 @@ for (const file of files) {
         `${file}: "${key}" elle yazılmış tarih gibi görünüyor (${value}) — ` +
           `biçimlendirme ` +
           `\`DateFormat(...).format(...)\` ile yapılmalı`,
+      );
+    }
+  }
+}
+
+// --- 4f) Çeviri **değeri** biçim tutarlılığı --------------------------------
+//
+// 13 turun anahtar düzeyindeki eksik/fazla anahtarı zaten yakalıyordu
+// (bölüm 2). Ama anahtar **12 dilde de var** olsa bile değer yanlış
+// olabilir ve hiçbir kapı bunu görmez. 4 alt sınıf:
+//
+//   (f1) **Çevrilmemiş kopya** — `de.json`deki değer `en.json` ile
+//        **birebir aynı**. easy_localization değeri olduğu gibi basar, yani
+//        Alman kullanıcısı İngilizce ekran görür. Marka/birim (`CaloriX AI`,
+//        `kcal`) istisnadır; ayrıca hedef dilde İngilizceyle **aynı
+//        kelime** kullanılan durumlar (`de/fr` "Version {version}") gürültü
+//        üretir, bu yüzden istisna listesi ölçümle belirlendi.
+//   (f2) **Kırpılmış cümle** — ⭐ **BİLEREK YAZILMADI**, 4 tasarım denendi ve
+//        dördü de elendi (302 yanlış pozitif). Gerekçe aşağıda ayrı yazılıdır.
+//   (f3) **Satır sonu sayısı** — çok satırlı bir metin (`\n`) bir dilde
+//        var, başka dilde yok → arayüz düzeni o dilde farklı çalışır.
+//   (f4) **Ayraç dengesi** — parantez/braçet sayısı eşleşmiyor → kesilmiş
+//        ya da fazladan kapanmamış metin. Kesilmenin **yapısal** kanıtı.
+//
+// ⭐ **Bu kapılar stil farkını değil, YANLIŞLIĞI yakalar.** 2026-09-28
+// ölçümü: (f3) 0, (f4) 0 bulgu; (f1) 17 eşleşmenin incelemesinde **3 gerçek
+// çeviri hatası** bulundu (`it`/`ru` `notificationTypes.email` çevrilmemiş,
+// `ja`/`ko` `about.footer.copyright` İngilizce kalmış) ve düzeltildi; kalan
+// eşleşmeler **kanıtlanmış kognat** (`de` "Name", `fr` "Calories") olduğu için
+// `UNTRANSLATED_OK` listesine alındı. 2026-09-27'de 7 kez "yeşil test ≠ etkin
+// test" hatası yakalandığı için her kapının negatif ölçümü raporda kanıtlandı.
+
+/** Aynı yazı sistemi: Latin + Kıbrıs + Yunanca (ASCII noktalama kullanır). */
+const LATIN_ORTHOGRAPHY = files.filter(
+  (f) => !['ar.json', 'ja.json', 'ko.json', 'zh.json', 'ru.json'].includes(f),
+);
+/**
+ * (f1) istisnaları. Her satır **tek tek ölçülerek** yazıldı — 2026-09-28'de
+ * 17 eşleşmenin 4'ü incelendi ve **2'si gerçek çeviri hatası**, 2'si
+ * **doğru çeviri**ydi:
+ *   - `auth.nameOptional` "Name (Optional)" → Almanca'da "isim" kelimesi de
+ *     **"Name"**'dir; `auth.name` da "Name" çevrilmiş. Yanlış pozitif.
+ *   - `settings.goals.calories` "Calories (kcal)" → Fransızca'da "calorie"
+ *     kelimesi **"Calories"** yazılır. Yanlış pozitif.
+ * Bu liste "çeviriyi kapat" değil, "**kanıtlanmış** kognat/marka" listesi.
+ * Yeni bir satır eklenirse önce hedef dilin gerçekten aynı kelimeyi
+ * kullandığı doğrulanmalı.
+ */
+const UNTRANSLATED_OK = new Set([
+  'about.footer.copyright', // "© 2025 CaloriX. All rights reserved." — marka satırı
+  'about.version', // "Version {version}" — de/fr'de kelime aynı (Version)
+  'chat.roleAssistant', // "CaloriX AI" — ürün adı + kısaltma
+  'settings.goals.calories', // "Calories (kcal)" — fr kognatı (ölçüldü)
+  'auth.nameOptional', // "Name (Optional)" — de kognatı (ölçüldü)
+]);
+
+// (f1) Çevrilmemiş kopya.
+for (const file of files) {
+  if (file === REFERENCE_LANG) continue;
+  for (const key of refKeys) {
+    if (!(key in flat[file])) continue;
+    if (UNTRANSLATED_OK.has(key)) continue;
+    const en = String(flat[REFERENCE_LANG][key]).trim();
+    const got = String(flat[file][key]).trim();
+    if (got === en && en.split(/\s+/).filter((w) => /[A-Za-z]{2,}/.test(w)).length >= 2) {
+      errors.push(
+        `${file}: "${key}" çevrilmemiş — ${REFERENCE_LANG} ile birebir aynı ` +
+          `(${JSON.stringify(en.slice(0, 50))})`,
+      );
+    }
+  }
+}
+
+// (f2) Kesik cümle — bir hata kapısı olarak YAZILMADI (2026-09-28, 4 deneme).
+//
+// ⭐ Görev "bir dilde cümle bitiyor, başka dilde kesiliyorsa işaretle" diyordu.
+// Dört tasarım denendi, **dördü de elendi**; kayıt tutuluyor çünkü "mantıklı
+// görünen" ama çalışmayan kural, turlarda 7 kez "yeşil test ≠ etkin test"
+// hatası üretti. Kanıtsız kural denememek için:
+//
+//   1. "İngilizce `.!?` ile bitiyorsa hedef dil de bitirmeli" → **52 eşleşme**,
+//      tamamı CJK (`ja`/`zh`) yazım sistemi farkı. Elendi.
+//   2. "Son kelime İngilizceyle aynıysa kesilmiştir" → **0** bulgu. Gerçek
+//      kesilmede son kelime **çevrilmiştir** ("kurtarılamaz" ↔ "recovered"),
+//      yani kural hatayı tam tersi yönde kaçırıyordu. Elendi.
+//   3. "Bağlaç/zarf ile bitiyorsa yarım cümlüdür" → **18 eşleşme**, hepsi
+//      gürültü: "Yeniden kontrol et" (TR bitiş fiili), "Hergestellt mit"
+//      (DE etiket), "Acerca de" (ES başlık), "Gib dein Passwort ein" (DE tam
+//      emir cümlesi). Elendi.
+//   4. "40+ karakter, İngilizcenin %60'ı, noktalama yok → uyarı" → **232
+//      uyarı**; `--verbose` listesini kullanılamaz hâle getirdi ve zaten
+//      var olan RTL/format uyarılarıyla aynı bilgiyi verdi. Elendi.
+//
+// ⭐ **Gerekçeli sonuç:** cümle noktalaması eksikliği **tek başına** bir dil
+// kuralıdır — etiket, başlık ve bitiş fiili noktalamasız biter — ve sözlüksüz
+// hiçbir kural onu güvenilir kılamaz. Kesilmenin **yapısal** kanıtı
+// kapanmamış ayraçtır ve o zaten (f4)'te denetleniyor. 4 deneme ve 302 yanlış
+// pozitif ölçüldükten sonra bu kapı **bilinçli olarak yazılmadı**: görev
+// "işaretle" diyordu, işaretlenebilir ama gürültü oranı nedeniyle kapıya
+// dönüştürülemez.
+
+// (f3) Satır sonu sayısı tutarlılığı.
+for (const key of refKeys) {
+  const counts = new Map();
+  for (const file of files) {
+    const n = (String(flat[file][key]).match(/\n/g) || []).length;
+    counts.set(file, n);
+  }
+  const uniq = new Set(counts.values());
+  if (uniq.size > 1) {
+    errors.push(
+      `"${key}" satır sonu sayısı diller arasında farklı — ` +
+        `${[...counts.entries()].map(([f, n]) => `${f}:${n}`).join(' ')}`,
+    );
+  }
+}
+
+// (f4) Ayraç dengesi (parantez/braçet).
+for (const file of files) {
+  for (const [key, value] of Object.entries(flat[file])) {
+    if (typeof value !== 'string') continue;
+    const v = value;
+    for (const [open, close, label] of [['(', ')', 'parantez'], ['[', ']', 'köşeli']]) {
+      const o = (v.match(new RegExp(`\\${open}`, 'g')) || []).length;
+      const c = (v.match(new RegExp(`\\${close}`, 'g')) || []).length;
+      if (o !== c) {
+        errors.push(
+          `${file}: "${key}" ${label} dengesi bozuk (${open}×${o}, ${close}×${c}) — ` +
+            `metin kesilmiş ya da fazladan kapanmamış`,
+        );
+      }
+    }
+  }
+}
+
+// --- 4g) Bölüm içi **metin** tutarlılığı ----------------------------------
+
+// A4r7b–A4r10 `settings.notifications.server.*` bölümünü büyüttü (17 anahtar).
+// Görev "bir dilde cümle bitiyor, başka dilde kesiliyorsa işaretle" diyordu.
+// ⭐ **Bu kural ölçümle REDDEDİLDİ (2026-09-28):** ilk deneme
+// (`desc|Desc|hint|Note|about|subtitle` → cümle noktalaması zorunlu)
+// **144 uyarı** üretti ve **hepsi gürültüydü**: buton alt başlığı, kart
+// açıklaması ve uygulama sloganı ("Identify food by photo or text") **tüm
+// dillerde** noktalama olmadan biter. Kural "eksik çeviri" değil, "evrensiz
+// stil kuralı" üretiyordu — yanlış güven ve gürültü demek.
+//
+// Yerine **göreli** kural kondu: bir anahtar **başka bir anahtarla aynı
+// İngilizce değeri** taşıyorsa, hedef dilde ikisinin de aynı kalması beklenir
+// (biri çevrilmiş, diğeri çevrilmemiş → kullanıcı aynı ekranda iki farklı
+// dilde aynı metni görür). Aynı desen **birden çok dilde** bozulursa hata,
+// tek dilde ise uyarı: tek dilde olan çoğu zaman kültürel bir eşleştirmedir
+// ("Version {version}" de/fr'de İngilizceyle aynı yazılır).
+const sameEn = new Map(); // en değeri -> anahtarlar
+for (const key of refKeys) {
+  const v = String(flat[REFERENCE_LANG][key]).trim();
+  if (v === '') continue;
+  if (!sameEn.has(v)) sameEn.set(v, []);
+  sameEn.get(v).push(key);
+}
+for (const [enValue, keys] of sameEn) {
+  if (keys.length < 2) continue;
+  for (const file of files) {
+    if (file === REFERENCE_LANG) continue;
+    // Bu dilde bu İngilizce değeri taşıyan anahtarların kümesi.
+    const got = new Set(
+      keys.filter((k) => String(flat[file][k]).trim() === enValue),
+    );
+    // Kısmi kopya: bazı anahtarlar çevrilmiş, bazıları aynen kalmış.
+    if (got.size > 0 && got.size < keys.length) {
+      const stillEnglish = keys.filter((k) => got.has(k));
+      const translated = keys.filter((k) => !got.has(k));
+      errors.push(
+        `${file}: aynı metnin bir kopyası çevrilmiş, diğeri çevrilmemiş — ` +
+          `${JSON.stringify(enValue.slice(0, 40))}: ` +
+          `çevrilmemiş ${stillEnglish.join(', ')} · çevrilmiş ${translated.join(', ')}`,
       );
     }
   }

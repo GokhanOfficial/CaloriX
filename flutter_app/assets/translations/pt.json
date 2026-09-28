@@ -133,7 +133,6 @@
       "conflict": "Este registro foi atualizado em outro dispositivo. A lista foi atualizada.",
       "nameMissing": "Este alimento não tem nome guardado. Escreva um nome para guardar."
     },
-    "fiberG": "Fibra (g)",
     "photoTooLarge": "Foto muito grande",
     "flash": "Flash",
     "amountRequired": "Quantidade obrigatória",
@@ -338,14 +337,12 @@
         "water": "Lembrete de água",
         "dailyLog": "Lembrete de registro diário",
         "weeklySummary": "Resumo semanal",
-        "goalAchieved": "Meta atingida",
         "startHour": "Hora de início",
         "endHour": "Hora de término",
         "intervalHours": "Intervalo (horas)",
         "summaryDay": "Dia",
         "summaryHour": "Hora",
         "channelNote": "Push/e-mail ao nível da conta. Os interruptores acima aplicam-se a todos os lembretes abaixo.",
-        "serverScope": "Como são enviados a partir da sua conta, estes lembretes continuam a chegar mesmo quando este dispositivo está desligado ou é trocado. Os lembretes de refeições da secção seguinte ficam apenas neste dispositivo.",
         "rangeDay": "Os lembretes são enviados neste intervalo ({start} → {end}). Para um intervalo noturno, escolha um horário final anterior ao inicial, por exemplo 21:00 → 09:00.",
         "rangeNight": "Intervalo noturno: {start} → {end} (atravessa a meia-noite)."
       },

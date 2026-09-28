@@ -133,7 +133,6 @@
       "conflict": "이 항목은 다른 기기에서 업데이트되었습니다. 목록을 새로 고쳤습니다.",
       "nameMissing": "이 음식에는 저장된 이름이 없습니다. 저장하려면 이름을 입력하세요."
     },
-    "fiberG": "식이섬유 (g)",
     "photoTooLarge": "사진이 너무 큽니다",
     "flash": "플래시",
     "amountRequired": "양을 입력하세요",
@@ -338,14 +337,12 @@
         "water": "물 섭취 알림",
         "dailyLog": "일일 기록 알림",
         "weeklySummary": "주간 요약",
-        "goalAchieved": "목표 달성",
         "startHour": "시작 시간",
         "endHour": "종료 시간",
         "intervalHours": "간격 (시간)",
         "summaryDay": "요일",
         "summaryHour": "시간",
         "channelNote": "계정 수준의 푸시/이메일. 위 스위치는 아래의 모든 알림에 적용됩니다.",
-        "serverScope": "계정에서 발송되므로 이 기기를 끄거나 기기를 바꾸어도 계속 도착합니다. 다음 섹션의 식사 알림은 이 기기에만 저장됩니다.",
         "rangeDay": "이 시간대에 알림이 전송됩니다({start} → {end}). 야간 범위를 사용하려면 종료 시간을 시작 시간보다 앞쪽으로 선택하세요(예: 21:00 → 09:00).",
         "rangeNight": "야간 범위: {start} → {end} (자정을 넘습니다)."
       },
@@ -493,7 +490,7 @@
     "footer": {
       "madeWith": "사랑으로 만듦",
       "inTurkey": "터키에서",
-      "copyright": "© 2025 CaloriX. All rights reserved."
+      "copyright": "© 2025 CaloriX. 모든 권리 보유."
     }
   },
   "addFood": {

@@ -133,7 +133,6 @@
       "conflict": "Cette entrée a été modifiée sur un autre appareil. La liste a été actualisée.",
       "nameMissing": "Cet aliment n’a pas de nom enregistré. Saisissez un nom pour enregistrer."
     },
-    "fiberG": "Fibres (g)",
     "photoTooLarge": "Photo trop volumineuse",
     "flash": "Flash",
     "amountRequired": "Quantité requise",
@@ -338,14 +337,12 @@
         "water": "Rappel d'hydratation",
         "dailyLog": "Rappel de saisie quotidienne",
         "weeklySummary": "Résumé hebdomadaire",
-        "goalAchieved": "Objectif atteint",
         "startHour": "Heure de début",
         "endHour": "Heure de fin",
         "intervalHours": "Intervalle (heures)",
         "summaryDay": "Jour",
         "summaryHour": "Heure",
         "channelNote": "Push/e-mail au niveau du compte. Les interrupteurs ci-dessus s’appliquent à tous les rappels ci-dessous.",
-        "serverScope": "Envoyés depuis votre compte, ces rappels continuent d’arriver même si cet appareil est éteint ou remplacé. Les rappels de repas de la section suivante restent sur cet appareil uniquement.",
         "rangeDay": "Les rappels sont envoyés dans cette plage ({start} → {end}). Pour une plage nocturne, choisissez une heure de fin antérieure à l’heure de début, par exemple 21:00 → 09:00.",
         "rangeNight": "Plage nocturne : {start} → {end} (passe minuit)."
       },

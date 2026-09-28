@@ -60,7 +60,7 @@
     "pushBlocked": "Notifiche push bloccate",
     "pushBlockedDesc": "Consenti le notifiche nelle impostazioni del browser.",
     "push": "Push",
-    "email": "Email"
+    "email": "E-mail"
   },
   "dialogs": {
     "add": "Aggiungi",
@@ -133,7 +133,6 @@
       "conflict": "Questa voce è stata aggiornata su un altro dispositivo. L'elenco è stato aggiornato.",
       "nameMissing": "Questo alimento non ha un nome salvato. Inserisci un nome per salvare."
     },
-    "fiberG": "Fibre (g)",
     "photoTooLarge": "Foto troppo grande",
     "flash": "Flash",
     "amountRequired": "Quantità richiesta",
@@ -338,14 +337,12 @@
         "water": "Promemoria acqua",
         "dailyLog": "Promemoria registro giornaliero",
         "weeklySummary": "Riepilogo settimanale",
-        "goalAchieved": "Obiettivo raggiunto",
         "startHour": "Ora di inizio",
         "endHour": "Ora di fine",
         "intervalHours": "Intervallo (ore)",
         "summaryDay": "Giorno",
         "summaryHour": "Ora",
         "channelNote": "Push/e-mail a livello di account. Le interruttori sopra si applicano a tutti i promemoria qui sotto.",
-        "serverScope": "Essendo inviati dal tuo account, questi promemoria continuano ad arrivare anche quando questo dispositivo è spento o cambiato. I promemoria dei pasti nella sezione successiva restano solo su questo dispositivo.",
         "rangeDay": "I promemoria vengono inviati in questo intervallo ({start} → {end}). Per un intervallo notturno scegli un orario di fine precedente a quello di inizio, ad esempio 21:00 → 09:00.",
         "rangeNight": "Intervallo notturno: {start} → {end} (attraversa la mezzanotte)."
       },
