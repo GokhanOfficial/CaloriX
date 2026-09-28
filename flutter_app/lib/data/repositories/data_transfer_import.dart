@@ -27,6 +27,9 @@ const List<String> kImportTables = <String>[
   'meal_entries',
   'water_entries',
   'weight_entries',
+  'favorite_foods',
+  'recent_foods',
+  'notification_preferences',
 ];
 
 /// Bir satırın yazıma hazır hâli.
@@ -44,8 +47,9 @@ class PlannedRow {
   /// Yedekteki `id` — hata raporlarında kullanıcıya gösterilir.
   final String? backupId;
 
-  /// `foods` için gıda adı; `food_nutrition`/`meal_entries` için
-  /// **başvurulan gıdanın adı** (yeni `food_id`'yi bulmak için).
+  /// `foods` için gıda adı; `food_nutrition`/`meal_entries`/
+  /// `favorite_foods`/`recent_foods` için **başvurulan gıdanın adı**
+  /// (yeni `food_id`'yi bulmak için).
   ///
   /// Gıda adları plan içinde benzersizdir (yedekteki tekrar eden adlar
   /// atlanır), bu yüzden ad üzerinden eşleme `id` üzerinden eşlemeden daha
@@ -68,11 +72,29 @@ class ImportPlan {
   final List<PlannedRow> water = [];
   final List<PlannedRow> weights = [];
 
+  /// `favorite_foods` / `recent_foods` — `food_id` **yeni** gıda id'sidir
+  /// (`backupName` üzerinden eşlenir, bkz. [PlannedRow.backupName]).
+  final List<PlannedRow> favorites = [];
+  final List<PlannedRow> recents = [];
+
+  /// `notification_preferences` — `UNIQUE(user_id, notification_type)`.
+  final List<PlannedRow> notificationPrefs = [];
+
   /// Yedekte tekrar eden (atlanan) besin `food_id`'leri.
   final Set<String> nutritionIds = <String>{};
   final Set<String> mealKeys = <String>{};
   final Set<String> waterKeys = <String>{};
   final Set<String> weightKeys = <String>{};
+
+  /// `favorite_foods` / `recent_foods` dedup anahtarı = **gıda adı**
+  /// (`UNIQUE(user_id, food_id)`; `food_id` import'ta yeni UUID alır, bu
+  /// yüzden plan aşamasında ad üzerinden tekilleştirmek zorunlu).
+  final Set<String> favoriteNames = <String>{};
+  final Set<String> recentNames = <String>{};
+
+  /// `notification_preferences` dedup anahtarı = `notification_type`
+  /// (`UNIQUE(user_id, notification_type)`).
+  final Set<String> notificationTypes = <String>{};
 
   /// Yedek gıda `id`si → gıda **adı**. `food_nutrition` ve `meal_entries`
   /// yedekteki eski `food_id` ile referans verir; import'ta bu id'ler yeni
@@ -89,12 +111,21 @@ class ImportPlan {
   final Set<String> mealDates = <String>{};
   final Set<String> waterInstants = <String>{};
   final Set<String> weightDates = <String>{};
+  final Set<String> notificationTypeList = <String>{};
 
   /// DB'de zaten var olanlar (faz 2'de doldurulur) → bu satırlar yazılmaz.
   final Set<String> existingFoodNames = <String>{};
   final Set<String> existingMealKeys = <String>{};
   final Set<String> existingWaterKeys = <String>{};
   final Set<String> existingWeightDates = <String>{};
+
+  /// `favorite_foods`/`recent_foods` için DB'de **zaten favorilenen** gıda
+  /// adları (kullanıcının kendi gıdaları içinde eşlenir).
+  final Set<String> existingFavoriteNames = <String>{};
+  final Set<String> existingRecentNames = <String>{};
+
+  /// DB'de zaten tanımlı bildirim tercihleri (`notification_type`).
+  final Set<String> existingNotificationTypes = <String>{};
 
   /// DB'de zaten var olan gıda adı → `id`. Yedeğin `foods` listesi bu tabloyu
   /// doldurmuyorsa öğünler/besin satırları mevcut gıdaya bağlanır.
@@ -117,12 +148,21 @@ class ImportPlan {
 
   /// Planlanan toplam satır (yazılacak olanlar).
   int get plannedRows =>
-      foods.length + nutrition.length + meals.length + water.length + weights.length;
+      foods.length +
+      nutrition.length +
+      meals.length +
+      water.length +
+      weights.length +
+      favorites.length +
+      recents.length +
+      notificationPrefs.length;
 
   @override
   String toString() => 'ImportPlan(foods: ${foods.length}, '
       'nutrition: ${nutrition.length}, meals: ${meals.length}, '
-      'water: ${water.length}, weights: ${weights.length})';
+      'water: ${water.length}, weights: ${weights.length}, '
+      'favorites: ${favorites.length}, recents: ${recents.length}, '
+      'notifPrefs: ${notificationPrefs.length})';
 }
 
 /// Tek bir satır hakkında bulgu.

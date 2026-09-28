@@ -817,8 +817,10 @@ void main() {
         'meal_entries': [
           {
             ...mealRow(id: 'm1'),
-            'created_at':
-                '${DateTime.now().toUtc().add(const Duration(days: 400)).toIso8601String()}',
+            'created_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(days: 400))
+                .toIso8601String(),
           },
         ],
       }));

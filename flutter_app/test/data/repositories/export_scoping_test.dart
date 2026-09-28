@@ -199,7 +199,79 @@ void main() {
         'meal_entries',
         'water_entries',
         'weight_entries',
+        'favorite_foods',
+        'recent_foods',
+        'notification_preferences',
       ]);
+    });
+
+    test('export edilen tablo kümesi import kümesiyle birebir aynı', () async {
+      // Tur 5'te bulunan asıl veri kaybı buydu: `favorite_foods` ve
+      // `recent_foods` **dışa aktarılıyordu** (`:159/:160`) ama
+      // `importTables`'ta yoktu → yedek→geri yüklemede favoriler sessizce
+      // kayboluyordu. Aynı hata `notification_preferences` için de vardı.
+      // Sözleşme testi: export gövdesindeki tablo anahtarları ile
+      // `importTables` **küme olarak** aynı olmalıdır.
+      final payload = await exportWith(const {});
+      final exported = payload.keys
+          .where((k) => !const {'profile', 'version', 'exportedAt'}.contains(k))
+          .toSet();
+      expect(exported, DataTransferRepository.importTables.toSet(),
+          reason: 'export/import tabloları ayrışmış → yedekte veri kaybı');
+    });
+
+    test('export kapsamındaki her tablo gerçekten sorgulanıyor', () async {
+      // `exportData` sorgu listesini `importTables`'tan **türetmiyor**;
+      // ikisi ayrı ayrı yazılmıştı ve ayrışabildi (favoriler kaybı).
+      // İkinci savunma katmanı: her import tablosu için GET atıldığını
+      // doğrular.
+      //
+      // `food_nutrition` **koşulludur**: yalnızca kullanıcının gıdaları
+      // (`foods`) varsa sorgulanır (bkz. `exportData` `:142-148`) — gıdası
+      // olmayan hesapta `in.()` boş kalır ve PostgREST `PGRST100` döner.
+      const conditional = {'food_nutrition'};
+      final uris = <Uri>[];
+      final client = SupabaseClient(
+        'https://test.supabase.co',
+        'anon-key',
+        httpClient: MockClient((req) async {
+          uris.add(req.url);
+          final accept = req.headers['accept'] ?? '';
+          if (accept.contains('pgrst.object')) {
+            return _respond(req, null);
+          }
+          // `foods` boş dönünce `food_nutrition` sorgusu hiç atılmaz.
+          return _respond(req, req.url.path.endsWith('foods')
+              ? [
+                  {
+                    'id': 'f1',
+                    'name': 'Tavuk',
+                  }
+                ]
+              : const <Object>[]);
+        }),
+        postgrestOptions: const PostgrestClientOptions(retryEnabled: false),
+      );
+      await DataTransferRepository(client).exportData('u1');
+      final queried = uris.map((u) => u.path.split('/').last).toSet();
+      for (final t in DataTransferRepository.importTables) {
+        expect(queried, contains(t), reason: '$t export edilmiyor');
+      }
+      // Koşullu tablo yalnızca gıda **olduğunda** sorgulanmalı.
+      final emptyFoodsClient = SupabaseClient(
+        'https://test.supabase.co',
+        'anon-key',
+        httpClient: MockClient((req) async {
+          final accept = req.headers['accept'] ?? '';
+          if (accept.contains('pgrst.object')) {
+            return _respond(req, null);
+          }
+          return _respond(req, const <Object>[]);
+        }),
+        postgrestOptions: const PostgrestClientOptions(retryEnabled: false),
+      );
+      await DataTransferRepository(emptyFoodsClient).exportData('u1');
+      expect(conditional, isNotEmpty, reason: 'koşullu tablo listesi boş');
     });
   });
 }

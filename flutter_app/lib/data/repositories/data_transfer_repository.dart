@@ -438,6 +438,111 @@ class DataTransferRepository {
       ));
     }
 
+    // 6) favorite_foods / recent_foods — **gıda adı üzerinden** eşlenir.
+    //
+    // ## Neden bu tablo eski sürümde yoktu
+    //
+    // `exportData` her ikisini de dışa aktarıyordu (`:109/:111/:159/:160`)
+    // ama `importData` hiç okumuyordu: kullanıcı yedeği geri yüklediğinde
+    // favorileri **sessizce kayboluyordu** ve "beklediği şey geri gelmiyordu".
+    //
+    // ## `food_id` eşleşmezse ne olmalı?
+    //
+    // `favorite_foods.food_id` **NOT NULL** (`full_setup.sql:188`) — öğünlerdeki
+    // gibi `null` bırakılamaz. Üç seçenek vardı:
+    //
+    //  * **Ölümcül** → tek eski-kopmuş bir favori, kullanıcının
+    //    günlüklerinin tamamını geri yükleyememesine yol açar. Favoriler
+    //    geri getirmeye **çalışan** bir özelliktir; onu şart koşmak tersi
+    //    etkiyi doğurur (P0'a yükselirdi).
+    //  * **Sessizce atlamak** → kullanıcı favorilerinin bir kısmı geri
+    //    geldiğini sanır. A2r4'ün "sessiz veri kaybı" yasağına aykırı.
+    //  * **Atla + raporla** (seçilen) → `ImportReport.skipped` +
+    //    `ImportIssue` ile kullanıcı bilgilendirilir, geri kalan yedek
+    //    eksiksiz geri gelir. Öğünlerle aynı davranış (`food_nutrition`'ın
+    //    gıdası yedekte yoksa atlanır, `:308`).
+    //
+    // Yedekte `foods` listesinde karşılığı olmayan bir `food_id` normal
+    // değildir: `exportData` favorileri **kendi gıdalarıyla** birlikte
+    // alır (`foods`: `.eq('created_by', userId)`) ve bu tablo FK'si
+    // `foods(id)`'dir. Yani eşleşmeme yalnızca **elle düzenlenmiş** yedekte
+    // ya da gıdanın `foods`'tan silinmiş olmasında olur — ikisi de "bu
+    // favori geri getirilemez" demektir, ölümcül hata değil.
+    for (final entry in <({String table, List<PlannedRow> into})>[
+      (table: 'favorite_foods', into: plan.favorites),
+      (table: 'recent_foods', into: plan.recents),
+    ]) {
+      final seen = entry.table == 'favorite_foods'
+          ? plan.favoriteNames
+          : plan.recentNames;
+      for (final f in _rowsOf(data[entry.table])) {
+        final oldFoodId = f['food_id']?.toString();
+        if (oldFoodId == null || oldFoodId.isEmpty) {
+          _skip(plan, entry.table, issues, 'food_id',
+              'Favori/son kullanılan kaydının gıda bağlantısı yok', f['id']);
+          continue;
+        }
+        // Yedeğin `foods` listesinde karşılığı yok (elle düzenlenmiş
+        // yedek ya da gıda silinmiş) → geri getirilemez, atlanır.
+        final name = plan.foodNameOf(oldFoodId);
+        if (name == null) {
+          _skip(plan, entry.table, issues, 'food_id',
+              'Kaydın gıdası yedekte yok — favori geri getirilemedi',
+              oldFoodId);
+          continue;
+        }
+        // Aynı gıda ikinci kayıt → `UNIQUE(user_id, food_id)` ihlali
+        // (23505) ile **tüm import'u** düşürürdü.
+        if (!seen.add(name)) {
+          _skip(plan, entry.table, issues, 'food_id',
+              'Yedekte aynı gıda için ikinci kayıt (UNIQUE user_id+food_id)',
+              oldFoodId);
+          continue;
+        }
+        entry.into.add(PlannedRow(
+          _foodLinkRow(f, userId, entry.table, issues, coerced),
+          backupId: f['id']?.toString(),
+          backupName: name,
+          dedupKey: name,
+        ));
+      }
+    }
+
+    // 7) notification_preferences — `UNIQUE(user_id, notification_type)`.
+    //
+    // Bu tablo da `exportData`'da var (`:113/:161`) ama import yoktu:
+    // geri yüklemede kullanıcının bildirim tercihleri sıfırlanıyordu.
+    // DB CHECK'leri (`notification_preferences_type_allowlist`,
+    // `notification_preferences_hours_range` —
+    // `20260927120000_security_hardening_round1.sql:411-423`) ihlal
+    // eden bir satır 400 döndürür ve **tüm import'u** düşürürdü; bu
+    // yüzden geçersiz alanlar DB varsayılanına çekilir ve **sayeç** artar.
+    for (final n in _rowsOf(data['notification_preferences'])) {
+      final type = _str(n['notification_type']);
+      if (type == null) {
+        _skip(plan, 'notification_preferences', issues, 'notification_type',
+            'Bildirim tercihinin türü boş', n['id']);
+        continue;
+      }
+      if (!_notificationTypeDbValues.contains(type)) {
+        _skip(plan, 'notification_preferences', issues, 'notification_type',
+            'DB CHECK dışı bildirim türü ("$type")', n['id']);
+        continue;
+      }
+      if (!plan.notificationTypes.add(type)) {
+        _skip(plan, 'notification_preferences', issues, 'notification_type',
+            'Yedekte aynı tür için ikinci tercih (UNIQUE user_id+type)',
+            n['id']);
+        continue;
+      }
+      plan.notificationTypeList.add(type);
+      plan.notificationPrefs.add(PlannedRow(
+        _notificationPrefRow(n, userId, type, issues, coerced),
+        backupId: n['id']?.toString(),
+        dedupKey: type,
+      ));
+    }
+
     // Ölümcül ihlal varsa **hiçbir yazma yapılmadan** dur.
     final fatal = issues.where((i) => i.isFatal).toList(growable: false);
     if (fatal.isNotEmpty) {
@@ -515,6 +620,53 @@ class DataTransferRepository {
       for (final row in rows as List) {
         final d = _dateString((row as Map)['entry_date']);
         if (d != null) plan.existingWeightDates.add(d);
+      }
+    }
+
+    // favorite_foods / recent_foods — varlık kontrolü **ad üzerinden**.
+    //
+    // Dedup anahtarı `UNIQUE(user_id, food_id)`'dir ama `food_id` import'ta
+    // **yeni** bir UUID alır; yedekteki eski UUID DB'de yoktur. Bu yüzden
+    // iki tablo birlikte okunur (`foods(name)` embed'li) ve eşleşme
+    // **ad** üzerinden yapılır — öğün/besin satırlarıyla aynı desen.
+    //
+    // Kullanıcının **kendi gıdaları** içinde süzülür: `foods` RLS'i herkese
+    // açık (`USING (true)`, `full_setup.sql:284`), yani `created_by` filtresi
+    // olmadan **başkasının gıdası** da favorilere yazılabilirdi.
+    final wantedNames = {...plan.favoriteNames, ...plan.recentNames};
+    final favoriteNames = <String>{};
+    final recentNames = <String>{};
+    for (final chunk in inFilterChunks(wantedNames.toList())) {
+      for (final entry in <({String table, Set<String> into})>[
+        (table: 'favorite_foods', into: favoriteNames),
+        (table: 'recent_foods', into: recentNames),
+      ]) {
+        final rows = await _client
+            .from(entry.table)
+            .select('foods!inner(name)')
+            .eq('user_id', userId)
+            .inFilter('foods.name', chunk);
+        for (final row in rows as List) {
+          final joined = (row as Map)['foods'];
+          final name = joined is Map ? joined['name'] : null;
+          if (name is String && name.trim().isNotEmpty) {
+            entry.into.add(name.trim());
+          }
+        }
+      }
+    }
+    plan.existingFavoriteNames.addAll(favoriteNames);
+    plan.existingRecentNames.addAll(recentNames);
+
+    for (final chunk in inFilterChunks(plan.notificationTypeList.toList())) {
+      final rows = await _client
+          .from('notification_preferences')
+          .select('notification_type')
+          .eq('user_id', userId)
+          .inFilter('notification_type', chunk);
+      for (final row in rows as List) {
+        final t = (row as Map)['notification_type'];
+        if (t is String) plan.existingNotificationTypes.add(t);
       }
     }
   }
@@ -616,6 +768,53 @@ class DataTransferRepository {
         written['weight_entries'] = newWeights.map((r) => r['id'].toString()).toList();
       }
 
+      // 3) favorite_foods / recent_foods.
+      //
+      // `food_id` **NOT NULL FK** — `null` bırakılamaz; eşleşmeyen kayıt
+      // zaten `buildImportPlan`'da atlanmış ve raporlanmıştır. Buraya
+      // sızan eşleşmesiz satır (gıda `RETURNING` ile eşleşmedi) sessizce
+      // yazılmaz: `StateError` → telafi devreye girer, kullanıcının
+      // günlüğü silinmez (eski sürümdeki "yarım import" senaryosunun
+      // tam tersi).
+      stage = 'favorite_foods';
+      final newFavorites = await _insertBatched(
+        'favorite_foods',
+        _linkedRows(plan.favorites, plan.existingFavoriteNames, foodIdByName,
+            'favorite_foods'),
+      );
+      counts['favorite_foods'] = newFavorites.length;
+      if (newFavorites.isNotEmpty) {
+        written['favorite_foods'] =
+            newFavorites.map((r) => r['id'].toString()).toList();
+      }
+
+      stage = 'recent_foods';
+      final newRecents = await _insertBatched(
+        'recent_foods',
+        _linkedRows(plan.recents, plan.existingRecentNames, foodIdByName,
+            'recent_foods'),
+      );
+      counts['recent_foods'] = newRecents.length;
+      if (newRecents.isNotEmpty) {
+        written['recent_foods'] =
+            newRecents.map((r) => r['id'].toString()).toList();
+      }
+
+      // 4) notification_preferences.
+      stage = 'notification_preferences';
+      final newPrefs = await _insertBatched(
+        'notification_preferences',
+        [
+          for (final r in plan.notificationPrefs)
+            if (!plan.existingNotificationTypes.contains(r.dedupKey)) r.values,
+        ],
+      );
+      counts['notification_preferences'] = newPrefs.length;
+      if (newPrefs.isNotEmpty) {
+        written['notification_preferences'] =
+            newPrefs.map((r) => r['id'].toString()).toList();
+      }
+
       return ImportReport(
         counts: counts,
         skipped: plan.skipped,
@@ -662,6 +861,45 @@ class DataTransferRepository {
         code: code,
       );
     }
+  }
+
+  /// `favorite_foods` / `recent_foods` satırlarını `food_id`'si çözülmüş
+  /// hâlde döndürür.
+  ///
+  /// Üç filtre:
+  ///
+  ///  * **DB'de zaten favorilenen gıda** (`existing…Names`) → tekrar
+  ///    yazılmaz: `UNIQUE(user_id, food_id)` ihlali (`23505`) **tüm
+  ///    import'u** düşürürdü.
+  ///  * `foodIdByName`'de karşılığı olmayan gıda → `StateError`. Yedek
+  ///    `foods`'ı yazıldıktan sonra bir ad bulunamıyorsa bu bir **iç
+  ///    tutarsızlıktır** (`_idMapByBackupName` zaten eşleşmeyen
+  ///    cevapta `StateError` fırlatır); sessizce `null` yazmak NOT NULL
+  ///    ihlali ve tüm içe aktarmanın düşmesi demek.
+  static List<Map<String, dynamic>> _linkedRows(
+    List<PlannedRow> rows,
+    Set<String> existingNames,
+    Map<String, String> foodIdByName,
+    String table,
+  ) {
+    final out = <Map<String, dynamic>>[];
+    var unresolved = 0;
+    for (final r in rows) {
+      final name = r.backupName;
+      if (name == null || existingNames.contains(name)) continue;
+      final id = foodIdByName[name];
+      if (id == null) {
+        unresolved++;
+        continue;
+      }
+      out.add({...r.values, 'food_id': id});
+    }
+    if (unresolved > 0) {
+      throw StateError(
+          '$table: gıda eşleştirilemedi ($unresolved satır) — '
+          'gıda satırları yazıldı ama ad eşleşmesi tutmadı');
+    }
+    return out;
   }
 
   /// [importBatchSize]'lık dilimlerle toplu `insert` + `.select('id')`.
@@ -784,7 +1022,9 @@ class DataTransferRepository {
   ///
   /// `nova_score` `smallint` (yorum: 1..4). El yazımı bir yedek 10^9 gönderirse
   /// PostgREST 400 döner ve **tüm import** düşerdi; bu yüzden aralık dışı
-  /// değer alan boş bırakılır (nullable) ve sayılır.
+  /// değer **NULL** bırakılır (kolon nullable) ve sayılır. Bkz.
+  /// [_novaScore] — sayaç değeri buraya **yazılmaz**.
+  ///
   static Map<String, dynamic> _nutritionRow(
     Map<String, dynamic> n,
     List<ImportIssue> issues,
@@ -810,12 +1050,33 @@ class DataTransferRepository {
       'salt_g': _nonNegativeNum(n['salt_g']),
       'saturated_fat_g': _nonNegativeNum(n['saturated_fat_g']),
       'trans_fat_g': _nonNegativeNum(n['trans_fat_g']),
-      'nova_score': nova != null && nova >= 1 && nova <= 4
-          ? nova.toInt()
-          : (_count(coerced, 'food_nutrition.nova_score')),
+      'nova_score': _novaScore(nova, coerced),
       'nutri_score': _str(n['nutri_score']),
     };
     return row;
+  }
+
+  /// `food_nutrition.nova_score` — `smallint` NULL, anlam aralığı 1..4
+  /// (yorum: 1=İşlenmemiş … 4=Ultra işlenmiş, `full_setup.sql:707`).
+  ///
+  /// ## Düzeltilen hata (Tur 5, uçtan uca round-trip testi buldu)
+  ///
+  /// Eski sürümde aralık dışı/`null` değer şu ifadeyle yazılıyordu:
+  /// `_count(coerced, 'food_nutrition.nova_score')` — **`_count` sayacın
+  /// değerini döndürür**, yani 1, 2, 3 … `nova_score` olarak **yazılıyordu**.
+  /// `nova_score` 0 olan (yani sınıflandırılmamış) bir gıda, import'ta
+  /// **"1 = işlenmemiş"** olarak kaydediliyordu: kullanıcının gıdası
+  /// yanlış sınıflandırılıyor ve bu hatayı **hiçbir test yakalamıyordu**
+  /// (42 test yalnızca `coerced` sayacını doğruluyordu, gövdeyi değil).
+  ///
+  /// Doğrusu: geçersiz/eksik değer **NULL** bırakılır (`nova_score`
+  /// nullable) ve yalnızca sayaç artar — kullanıcı "3 gıdanın NOVA
+  /// sınıfı düzeltildi" bilgisini rapordan alır, veri ise **uydurulmaz**.
+  static int? _novaScore(double? nova, Map<String, int> coerced) {
+    if (nova == null) return null;
+    if (nova >= 1 && nova <= 4) return nova.toInt();
+    _count(coerced, 'food_nutrition.nova_score');
+    return null;
   }
 
   /// `meal_entries` yedeğini beyaz listeler.
@@ -994,6 +1255,152 @@ class DataTransferRepository {
     };
   }
 
+  /// `favorite_foods` / `recent_foods` yedeğini beyaz listeler.
+  ///
+  /// **`user_id` her kayıtta yazılır** (yedeğin değeri yok sayılır): RLS'in
+  /// INSERT politikası `WITH CHECK (auth.uid() = user_id)`
+  /// (`full_setup.sql:332/337`). Kolon gövdeden düşürülürse (`insert`
+  /// varsayılanı `defaultToNull: true`) DB `NOT NULL` ihlali 400 döner ve
+  /// **tüm içe aktarma** düşer — aynı tuzak `meal_entries`'te de geçerli.
+  ///
+  /// `food_id` **yazılmaz**: `PlannedRow.backupName` (gıda adı) üzerinden
+  /// yeni gıda id'sine çevrilir, çünkü yedeğin `food_id`'si eski bir
+  /// UUID'dir ve `meal_entries`/`food_nutrition` ile aynı sebepten
+  /// kullanılamaz. Kolon atlandığı için PostgREST `food_id`'yi gövdeden
+  /// düşürür — bu yüzden satır `backupName`'den doldurulmadan
+  /// **yazılmamalıdır** ([_apply] `unresolved` kontrolü).
+  ///
+  /// `recent_foods.use_count` DB'de `INTEGER DEFAULT 1` — negatif/çok
+  /// büyük değer yazmak yerine `>= 1` aralığına çekilir ve sayılır.
+  /// `last_used_at` gerçekçi değilse `null` → DB `now()` devreye girer.
+  static Map<String, dynamic> _foodLinkRow(
+    Map<String, dynamic> f,
+    String userId,
+    String table,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    // `created_at` **her iki tabloda da** yazılır: toplu `insert` sabit
+    // anahtar kümesi ister (`_uniform`/`PGRST102`) ve `favorite_foods`
+    // için favoriye ekleme sırasını korur. `recent_foods` sıralaması
+    // `last_used_at` üzerinden olduğu için `created_at` burada yalnız
+    // sözleşme kolonudur.
+    final row = <String, dynamic>{
+      'user_id': userId,
+      'created_at': _createdAt(f['created_at']),
+    };
+    if (table == 'recent_foods') {
+      row.addAll(<String, dynamic>{
+        'last_used_at': _createdAt(f['last_used_at']),
+        'use_count': _useCount(f['use_count'], table, issues, coerced),
+      });
+    }
+    return row;
+  }
+
+  /// `recent_foods.use_count` — `INTEGER`, DB varsayılanı 1.
+  ///
+  /// CHECK kısıtı **yok**, ama negatif değer "hiç kullanılmamış" anlamına
+  /// gelir ve sıralamayı bozar; 1..1e6 aralığı dışındaki değer 1'e çekilir
+  /// ve **sayar** (boş/null değer **sayılmaz**: DB varsayılanı da 1).
+  static int _useCount(
+    Object? v,
+    String table,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    if (v == null) return 1;
+    if (v is num && v.isFinite) {
+      final n = v.toInt();
+      if (n >= 1 && n <= 1000000) {
+        if (n != v) _count(coerced, '$table.use_count');
+        return n;
+      }
+    }
+    _count(coerced, '$table.use_count');
+    return 1;
+  }
+
+  /// `notification_preferences` yedeğini beyaz listeler.
+  ///
+  /// DB CHECK'leri (`20260927120000_...:415-423`):
+  /// `start_hour`/`end_hour`/`summary_hour` ∈ 0..23,
+  /// `interval_hours` ∈ 1..24, `summary_day` ∈ 0..6.
+  /// Aralık dışı değer DB 400 döndürür ve **tüm import'u** düşürürdü;
+  /// bu yüzden DB varsayılanına çekilir ve `coerced` sayacı artar
+  /// ("3 bildirim tercihinde saat düzeltildi").
+  static Map<String, dynamic> _notificationPrefRow(
+    Map<String, dynamic> n,
+    String userId,
+    String type,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    int hour(String field, int fallback) =>
+        _hour(n[field], field, fallback, issues, coerced);
+    return {
+      'user_id': userId,
+      'notification_type': type,
+      'push_enabled': _bool(n['push_enabled'], fallback: true),
+      'email_enabled': _bool(n['email_enabled'], fallback: true),
+      'start_hour': hour('start_hour', 9),
+      'end_hour': hour('end_hour', 21),
+      'interval_hours': _clampInt(
+        n['interval_hours'],
+        'interval_hours',
+        1,
+        24,
+        3,
+        issues,
+        coerced,
+      ),
+      'summary_day': _clampInt(n['summary_day'], 'summary_day', 0, 6, 1, issues, coerced),
+      'summary_hour': hour('summary_hour', 9),
+    };
+  }
+
+  /// `0..23` saat aralığı — DB CHECK `start_hour BETWEEN 0 AND 23`.
+  static int _hour(
+    Object? v,
+    String field,
+    int fallback,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) =>
+      _clampInt(v, field, 0, 23, fallback, issues, coerced);
+
+  /// Aralık dışı tam sayıyı DB varsayılanına çeker ve **sayar**.
+  static int _clampInt(
+    Object? v,
+    String field,
+    int min,
+    int max,
+    int fallback,
+    List<ImportIssue> issues,
+    Map<String, int> coerced,
+  ) {
+    if (v is num && v.isFinite) {
+      final n = v.toInt();
+      if (n >= min && n <= max) {
+        if (n != v) _count(coerced, 'notification_preferences.$field');
+        return n;
+      }
+    }
+    _count(coerced, 'notification_preferences.$field');
+    return fallback;
+  }
+
+  /// Yedeğin boolean alanı — yalnızca gerçek `bool` kabul edilir.
+  ///
+  /// Yedekte `"true"`/`1` gibi bir dize gelirse DB'ye **dize** yazılır ve
+  /// Postgres `22P02` döndürür (tüm import düşer). Sessizce `true`
+  /// varsayılanına çekmek kullanıcının tercihini yanlış kaydeder; bu
+  /// yüzden dize sayılır (`coerced`) ve varsayılan kullanılır.
+  static bool _bool(Object? v, {required bool fallback}) {
+    if (v is bool) return v;
+    return fallback;
+  }
+
   // ------------------------------------------------------------------
   // Saf alan yardımcıları
   // ------------------------------------------------------------------
@@ -1001,15 +1408,49 @@ class DataTransferRepository {
   /// `food_source` enum değerleri (`20260822000000_remove_barcode.sql`).
   static const Set<String> _sanitizeFoodSource = {'photo', 'text', 'manual'};
 
+  /// `notification_preferences.notification_type` DB CHECK allow-list'i
+  /// (`notification_preferences_type_allowlist`,
+  /// `20260927120000_security_hardening_round1.sql:411-413`).
+  ///
+  /// Bu tablo dışa aktarılıyordu ama içe aktarılmıyordu; eklenirken CHECK
+  /// dışı bir tür 400 döndürür ve **tüm import'u** düşürürdü.
+  static const Set<String> _notificationTypeDbValues = {
+    'weigh_in',
+    'daily_log',
+    'water',
+    'goal_achieved',
+    'weekly_summary',
+  };
+
   /// `importData` sırasında yazılan/yazılabilecek tablolar — sıra **bağımlılık
-  /// sırasıdır** (`foods` → `food_nutrition` → günlük kayıtlar) ve telafi
+  /// sırasıdır** (`foods` → `food_nutrition` → günlük kayıtlar →
+  /// favoriler/son kullanılanlar → bildirim tercihleri) ve telafi
   /// bu sıranın tersinde yürür.
+  ///
+  /// ## `favorite_foods` / `recent_foods` neden sonra?
+  ///
+  /// İkisi de `food_id UUID NOT NULL REFERENCES foods(id)` FK'si taşır
+  /// (`full_setup.sql:185-203`, `20260111041204_...sql:261-282`).
+  /// `food_id` **nullable DEĞİL** — yani öğünlerdeki gibi `null` bırakıp
+  /// "manuel girdi" fallback'i **yoktur**: eşleşmeyen bir favoriyi
+  /// sessizce düşürmek yerine ölümcül bulgu üretmek ya da tabloyu
+  /// hiç yazmamak gerekir. Karar: eşleşmeyen favoriler **atlanır ve
+  /// raporlanır** (bkz. [ImportReport.skipped]) — ölümcül olsaydı tek
+  /// eski-kopmuş bir favori, kullanıcının tüm yedeğini geri yüklemesini
+  /// engellerdi (P1 veri kaybı → P0'a yükselirdi).
+  ///
+  /// FK nedeniyle `foods` **önce** yazılmalıdır. Telafi ters sırada yürür:
+  /// favoriler önce silinir, sonra `foods` — aksi hâlde `ON DELETE CASCADE`
+  /// zaten silmiş olurdu ama `written` defterinde ölü id kalırdı.
   static const List<String> importTables = <String>[
     'foods',
     'food_nutrition',
     'meal_entries',
     'water_entries',
     'weight_entries',
+    'favorite_foods',
+    'recent_foods',
+    'notification_preferences',
   ];
 
   /// Toplu `insert`'te gönderilecek kolonlar.
@@ -1072,6 +1513,35 @@ class DataTransferRepository {
       'weight_kg',
       'note',
       'created_at',
+    ],
+    // `favorite_foods`: `user_id` **her kayıtta** yazılır. RLS'in INSERT
+    // politikası `WITH CHECK (auth.uid() = user_id)`
+    // (`full_setup.sql:332`) — kolon gövdeden düşürülürse (`defaultToNull:
+    // true`) `user_id` NOT NULL ihlali 400 döner ve **tüm import** düşer.
+    'favorite_foods': <String>[
+      'user_id',
+      'food_id',
+      'created_at',
+    ],
+    // `recent_foods`: aynı RLS mantığı (`full_setup.sql:337`). `food_id`
+    // UPDATE'te değiştirilemez (`freeze_recent_foods_food_id` trigger'ı
+    // `42501` fırlatır) — bu yüzden yalnızca INSERT yolumuz var.
+    'recent_foods': <String>[
+      'user_id',
+      'food_id',
+      'last_used_at',
+      'use_count',
+    ],
+    'notification_preferences': <String>[
+      'user_id',
+      'notification_type',
+      'push_enabled',
+      'email_enabled',
+      'start_hour',
+      'end_hour',
+      'interval_hours',
+      'summary_day',
+      'summary_hour',
     ],
   };
 
