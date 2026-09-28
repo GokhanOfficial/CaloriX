@@ -1,16 +1,26 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/observability/app_logger.dart';
 import '../../data/models/chat_message.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/chat_repository.dart';
-import '../../core/observability/app_logger.dart';
+import 'chat_attachment.dart';
+import 'chat_widgets.dart';
+
+/// Bölme sonrası geriye dönük uyum.
+///
+/// `ChatAttachmentLimits` ve `PendingAttachment` bölme öncesi bu dosyada
+/// yaşıyordu; dışarıdaki çağıranlar (ve `test/features/chat/
+/// chat_page_a4r3_test.dart`) tek import ile erişiyordu. Yeniden
+/// dışa aktarma onları değiştirmeden erişilebilir tutar — yeni import
+/// yazmaya zorlamak, dokunmadığım bir test dosyasını düzenlemeyi
+/// gerektirirdi.
+export 'chat_attachment.dart' show ChatAttachmentLimits, PendingAttachment;
 
 /// AI sohbet sayfası — web `ChatPage.tsx` karşılığı.
 ///
@@ -82,7 +92,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   bool _loadFailed = false;
 
   /// Seçili ama henüz gönderilmemiş ek dosyaları (web `selectedFiles`).
-  final List<_PendingAttachment> _pendingFiles = [];
+  final List<PendingAttachment> _pendingFiles = [];
 
   /// `_pendingFiles` içindeki tüm eklerin toplam ham bayt boyutu.
   ///
@@ -345,7 +355,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       }
       final name = picked.name.split('/').last;
       final mime = _mimeTypeForPath(name);
-      setState(() => _pendingFiles.add(_PendingAttachment(
+      setState(() => _pendingFiles.add(PendingAttachment(
             bytes: bytes,
             name: name,
             mimeType: mime,
@@ -416,9 +426,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   ),
                 ),
                 child: _loading
-                    ? const _ChatSkeleton()
+                    ? const ChatSkeleton()
                     : _loadFailed && _messages.isEmpty
-                        ? _LoadErrorBody(onRetry: _loadInitial)
+                        ? LoadErrorBody(onRetry: _loadInitial)
                         : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(12),
@@ -445,7 +455,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           // çöküyordu (`_hasMore` varsayılan `true`).
                           final headerLen = (_hasMore ? 1 : 0) + (_loadingMore ? 1 : 0);
                           if (_hasMore && index == 0) {
-                            return _LoadEarlierHeader(
+                            return LoadEarlierHeader(
                               loading: _loadingMore,
                               onTap: _loadingMore ? null : _loadMore,
                             );
@@ -467,11 +477,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           if (_sending && i == visible.length) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: _ThinkingIndicator(),
+                              child: ThinkingIndicator(),
                             );
                           }
                           final message = visible[i];
-                          return _MessageBubble(message: message);
+                          return MessageBubble(message: message);
                         },
                       ),
               ),
@@ -577,397 +587,4 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         userId: ref.read(currentUserProvider)?.id ?? 'system',
         content: 'chat.welcomeMessage'.tr(),
       );
-}
-
-/// Sohbet geçmişi başlangıcı — bellek penceresinin dışında kalan eski
-/// mesajları geri çağırmak için düğme. `_loadMore` ayrıca yukarı kaydırma
-/// ile de tetiklenir; düğme, kaydırmayan (klavye/dokunmatik yardımcı) kullanıcı
-/// için erişilebilir yedektir.
-class _LoadEarlierHeader extends StatelessWidget {
-  const _LoadEarlierHeader({required this.loading, required this.onTap});
-
-  final bool loading;
-  final Future<void> Function()? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (loading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Center(
-        child: TextButton.icon(
-          onPressed: onTap,
-          icon: const Icon(Icons.history, size: 18),
-          label: Text('chat.loadEarlier'.tr()),
-          style: TextButton.styleFrom(
-            foregroundColor: theme.colorScheme.onSurfaceVariant,
-            textStyle: theme.textTheme.bodySmall,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Sohbet geçmişi yüklenemedi — boş sohbet yerine hata + retry gösterilir.
-class _LoadErrorBody extends StatelessWidget {
-  const _LoadErrorBody({required this.onRetry});
-
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: 48,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text('chat.errors.load'.tr(), textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          FilledButton.tonal(
-            onPressed: onRetry,
-            child: Text('common.resend'.tr()),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Asistan mesajı için hoş geldiniz metni (boş liste durumunda).
-class _ThinkingIndicator extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'chat.thinking'.tr(),
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-        ),
-      ],
-    );
-  }
-}
-
-/// Tek mesaj balonu — kullanıcı sağda, asistan solda (web parity).
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
-
-  final ChatMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUser = message.isUser;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Align(
-        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width * 0.84,
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isUser
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!isUser)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.smart_toy,
-                            size: 14, color: theme.colorScheme.primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          'CaloriX AI',
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: theme.colorScheme.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (message.content != null && message.content!.isNotEmpty)
-                  isUser
-                      ? Text(
-                          message.content!,
-                          style: TextStyle(
-                            color: theme.colorScheme.onPrimary,
-                          ),
-                        )
-                      : MarkdownBody(
-                          data: message.content!,
-                          styleSheet: MarkdownStyleSheet(
-                            p: theme.textTheme.bodyMedium,
-                            pPadding: const EdgeInsets.symmetric(vertical: 2),
-                            listBullet: theme.textTheme.bodyMedium,
-                            strong: theme.textTheme.bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                if (message.attachments.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final a in message.attachments)
-                        _AttachmentImage(attachment: a),
-                    ],
-                  ),
-                ],
-                if (message.toolCalls.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _ToolUseBox(
-                    label: 'chat.toolUse'.tr(),
-                    toolCalls: message.toolCalls,
-                    toolResults: const [],
-                  ),
-                ],
-                if (message.toolResults.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _ToolUseBox(
-                    label: 'chat.toolResult'.tr(),
-                    toolCalls: const [],
-                    toolResults: message.toolResults,
-                  ),
-                ],
-                const SizedBox(height: 4),
-                Text(
-                  _formatTime(message.createdAt),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: isUser
-                        ? theme.colorScheme.onPrimary.withValues(alpha: 0.7)
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatTime(String createdAt) {
-    if (createdAt.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(createdAt).toLocal();
-      final h = dt.hour.toString().padLeft(2, '0');
-      final m = dt.minute.toString().padLeft(2, '0');
-      return '$h:$m';
-    } catch (_) {
-      return '';
-    }
-  }
-}
-
-/// Bir ekin imzalı URL'sini gösterir (web/repo ile aynı görüntü).
-class _AttachmentImage extends StatelessWidget {
-  const _AttachmentImage({required this.attachment});
-
-  final ChatAttachment attachment;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = attachment.signedUrl;
-    if (url == null || url.isEmpty) {
-      return Container(
-        width: 112,
-        height: 112,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.broken_image_outlined),
-      );
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        url,
-        width: 112,
-        height: 112,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
-          width: 112,
-          height: 112,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: const Icon(Icons.broken_image_outlined),
-        ),
-      ),
-    );
-  }
-}
-
-/// Araç çağrısı / sonucu kartı — çevrilmiş araç adıyla.
-class _ToolUseBox extends StatelessWidget {
-  const _ToolUseBox({
-    required this.label,
-    required this.toolCalls,
-    required this.toolResults,
-  });
-
-  final String label;
-  final List<ChatToolCall> toolCalls;
-  final List<ChatToolResult> toolResults;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final names = <String>{};
-    for (final c in toolCalls) {
-      if (c.name != null) names.add(_toolLabel(c.name!));
-    }
-    for (final r in toolResults) {
-      if (r.name != null) names.add(_toolLabel(r.name!));
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.6,
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.build_outlined, size: 14, color: theme.hintColor),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              '$label: ${names.join(', ')}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Araç adını çeviri anahtarına eşler (chat.actions.*).
-  String _toolLabel(String name) {
-    final key = 'chat.actions.$name';
-    final tr = key.tr();
-    // Çeviri bulunamazsa anahtarın kendisini döner (easy_localization davranışı).
-    return tr == key ? name : tr;
-  }
-}
-
-/// Yükleme iskeleti (web Skeleton karşılığı).
-class _ChatSkeleton extends StatelessWidget {
-  const _ChatSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final shimmer = theme.colorScheme.surfaceContainerHighest;
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          _skel(shimmer, 64, MediaQuery.sizeOf(context).width * 0.7),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: _skel(shimmer, 64, MediaQuery.sizeOf(context).width * 0.6),
-          ),
-          const SizedBox(height: 12),
-          _skel(shimmer, 96, MediaQuery.sizeOf(context).width * 0.8),
-        ],
-      ),
-    );
-  }
-
-  Widget _skel(Color color, double h, double w) => Container(
-        height: h,
-        width: w,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-        ),
-      );
-}
-
-/// Gönderimden önce seçili ek (web `File` karşılığı — byte'ları bellekte).
-class _PendingAttachment {
-  const _PendingAttachment({
-    required this.bytes,
-    required this.name,
-    required this.mimeType,
-  });
-
-  final Uint8List bytes;
-  final String name;
-  final String mimeType;
-}
-
-/// Sohbet eki boyut sınırları — tek dosya ve toplam.
-///
-/// Saf fonksiyon olarak tutulur: sınır kararı `image_picker`'a bağlı
-/// olmadan (paket seçiciyi değiştirdiğinde sınır da unutulmasın diye)
-/// doğrudan test edilebilir.
-abstract final class ChatAttachmentLimits {
-  /// Tek dosya üst sınırı (10 MB).
-  static const int maxFileBytes = 10 * 1024 * 1024;
-
-  /// Tüm eklerin toplam üst sınırı (25 MB).
-  ///
-  /// Tek dosya sınırı tek başına yetersiz: 3 × 10 MB = 30 MB ham byte
-  /// bellekte tutuluyor ve `insertUserMessage` bunları base64'e çevirip
-  /// (~1.33×) edge function gövdesine koyuyor → ~40 MB gövde.
-  static const int maxTotalBytes = 25 * 1024 * 1024;
-
-  /// Yeni ekin eklenip eklenemeyeceğini belirler.
-  ///
-  /// [pendingBytes] seçili eklerin mevcut toplamı, [newBytes] eklenmek
-  /// istenen dosyanın boyutudur. Sınır **aşıldığında** reddedilir (eşitlik
-  /// kabul edilir), böylece kullanıcının seçimi bozulmaz; eklenen dosya
-  /// listeye hiç girmez.
-  static bool canAccept({required int pendingBytes, required int newBytes}) {
-    if (newBytes < 0 || pendingBytes < 0) return false;
-    if (newBytes > maxFileBytes) return false;
-    return pendingBytes + newBytes <= maxTotalBytes;
-  }
 }
