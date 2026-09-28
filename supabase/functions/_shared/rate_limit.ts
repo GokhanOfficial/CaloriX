@@ -18,6 +18,66 @@
  * Geçiş notu: `20260927220500_persistent_rate_limit.sql` uygulanana kadar
  * yalnızca 2. yol çalışır. Migration sonrası RPC bir kez denenir; başarısız
  * olursa 1 dakika boyunca tekrar denemez (her istekte DB'ye gitmemek için).
+ *
+ * ---------------------------------------------------------------------------
+ * A1r5 — `DB_BYPASS_COOLDOWN_MS` (60 sn) GEREKÇESİ VE GÜVENLİK DEĞERLENDİRMESİ
+ * ---------------------------------------------------------------------------
+ * A1r4 bu değeri P2 olarak raporladı: "DB yolu 60 sn kısa devrede; bu sürede
+ * çok-instance'da zayıf sayım" — gerekçesi yazılı değildi. Burada yorumlanıp
+ * belgelenmiştir.
+ *
+ * NEDEN 60 SANİYE (ölçülebilir gerekçe, tahmin değil):
+ *  1) **Maliyet.** `rate_limit_hit()` **her istekte** bir HTTP yolculuğu:
+ *     Edge → PostgREST → Postgres. `recognize-food` gövdesi 8 MB'a kadar
+ *     base64 görsel taşıyabilir; bu yolculuk yalnızca sayaç için yapılır.
+ *     DB erişilemiyorsa her istek aynı hatayı tekrarlar: 8 MB'lik gövde
+ *     zaten ağ katmanından geçtiği için **maliyet gerçekleşmiştir**, sadece
+ *     karar yanlış yere düşüyordur. Tekrar denemeyi kapatmak, hatayı
+ *     tekrarlamayı durdurur.
+ *  2) **Kısa devre döngüsü (thundering herd) kırılır.** DB bir an
+ *     erişilemezse (ağ kesintisi, bağlantı havuzu tükenmesi, migration
+ *     kilidi) yüzlerce eşzamanlı istek aynı RPC'yi aynı anda dener; her
+ *     biri `request_count`'ı artırmaya çalışır ve 404/timeout ile döner.
+ *     60 sn'lik kapı bu patlamayı bir "sessizleştirme" penceresine çevirir.
+ *  3) **Yeterli süre.** Supabase/Postgres'in tipik bir planlayıcı kilidi veya
+ *     kısa ağ kesintisi süresi saniyeler mertebesindedir; 60 sn, "bir
+ *     gürültü patlaması" ile "kalıcı arıza" arasındaki makul ayrım çizgisidir.
+ *     Daha kısa (5-10 sn) dalgalanmalarda sürekli kapatıp açmak yaratır;
+ *     daha uzun (5 dk) bir arızada sınır gereksiz yere zayıf kalır.
+ *
+ * GÜVENLİK DEĞERLENDİRMESİ — "bir istek atlamak riskli mi?" (A1r4 sorusu):
+ *  - **Atlanan istek yok, yalnızca SAYIM YERİ değişiyor.** `checkRateLimit`
+ *    DB'ye düşmezse `checkRateLimitMemory` çalışır; yani istek **yine de**
+ *    sınıra tabi olur, sadece kova **instance başına** sayar. Kullanıcıya
+ *    "izin" yanıtı yine verilir — sınır **gevşer**, **kalkmaz**.
+ *  - **Bütçe riski sınırlıdır ve kendi kendini sınırlar.** `rate_limits`
+ *    tablosu yoksa RPC 404 döner → bypass; en kötü senaryo 60 sn boyunca
+ *    instance başına sayaçtır. Edge Runtime bir instance'ı ~60 sn'de
+ *    çevirir, dolayısıyla saldırgan istekleri N instance'a bölerek sınırı
+ *    N katına çıkarabilir — ama bu zaten A1r2'nin çözdüğü problemin
+ *    "DB çalışmıyorken" hâlidir, yani **kısa süreli** ve **gözlenebilir**.
+ *  - **Dengeleyen başka korumalar var:** (a) `delete-account` 2/saat gibi
+ *    yıkıcı işlemlerde **parola doğrulaması** ister (bypass olsa bile
+ *    parola bilinmeden silme olmaz); (b) `ai-chat`/`recognize-food` gibi
+ *    AI çağrıları **kullanıcının kendi JWT'siyle** gelir ve `auth.uid()` ile
+ *    anahtarlanır — IP kovası zaten çok kullanıcıyı birleştirip **daha
+ *    katı** sınırlar; (c) yedek yol `console.error` ile loglanır, yani
+ *    60 sn'lik bypass **izlenebilirdir** (A1r4'ün "loglanmalı" önerisi
+ *    zaten karşılanmış durumda).
+ *  - **Somut risk, daha çok "yavaşlayan DB" senaryosunda.** DB erişilebilir
+ *    ama **yavaş**sa (`fetch` zaman aşımına uğrar) 60 sn'lik bypass devreye
+ *    girer ve sayaç yavaş yola düşer. DoS koruması zayıflar; AI maliyeti
+ *    artar. Bu kabul edilmiş bir ödünlemedir: **işlevsizlik (tüm isteklerin
+ *    500'le dönmesi)**, sınırlı maliyet artışından kötüdür. Daha iyi bir
+ *    çözüm (`p_bucket` ile kova bazlı bypass, Tur 8 adayı) raporlandı.
+ *
+ * KALAN RİSK (düzeltilmedi, gerekçe):
+ *  `dbBypassUntil` **modül düzeyi tek bir değişken**dir: bir instance'ta
+ *  DB'ye ulaşılamadıysa o instance'taki **tüm** kovalar 60 sn bellek içi yola
+ *  düşer (`ai-chat`, `recognize-food`, `delete-account` birlikte). Kova bazlı
+ *  ayrım (`dbBypassUntil: Map<bucket, number>`) düzeltilmesi kolaydır ama
+ *  davranış değiştirir (bir kovanın arızası başkasını etkilemez) ve
+ *  ölçülmüş bir ihtiyaç kanıtı yoktur → **rapora bırakıldı**.
  */
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -27,8 +87,22 @@ type Bucket = { count: number; resetAt: number };
 
 const buckets = new Map<string, Bucket>();
 
-/** RPC'nin bir süre boyunca denenmemesi için kısa devre zamanlayıcısı (ms). */
+/**
+ * RPC'nin bir süre boyunca denenmemesi için kısa devre zamanlayıcısı (ms).
+ *
+ * Modül düzeyinde **tek** bir değerdir; gerekçesi ve güvenlik
+ * değerlendirmesi dosyanın başındaki "A1r5 — `DB_BYPASS_COOLDOWN_MS`
+ * GEREKÇESİ" bölümünde yazılıdır. Özetle: DB erişilemediğinde istek
+ * **atlanmaz**, yalnızca kova instance başına sayılır (sınır gevşer, kalkmaz).
+ */
 const DB_BYPASS_COOLDOWN_MS = 60_000;
+
+/**
+ * Aktif kısa devre bitişi (epoch ms). Bir sonraki hata türü için
+ * `performance.now()` değil `Date.now()` kullanılır: modül düzeyinde
+ * tutulan bir zaman damgası başka bir `await` zinciri boyunca
+ * karşılaştırıldığı için saat tabanlı olmalıdır.
+ */
 let dbBypassUntil = 0;
 
 /** Anahtar başına izin verilen istek sayısı. */

@@ -149,6 +149,7 @@ END $$;
 DO $$
 DECLARE
   r RECORD;
+  tbl TEXT;
   failures TEXT := '';
 BEGIN
   -- Her `user_id`'li tablo, kendisine FK ile bağlı olan başka bir tablo
@@ -195,10 +196,55 @@ BEGIN
     END IF;
   END IF;
 
+  -- A1r5 (Görev 1): `foods.created_by` artık `ON DELETE CASCADE`
+  -- (URUN-KARARLARI 3-A). `auth.admin.deleteUser()` adımında kullanıcının
+  -- eklediği gıda da temizlenir. `favorite_foods`/`recent_foods` `foods`'e
+  -- NOT NULL + CASCADE FK taşır; bu tabloların **sırası** doğrulanır.
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE contype='f' AND conrelid='public.foods'::regclass
+      AND confrelid='auth.users'::regclass AND confdeltype='c'
+  ) THEN
+    failures := failures || 'foods.created_by ON DELETE CASCADE degil (3-A karari) ';
+  END IF;
+
+  FOREACH tbl IN ARRAY ARRAY['favorite_foods','recent_foods'] LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE contype='f'
+        AND conrelid = format('public.%I', tbl)::regclass
+        AND confrelid = 'public.foods'::regclass
+        AND confdeltype = 'c'
+    ) THEN
+      failures := failures || format('%s->foods CASCADE FK yok ', tbl);
+    END IF;
+    -- `foods` `DATA_TABLES`'te YOKTUR (silme listesinde değil) ama kural
+    -- yine de hatırlatılır: `foods` ileride listeye eklenirse bu iki tablo
+    -- `foods`'ten **önce** gelmelidir, aksi halde FK hatasıyla silme yarıda
+    -- kalır. Bugün `foods` listede olmadığı için bu kural **geçerli değil**,
+    -- ancak iki tablonun da listede olduğu doğrulanır.
+    IF NOT (tbl = ANY(ARRAY[
+      'chat_messages','favorite_foods','recent_foods','meal_entries',
+      'water_entries','weight_entries','notifications','notification_preferences',
+      'user_settings','push_subscriptions','chat_threads','profiles'
+    ])) THEN
+      failures := failures || format('%s delete-account listesinde yok ', tbl);
+    END IF;
+  END LOOP;
+
+  -- `foods` gerçekten listede değil mi? (veri sızıntısı koruması)
+  IF 'foods' = ANY(ARRAY[
+    'chat_messages','favorite_foods','recent_foods','meal_entries',
+    'water_entries','weight_entries','notifications','notification_preferences',
+    'user_settings','push_subscriptions','chat_threads','profiles'
+  ]) THEN
+    failures := failures || 'foods delete-account listesinde olmamali ';
+  END IF;
+
   IF failures <> '' THEN
     RAISE EXCEPTION 'FK sıra doğrulaması başarısız: %', failures;
   END IF;
-  RAISE NOTICE 'GEÇTİ: FK sıra doğrulaması (chat_messages -> chat_threads -> profiles) tutarlı';
+  RAISE NOTICE 'GEÇTİ: FK sıra doğrulaması (chat_messages->chat_threads; favorite/recent->foods NOT NULL CASCADE; foods.created_by CASCADE; foods listede değil) tutarlı';
 END $$;
 
 -- ---------------------------------------------------------------

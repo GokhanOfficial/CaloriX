@@ -75,13 +75,23 @@ CREATE TABLE public.foods (
   image_url TEXT,
   popularity_count INTEGER DEFAULT 0,
   verified BOOLEAN DEFAULT false,
-  created_by UUID REFERENCES auth.users(id),
+  created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.foods ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_foods_name ON public.foods USING gin(to_tsvector('turkish', name));
 CREATE INDEX idx_foods_popularity ON public.foods(popularity_count DESC);
+-- Ayni isim + marka tekrarini engeller (20260927120000 ile hizalandi).
+-- Marka NULL ise bos string'e cozumlenir, boylece "ayni isim, markasiz"
+-- gidalar da carpismaz.
+CREATE UNIQUE INDEX IF NOT EXISTS foods_name_brand_unique
+  ON public.foods (lower(name), lower(COALESCE(brand, '')));
+-- RLS süzgeci indeksi (20260928300000 ile hizalandi): `foods` DELETE/UPDATE
+-- politikalari `created_by = auth.uid()` kullanir; indeks yoksa tablo taranir.
+CREATE INDEX foods_created_by_rls ON public.foods(created_by);
+COMMENT ON COLUMN public.foods.created_by IS
+  'Ekleyen kullanici. URUN-KARARLARI 3-A: hesap silinince bu gida da silinir (ON DELETE CASCADE, 20260928300000). NULL olan satirlar (seed/admin) CASCADE ile TETIKLENMEZ ve korunur.';
 
 -- FOOD NUTRITION TABLE
 CREATE TABLE public.food_nutrition (
@@ -103,12 +113,19 @@ CREATE TABLE public.food_nutrition (
 ALTER TABLE public.food_nutrition ENABLE ROW LEVEL SECURITY;
 
 -- MEAL ENTRIES TABLE
+-- NOT: `food_id` FK'si `ON DELETE SET NULL` olmalıdır (20260927120000 ile
+-- hizalandi). `full_setup.sql` bu değişikliği daha önce **yapmıyordu** ve
+-- Postgres varsayılanı `NO ACTION` ile bir tablo üretiyordu → sonuç: bir
+-- gıda silinmek istendiğinde ona bağlı öğün kaydı varsa DELETE **başarısız**
+-- oluyordu (kullanıcı "kendi eklediği gıdayı" silemiyordu), hem de
+-- `foods.created_by` CASCADE ile bir hesap silinirken `auth.admin.deleteUser()`
+-- FK ihlali veriyordu. A1r5'in CASCADE testi bu farkı yakaladı.
 CREATE TABLE public.meal_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   entry_date DATE NOT NULL,
   meal_type meal_type NOT NULL,
-  food_id UUID REFERENCES public.foods(id),
+  food_id UUID REFERENCES public.foods(id) ON DELETE SET NULL,
   custom_name TEXT,
   amount_g_ml NUMERIC(8,2) NOT NULL,
   calculated_kcal NUMERIC(7,2) NOT NULL,
@@ -124,6 +141,13 @@ CREATE TABLE public.meal_entries (
 );
 ALTER TABLE public.meal_entries ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_meal_entries_user_date ON public.meal_entries(user_id, entry_date);
+-- Favoriler / son kullanilanlar turetimi (20260928300000 ile hizalandi).
+-- Her iki istemci bu deseni kullanir: user_id + deleted_at IS NULL +
+-- created_at DESC + LIMIT 200/50. Indekssiz Seq Scan + Top-N Sort
+-- (olculdu: 20.000 ogun, 7.49 ms); indekli Index Scan (0.06 ms).
+CREATE INDEX meal_entries_user_created_active ON public.meal_entries(user_id, created_at DESC) WHERE deleted_at IS NULL;
+COMMENT ON INDEX public.meal_entries_user_created_active IS
+  'Favoriler/son kullanilanlar turetimi: user_id + created_at DESC + deleted_at IS NULL (her iki istemci). A1r5-security.';
 
 -- WATER ENTRIES TABLE
 CREATE TABLE public.water_entries (
@@ -201,6 +225,11 @@ CREATE TABLE public.recent_foods (
   UNIQUE(user_id, food_id)
 );
 ALTER TABLE public.recent_foods ENABLE ROW LEVEL SECURITY;
+-- Siralama indeksi (20260928300000 ile hizalandi): UNIQUE(user_id, food_id)
+-- user_id'yi zaten indeksliyor ama `last_used_at` HICBIR indekste degildi.
+CREATE INDEX recent_foods_user_last_used ON public.recent_foods(user_id, last_used_at DESC);
+COMMENT ON INDEX public.recent_foods_user_last_used IS
+  'recent_foods siralamasi: last_used_at hicbir indekste degildi. A1r5-security.';
 
 -- PUSH SUBSCRIPTIONS TABLE
 CREATE TABLE public.push_subscriptions (
@@ -225,6 +254,10 @@ CREATE TABLE public.chat_threads (
 );
 ALTER TABLE public.chat_threads ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_user_updated ON public.chat_threads(user_id, updated_at DESC);
+-- Arsivlenmemis thread listesi her istemcide `archived_at IS NULL` ile
+-- sorgulanir (Flutter `chat_repository.dart:65`, web `ChatPage.tsx:160`).
+-- (20260927120000 ile hizalandi; migration yolunda `chat_threads_user_archived`.)
+CREATE INDEX IF NOT EXISTS chat_threads_user_archived ON public.chat_threads(user_id, archived_at);
 
 -- CHAT MESSAGES TABLE
 CREATE TABLE public.chat_messages (
@@ -611,6 +644,7 @@ COMMENT ON COLUMN public.profiles.last_weekly_summary IS 'Son gonderilen haftali
 -- Negatif miktar/kilo kaydi engellenir; ust sinirlar ile absurd degerler de.
 -- Bildirim tipi allow-list'i edge function'larin gonderdigi degerleri kapsar.
 -- Bildirim tercihlerinde saat/aralik degerleri dogrulanir.
+-- Besin degerleri negatif olamaz (20260928300000 ile hizalandi).
 -- ============================================================================
 ALTER TABLE public.meal_entries
   ADD CONSTRAINT meal_entries_amount_positive CHECK (amount_g_ml > 0 AND amount_g_ml <= 10000);
@@ -626,6 +660,10 @@ ALTER TABLE public.notification_preferences
   CHECK (start_hour BETWEEN 0 AND 23 AND end_hour BETWEEN 0 AND 23
          AND interval_hours BETWEEN 1 AND 24
          AND summary_day BETWEEN 0 AND 6 AND summary_hour BETWEEN 0 AND 23);
+-- Negatif besin degeri engellenir (kcal/protein/carbs/fat + opsiyonel
+-- fiber/sugar/salt/saturated_fat). `trans_fat_g` kolonu bu dosyanin
+-- "6. Nutrition Updates" bolumunde eklendigi icin CHECK **orada** kurulur
+-- (asagida bkz. "6. Nutrition Updates"). A1r5-security (Tur 7).
 
 -- notifications.type CHECK'i: eski UI degerleri + edge function degerleri.
 ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
@@ -707,6 +745,18 @@ ALTER TABLE public.food_nutrition ADD COLUMN IF NOT EXISTS nutri_score text NULL
 COMMENT ON COLUMN public.food_nutrition.trans_fat_g IS 'Trans fat content per 100g/ml';
 COMMENT ON COLUMN public.food_nutrition.nova_score IS 'NOVA food classification: 1=Unprocessed, 2=Processed culinary ingredients, 3=Processed foods, 4=Ultra-processed';
 COMMENT ON COLUMN public.food_nutrition.nutri_score IS 'Nutri-Score grade: A (best) to E (worst)';
+-- Negatif besin degeri engellenir (20260928300000 ile hizalandi). CHECK
+-- `trans_fat_g` kolonundan SONRA kurulur (kolon yukarida eklendi).
+ALTER TABLE public.food_nutrition
+  ADD CONSTRAINT food_nutrition_values_non_negative
+  CHECK (
+    kcal >= 0 AND protein_g >= 0 AND carbs_g >= 0 AND fat_g >= 0
+    AND COALESCE(fiber_g, 0) >= 0 AND COALESCE(sugar_g, 0) >= 0
+    AND COALESCE(salt_g, 0) >= 0 AND COALESCE(saturated_fat_g, 0) >= 0
+    AND COALESCE(trans_fat_g, 0) >= 0
+  );
+COMMENT ON CONSTRAINT food_nutrition_values_non_negative ON public.food_nutrition IS
+  'Besin degerleri negatif olamaz. A1r5-security (Tur 7). Ust sinir numeric(6,2)/(7,2) tipinde zaten var.';
 
 -- ============================================================================
 -- 7. Grants — en az yetki (tüm tablolar olustuktan SONRA calisir)

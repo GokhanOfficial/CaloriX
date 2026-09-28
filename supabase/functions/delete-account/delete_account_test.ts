@@ -24,9 +24,19 @@ import {
   DELETION_SUCCESS_MESSAGE,
   OWNER_FILTER_OVERRIDES,
   assertSafeDeletionOrder,
+  isAlreadyDeletedAuthError,
   mapPasswordErrorToStatus,
   ownerFilterColumn,
 } from "./helpers.ts";
+import {
+  DIRECT_USER_FK_TABLES,
+  FK_DELETION_RULES,
+  FOODS_DEPENDENT_TABLES,
+  REQUIRED_INDEX_NAMES,
+  SCHEMA_TABLES,
+  assertSchemaContract,
+  isSafeDeletionOrder,
+} from "../_shared/schema_contract.ts";
 
 // Harici test kütüphanesi kullanılmaz (bkz. `_shared/vapid_test.ts`).
 function assert(condition: unknown, message = "assertion başarısız"): asserts condition {
@@ -95,7 +105,16 @@ Deno.test("her tablo geçerli bir sahiplik kolonuna göre silinir", () => {
 
 Deno.test("listede kullanıcı dışı/global tablolar YOKTUR (veri sızıntısı koruması)", () => {
   // Bu tablolar silinirse BAŞKA kullanıcıların verisi silinir.
+  // `foods` özel: kullanıcının eklediği gıdalar `created_by` FK'si
+  // `ON DELETE CASCADE` ile **o kullanıcının** hesabı silinirken temizlenir
+  // (URUN-KARARLARI 3-A); ama `delete-account` `foods`'i **silmez** çünkü
+  // `created_by IS NULL` seed gıdaları ve başka kullanıcı referansları var.
   const forbidden = ["foods", "food_nutrition", "rate_limits", "user_roles", "storage"];
+  for (const table of forbidden) {
+    assert(!DATA_TABLES.includes(table), `global tablo listede olmamalı: ${table}`);
+  }
+  // `user_roles` ve `rate_limits` `auth.users`'a FK'si olmayan / doğrudan
+  // CASCADE ile temizlenen tablolar — yine de listede olmamalı.
   for (const table of forbidden) {
     assert(!DATA_TABLES.includes(table), `global tablo listede olmamalı: ${table}`);
   }
@@ -113,12 +132,16 @@ Deno.test("varsayılan sıralama güvenlidir (chat_messages -> chat_threads -> p
 });
 
 Deno.test("profile erken silinirse hata verilir", () => {
+  // A1r5: kural listesi artık elle yazılmış `chat_threads -> profiles`
+  // çiftini **içermez** (gerçek şemada `chat_threads` ile `profiles`
+  // arasında FK **yoktur**; ikisi de `auth.users`'a gider). Kalan tek
+  // kural `profiles` **son sırada olmalı** dedir ve ihlal burada yakalanır.
   const broken = ["profiles", "chat_messages", "chat_threads"];
-  assertThrows(() => assertSafeDeletionOrder(broken), /chat_threads, profiles'ten önce/);
+  assertThrows(() => assertSafeDeletionOrder(broken), /profiles son tabloda olmalı/);
 });
 
 Deno.test("chat_messages, chat_threads'ten sonra gelirse hata verilir", () => {
-  // profiles son sırada tutulur; ihlal eden ilk kural chat_messages < chat_threads.
+  // profiles son sırada tutulur; ihlal eden kural chat_messages < chat_threads.
   const broken = ["chat_threads", "chat_messages", "profiles"];
   assertThrows(() => assertSafeDeletionOrder(broken), /chat_messages, chat_threads'ten önce/);
 });
@@ -133,10 +156,11 @@ Deno.test("sıralama doğrulaması mevcut sırayı kabul eder", () => {
 });
 
 Deno.test("bozuk sıralama sessizce geçmez", () => {
-  // profiles'ı sona almayan liste reddedilmeli.
+  // `chat_threads` profil'den önce silinmeli değil — asıl kural `profiles`
+  // en sonda. Bu liste `profiles`'ı ortada bırakıyor → reddedilmeli.
   assertThrows(
     () => assertSafeDeletionOrder(["chat_messages", "profiles", "chat_threads"]),
-    /chat_threads, profiles'ten önce/,
+    /profiles son tabloda olmalı/,
   );
 });
 
@@ -297,4 +321,199 @@ Deno.test("parola gövdeden gelir ama asla loglanmaz", async () => {
   assert(source.includes("signInWithPassword"), "parola doğrulaması yapılmalı");
   const uses = (source.match(/\bpassword\b/g) ?? []).length;
   assert(uses <= 6, `parola değişkeni gereğinden fazla yerde geçiyor (${uses}) — sızıntı riski`);
+});
+
+// ---------------------------------------------------------------------------
+// A1r5: şema sözleşmesi — FK sırası elle liste değil, ŞEMADAN türetilir
+// ---------------------------------------------------------------------------
+
+Deno.test("şema sözleşmesi dahili olarak tutarlı (duplicate/bilinmeyen tablo yok)", () => {
+  // Bu test, canlı şema karşılaştırmasının **daha** hızlı bir ön adımıdır
+  // (bkz. supabase/tests/schema_contract.sql). Yeni bir tablo eklendiğinde
+  // buradaki değişkenler güncellenmezse burası KIRILIR.
+  assertSchemaContract();
+});
+
+Deno.test("sözleşmedeki tablo listesi delete-account listesini kapsar", () => {
+  for (const table of DATA_TABLES) {
+    assert(
+      SCHEMA_TABLES.includes(table),
+      `DATA_TABLES içindeki "${table}" şema sözleşmesinde yok — sözleşmeyi güncelle`,
+    );
+  }
+});
+
+Deno.test("DIRECT_USER_FK_TABLES canlı auth.users FK'siyle birebir (elle kopya değil)", () => {
+  // Bu liste A1r5'te `pg_constraint`'ten **elle** kopyalandı; test
+  // `supabase/tests/schema_contract.sql` adım 2'de canlı şemayla
+  // karşılaştırır. Burada yalnızca dahili tutarlılığı doğrularız.
+  // NOT: `foods` `created_by` FK'si `auth.users`'a gider → listede olmalı.
+  assert(DIRECT_USER_FK_TABLES.includes("foods"), "foods.created_by FK'si auth.users'a gider");
+  // `rate_limits` FK'si yoktur → listede olmamalı.
+  assert(!DIRECT_USER_FK_TABLES.includes("rate_limits"), "rate_limits auth.users'a FK'siz");
+});
+
+Deno.test("FOODS_DEPENDENT_TABLES: favorite_foods + recent_foods foods'ten ÖNCE", () => {
+  // A6r5'in aktardığı P0: favorite_foods.food_id / recent_foods.food_id
+  // → foods(id) NOT NULL + CASCADE. foods `DATA_TABLES`'te olmadığı için
+  // bugün sıra ihlali oluşmaz, ama kural kayıt altındadır.
+  assert(
+    FOODS_DEPENDENT_TABLES.includes("favorite_foods"),
+    "favorite_foods foods'a FK taşıyor (kural listesinde olmalı)",
+  );
+  assert(
+    FOODS_DEPENDENT_TABLES.includes("recent_foods"),
+    "recent_foods foods'a FK taşıyor (kural listesinde olmalı)",
+  );
+  // `meal_entries.food_id` de foods'a gider ama SET NULL → engellemez, bu
+  // yüzden `FOODS_DEPENDENT_TABLES` ile `FK_DELETION_RULES` kesişmez.
+  for (const [child, parent] of FK_DELETION_RULES) {
+    if (child === "meal_entries" || parent === "meal_entries") {
+      assert(false, "meal_entries -> foods SET NULL, engelleyici kural olmamalı");
+    }
+  }
+});
+
+Deno.test("engelleyici FK kuralı listesi yalnızca chat_messages -> chat_threads", () => {
+  // Sözleşmede 1 kural var. Yeni bir engelleyici FK eklenirse burası KIRILIR
+  // (güncelleme zorunlu olsun).
+  assertEquals(FK_DELETION_RULES.length, 1, "şu an tek engelleyici kural var");
+  assertEquals(FK_DELETION_RULES[0][0], "chat_messages");
+  assertEquals(FK_DELETION_RULES[0][1], "chat_threads");
+});
+
+Deno.test("varsayılan sıralama şema kuralına göre güvenlidir (isSafeDeletionOrder)", () => {
+  // `isSafeDeletionOrder` saf fonksiyon: herhangi bir sıra listesini
+  // doğrular. `DATA_TABLES` gerçek kural listesini geçer.
+  assert(isSafeDeletionOrder(DATA_TABLES), "varsayılan sıra güvenli olmalı");
+  // Bozuk sıra: chat_messages thread'ten sonra.
+  assert(
+    !isSafeDeletionOrder(["chat_threads", "chat_messages", "profiles"]),
+    "chat_messages thread'ten sonra gelirse güvenli değil",
+  );
+});
+
+Deno.test("assertSafeDeletionOrder: profil sonda değilse hata verir", () => {
+  // `profiles` trigger/istemci bağımlılığı nedeniyle daima son sırada.
+  // Bu listede `chat_threads` **yok** (dolayısıyla FK kuralı tetiklenmez) ve
+  // `profiles` sondan bir yerde → yalnızca "profiles sonda değil" kuralı
+  // yakalamalı. Bu, iki kuralın birbirinden **bağımsız** çalıştığını kanıtlar.
+  assertThrows(
+    () => assertSafeDeletionOrder(["chat_messages", "profiles", "water_entries"]),
+    /profiles son tabloda olmalı/,
+  );
+  // Sonda olduğunda aynı liste sessizce geçer.
+  assertSafeDeletionOrder(["chat_messages", "water_entries", "profiles"]);
+});
+
+Deno.test("gerekli indeks adları sözleşmede tanımlı (migration ile eşleşir)", () => {
+  // Bu adlar `20260928300000_foods_cascade_and_rls_indexes.sql` içinde
+  // oluşturulur. `schema_contract.sql` adım 5 canlı `pg_indexes` ile
+  // doğrular; burada ad listesinin boş olmadığını sabitleriz.
+  assertEquals(REQUIRED_INDEX_NAMES.length, 3, "3 indeks bekleniyor");
+  for (const name of REQUIRED_INDEX_NAMES) {
+    assert(name.length > 0 && /^[a-z0-9_]+$/.test(name), `geçersiz indeks adı: ${name}`);
+  }
+  assert(REQUIRED_INDEX_NAMES.includes("foods_created_by_rls"));
+  assert(REQUIRED_INDEX_NAMES.includes("meal_entries_user_created_active"));
+  assert(REQUIRED_INDEX_NAMES.includes("recent_foods_user_last_used"));
+});
+
+// ---------------------------------------------------------------------------
+// A1r5 (Görev 4): deleteAuthUser'ın "not found" eşleşmesi DARALTILDI
+// ---------------------------------------------------------------------------
+
+Deno.test("GoTrue 'User not found' → idempotent başarı (gerçek idempotent durum)", () => {
+  // Bu hata auth kaydının zaten silinmiş olduğu anlamına gelir → başarı.
+  assert(isAlreadyDeletedAuthError({ message: "User not found" }));
+  assert(isAlreadyDeletedAuthError({ message: "user not found" }));
+  assert(isAlreadyDeletedAuthError({ message: "user_not_found" }));
+  assert(isAlreadyDeletedAuthError({ message: "USER NOT FOUND" }));
+});
+
+Deno.test("'schema not found' idempotent SAYILMAZ (A1r4 P2 düzeltmesi)", () => {
+  // A1r4: `includes("not found")` çok genişti. "schema not found" gerçek bir
+  // silme hatasıdır ve başarı sayılmamalı → istisna fırlatılmalı.
+  assert(
+    !isAlreadyDeletedAuthError({ message: "Database error: schema not found" }),
+    "'schema not found' idempotent başarı sayılmamalı",
+  );
+  assert(
+    !isAlreadyDeletedAuthError({ message: "relation auth.users does not exist" }),
+    "bağlantı/şema hatası idempotent sayılmamalı",
+  );
+});
+
+Deno.test("'session not found' idempotent SAYILMAZ (oturum hatası ≠ kullanıcı silinmiş)", () => {
+  // GoTrue oturum hatası da "not found" içerir — kullanıcı hâlâ var!
+  assert(!isAlreadyDeletedAuthError({ message: "Auth session not found" }));
+  assert(!isAlreadyDeletedAuthError({ message: "session not found" }));
+});
+
+Deno.test("row-level security hatası idempotent SAYILMAZ (K1: gerçek yetki hatası)", () => {
+  // Postgres hata metni RLS ihlalini bildirir; bu "kullanıcı yok" demek
+  // DEĞİLDİR. Eski `includes("not found")` bunu zaten yakalamıyordu ama
+  // test kilitler.
+  assert(
+    !isAlreadyDeletedAuthError({ message: "new row violates row-level security policy" }),
+    "RLS hatası idempotent sayılmamalı",
+  );
+});
+
+Deno.test("bilinmeyen hata → idempotent değil (varsayılan kapalı)", () => {
+  // Emniyet: bilinmeyen bir hata "kullanıcı zaten yok" sayılmaz.
+  assert(!isAlreadyDeletedAuthError({ message: "Something unexpected happened" }));
+  assert(!isAlreadyDeletedAuthError({ message: "deadlock detected" }));
+  assert(!isAlreadyDeletedAuthError({ message: "" , status: 500 }));
+  assert(!isAlreadyDeletedAuthError({ message: null }));
+  assert(!isAlreadyDeletedAuthError({}));
+});
+
+Deno.test("404 + boş mesaj → idempotent (yalnızca bu kombinasyon)", () => {
+  // Bazı GoTrue sürümleri mesaj vermeden 404 döner. Bu durumda hedef
+  // nesnenin yokluğu anlamına gelir → idempotent başarı.
+  assert(isAlreadyDeletedAuthError({ message: "", status: 404 }));
+  // 404 AMA mesaj doluysa (ör. "schema not found") → idempotent DEĞİL.
+  assert(!isAlreadyDeletedAuthError({ message: "schema not found", status: 404 }));
+});
+
+/** Kaynak dosyadan **yalnızca çalıştırılabilir satırları** döndürür
+ * (yorumlar, import'lar ve fonksiyon imzaları atlanır) — böylece bir
+ * **yorumda** geçen desen yanlışlıkla "kodda var" sayılmaz. */
+function executableLines(source: string): string {
+  return source
+    .split("\n")
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .filter((line) => !/^\s*import\b/.test(line))
+    .join("\n");
+}
+
+Deno.test("deleteAuthUser: dar eşleştirme fonksiyonunu kullanır (geniş 'not found' YOK)", async () => {
+  // Kaynak senkronizasyon testi: `index.ts` artık daraltılmış
+  // `isAlreadyDeletedAuthError`'ı kullanmalı; geniş `includes("not found")`
+  // kalıbı **çalıştırılabilir kodda** hiçbir yerde bulunmamalı.
+  const code = executableLines(await readSource("./index.ts"));
+  assert(
+    code.includes("isAlreadyDeletedAuthError"),
+    "index.ts daraltılmış eşleştirme fonksiyonunu kullanmalı",
+  );
+  assert(
+    !/includes\(\s*["']not found["']\s*\)/.test(code),
+    "geniş 'not found' eşleşmesi kaldırılmalı (A1r4 P2)",
+  );
+  // helpers.ts de aynı şekilde.
+  const helpers = executableLines(await readSource("./helpers.ts"));
+  assert(
+    !helpers.includes('includes("not found")'),
+    "helpers.ts'de geniş 'not found' eşleşmesi olmamalı",
+  );
+  assert(
+    helpers.includes("isAlreadyDeletedAuthError"),
+    "helpers.ts daraltılmış eşleştirme fonksiyonunu sunmalı",
+  );
+  // Daraltılmış fonksiyon gerçekten `user` öznesini arıyor olmalı.
+  assert(
+    /\\buser\\b\[\^a-z0-9_\]/.test(helpers),
+    "eşleşme `user` öznesini içermeli (oturum/şema hatalarını dışlamak için)",
+  );
 });
