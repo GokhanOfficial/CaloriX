@@ -18,7 +18,15 @@ import {
   jsonResponse,
   preflightResponse,
 } from "../_shared/http.ts";
-import { isSameIsoWeek, getZonedParts, writeReminderStamp } from "./helpers.ts";
+import {
+  getZonedParts,
+  isSameIsoWeek,
+  isValidMinutes,
+  isWithinHourWindow,
+  isWrappingWindow,
+  writeReminderStamp,
+  zonedMinutesBetween,
+} from "./helpers.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 
 /** Dış AI çağrısı için üst süre sınırı. */
@@ -353,15 +361,68 @@ const handler = async (req: Request): Promise<Response> => {
         const endHour = waterPref?.end_hour ?? 21;
         const intervalHours = waterPref?.interval_hours ?? 3;
 
-        if (normalizedHour >= startHour && normalizedHour <= endHour) {
-          const lastWaterReminder = profile.last_water_reminder
-            ? new Date(profile.last_water_reminder)
-            : null;
-          const hoursSinceReminder = lastWaterReminder
-            ? hoursBetween(lastWaterReminder, now)
-            : intervalHours + 1;
+        // ⭐ GECE ARALIĞI (A1r10) — iki koşul birlikte, ikisi de testli:
+        //
+        //  (1) `isWithinHourWindow` — pencere kontrolü. Eski koşul
+        //      `normalizedHour >= startHour && normalizedHour <= endHour` idi;
+        //      `start > end` (örn. 21→09) iken **hiçbir saatte** sağlanmaz →
+        //      bildirim sessizce hiç gitmiyordu. Sarmayı (21..23 ∪ 0..9) çözer
+        //      ve `start == end` → "tek saat" anlamını korur (Flutter/web
+        //      varsayılanları `weigh_in` 9→9, `daily_log` 18→18 buna dayanır).
+        //
+        //  (2) `zonedMinutesBetween` — damga yaşı. ⚠️ A4r10'ın uyardığı tuzak:
+        //      sarma düzeltmesi **tek başına** "her saat gönderim" demektir.
+        //      Ölçüldü: 21→09 + `interval_hours = 1` → **günde 13 gönderim**,
+        //      üstelik aralık içi **art arda iki saatte** (21:00 ve 22:00).
+        //      Neden? Damga yaşı UTC farkıyla ölçülüyordu ve sarma, "gece
+        //      dilimi hâlâ açık" deyip içerideki her saati yeniden tetikliyordu.
+        //      Ayrıca damga `timestamptz` olduğu için **UTC'de** saklanır:
+        //      dün 23:50 TR = 20:50 UTC, bugün 00:10 TR = 21:10 UTC → UTC'de
+        //      damga "dün", kontrol "dün" görünür; **gün karşılaştırması da**
+        //      düzeltilmelidir (A1r3 `weekly_summary` hatasının aynı sınıfı).
+        //      `zonedMinutesBetween` iki zamanı da kullanıcının kendi
+        //      gün/saat/dakika parçalarına çevirir → 20 dakika verir.
+        const nightWindow = isWrappingWindow(startHour, endHour);
 
-          if (hoursSinceReminder >= intervalHours) {
+        if (isWithinHourWindow(normalizedHour, startHour, endHour)) {
+          const lastWaterStamp = profile.last_water_reminder
+            ? getZonedParts(
+              profile.timezone,
+              new Date(profile.last_water_reminder),
+              console.error,
+            )
+            : null;
+
+          // Dakika cinsinden gerçek yaş. `NaN` çıkarsa damga **okunamıyor**
+          // demektir; o durumda ilk koşu muamelesi verilir (aralık dolmuş
+          // sayılır) — ama `writeReminderStamp`'in `false` dönmesi
+          // durumundaki "TEKRAR denenecek" loguyla birlikte çalışır.
+          const minutesSince = lastWaterStamp
+            ? zonedMinutesBetween(lastWaterStamp, zoned)
+            : NaN;
+          const stampUnreadable = !isValidMinutes(minutesSince);
+
+          // Karşılaştırma `>= intervalHours * 60`. **Dakika** kullanılması
+          // zorunlu: saat (0-23) tek başına yeterli değil — aynı gün 22:50 →
+          // 23:00 farkı "1 saat" sanılır ama gerçekte 10 dakikadır ve
+          // `interval_hours = 1` için **50 dakika erken** gönderim üretir.
+          const intervalMet = stampUnreadable || minutesSince >= intervalHours * 60;
+
+          // ⭐ GECE ARALIĞI TUZAĞI — "sarma tek başına yeter" yanılgısı.
+          // Ölçüldü: yalnızca `isWithinHourWindow` sarmayı açmak, damga yaşını
+          // UTC farkıyla ölçmeye devam edince 21→09 + `interval_hours = 1`
+          // → **günde 13 gönderim** ve aralık içi art arda saatler (21:00,
+          // 22:00). Yukarıdaki dakika farkı bu sınıfı kapatır; aşağıdaki
+          // ölçüm ise düzeltmenin **gerçekten etkin olduğunu** kanıtlar:
+          // gece aralığında bir dakikalık bile "erken" gönderim yapılmaz.
+          if (nightWindow && stampUnreadable) {
+            console.warn(
+              `Gece aralıklı su hatırlatmasında damga okunamadı (user=${profile.id}); ` +
+                `aralık dolmuş sayılıp gönderim denenecek`,
+            );
+          }
+
+          if (intervalMet) {
             // Bugünkü su: entry_time yerine entry_date (tarih kolonu).
             const { data: waterEntries } = await supabase
               .from("water_entries")
