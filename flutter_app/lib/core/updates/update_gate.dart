@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/observability/app_logger.dart';
 import '../../core/updates/apk_downloader.dart';
 import '../../core/updates/update_checker.dart';
 import '../../core/updates/update_manifest.dart';
@@ -148,21 +146,15 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   ///     karşılaştırır. **Tutmuyorsa dosya açılmaz** (reddedilir).
   ///  3. Doğrulanmış/geçersiz-geçmez dosya `file://` ile yükleyiciye açılır.
   ///
+  /// Zincirin tamamı [downloadVerifyAndOpen] içinde yaşar; burada yalnızca
+  /// kullanıcıya gösterilecek metin kararı verilir. `ForceUpdatePage`
+  /// (A4 alanı) **aynı** fonksiyonu çağırmalıdır.
+  ///
   /// `sha256` manifestte **yoksa** indirme engellenmez — bilinçli karar:
   /// zorunlu güncellemede reddetmek kullanıcıyı geri dönüşsüz kilitler
   /// (bkz. `apk_integrity.dart` başlığındaki gerekçe). Bu durumda
   /// [ApkIntegrityResult.unavailable] döner ve kullanıcıya uyarı gösterilir.
-  ///
-  /// `canLaunchUrl` **kullanılmaz**: Android'de tarayıcı/mağaza yönlendiricileri
-  /// için yanlış negatif üretiyordu ve kullanıcı "Güncelle" dediğinde hiçbir şey
-  /// olmuyordu. Doğrulama `launchUrl`'un kendi dönüş değeridir.
   Future<void> _launchApk(UpdateManifest manifest) async {
-    if (!manifest.isApkUrlSafe) {
-      AppLog.w('Güvensiz APK adresi reddedildi: ${manifest.apkUrl}');
-      _notify('updates.unsafeUrl'.tr());
-      return;
-    }
-
     _busy = true;
     try {
       final outcome = await downloadVerifyAndOpen(manifest);
@@ -188,55 +180,6 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
-    );
-  }
-
-  /// [ApkDownloader] + `launchUrl` zincirinin tek giriş noktası.
-  ///
-  /// `UpdateGate` ve `ForceUpdatePage` (`features/updates/force_update_page.dart`
-  /// — A4 alanı) **aynı** fonksiyonu çağırmalıdır; ikinci bir ham
-  /// `launchUrl(apkUrl)` yolu `sha256` doğrulamasını sessizce atlar ve
-  /// açık yönlendirme yüzeyini yeniden açar. `onMessage` callback'iyle
-  /// kullanıcıya gösterilecek metin çağırana bırakılır (çeviri anahtarı
-  /// `UpdateGate`'in alanında olduğu için ekran metinleri burada hardcoded).
-  static Future<ApkInstallOutcome> downloadVerifyAndOpen(
-    UpdateManifest manifest,
-  ) async {
-    if (!manifest.isApkUrlSafe) {
-      AppLog.w('Güvensiz APK adresi reddedildi: ${manifest.apkUrl}');
-      return const ApkInstallOutcome(
-        status: ApkInstallStatus.unsafeUrl,
-      );
-    }
-    final ApkDownloadResult result;
-    try {
-      result = await ApkDownloader.downloadAndVerify(manifest);
-    } on ApkDownloadException catch (e, s) {
-      AppLog.w('APK indirme/doğrulama başarısız: ${e.message}', e, s);
-      return ApkInstallOutcome(
-        status: switch (e.kind) {
-          ApkDownloadFailure.integrity => ApkInstallStatus.integrityFailed,
-          ApkDownloadFailure.tooLarge => ApkInstallStatus.tooLarge,
-          ApkDownloadFailure.unsafeUrl => ApkInstallStatus.unsafeUrl,
-          ApkDownloadFailure.empty => ApkInstallStatus.downloadFailed,
-          ApkDownloadFailure.network => ApkInstallStatus.downloadFailed,
-          ApkDownloadFailure.write => ApkInstallStatus.downloadFailed,
-        },
-        message: e.message,
-      );
-    }
-
-    final launched = await launchUrl(
-      Uri.file(result.file.path),
-      mode: LaunchMode.externalApplication,
-    );
-    return ApkInstallOutcome(
-      status: !launched
-          ? ApkInstallStatus.launchFailed
-          : result.integrity.isVerified
-              ? ApkInstallStatus.opened
-              : ApkInstallStatus.openedUnverified,
-      integrity: result.integrity,
     );
   }
 

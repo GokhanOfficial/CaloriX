@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../observability/app_logger.dart';
 import 'apk_integrity.dart';
@@ -228,6 +229,65 @@ enum ApkInstallStatus {
 
   /// APK manifestin belirttiğinden büyük.
   tooLarge,
+}
+
+/// [ApkDownloader] + `launchUrl` zincirinin **tek giriş noktası**.
+///
+/// ## Neden burada, `update_gate.dart` içinde değil?
+///
+/// `UpdateGate.downloadVerifyAndOpen` bir `State` sınıfının (`_UpdateGateState`)
+/// **statik** metoduydu. Dart'ta `State` sınıfları dosya içinde `_` ile
+/// gizlidir; `lib/features/updates/force_update_page.dart` bu metodu
+/// **çağıramaz** — derleyici "Member not found" der. Yani "her iki ekran da
+/// aynı fonksiyonu çağırmalıdır" yorumu **kâğıt üzerinde** doğruydu ama
+/// fiilen imkânsızdı ve `ForceUpdatePage` `sha256` doğrulamasını atlayan
+/// ikinci bir `launchUrl(apkUrl)` yolunu kendi yazmaya devam ediyordu.
+///
+/// Fonksiyon buraya taşındı: her iki çağıran da **gerçekten** erişebilir.
+///
+/// `canLaunchUrl` **kullanılmaz**: Android'de tarayıcı/mağaza yönlendiricileri
+/// için yanlış negatif üretiyordu ve kullanıcı "Güncelle" dediğinde hiçbir
+/// şey olmuyordu. Doğrulama `launchUrl`'un kendi dönüş değeridir.
+Future<ApkInstallOutcome> downloadVerifyAndOpen(UpdateManifest manifest) async {
+  if (!manifest.isApkUrlSafe) {
+    AppLog.w('Güvensiz APK adresi reddedildi: ${manifest.apkUrl}');
+    return const ApkInstallOutcome(status: ApkInstallStatus.unsafeUrl);
+  }
+
+  final ApkDownloadResult result;
+  try {
+    result = await ApkDownloader.downloadAndVerify(manifest);
+  } on ApkDownloadException catch (e, s) {
+    AppLog.w('APK indirme/doğrulama başarısız: ${e.message}', e, s);
+    return ApkInstallOutcome(
+      status: switch (e.kind) {
+        ApkDownloadFailure.integrity => ApkInstallStatus.integrityFailed,
+        ApkDownloadFailure.tooLarge => ApkInstallStatus.tooLarge,
+        ApkDownloadFailure.unsafeUrl => ApkInstallStatus.unsafeUrl,
+        ApkDownloadFailure.empty => ApkInstallStatus.downloadFailed,
+        ApkDownloadFailure.network => ApkInstallStatus.downloadFailed,
+        ApkDownloadFailure.write => ApkInstallStatus.downloadFailed,
+      },
+      message: e.message,
+    );
+  }
+
+  // `file://` ile yükleyiciye aç: indirme uygulama içinde yapıldığı için
+  // sistem tarayıcısı devreye girmiyor ve `sha256` doğrulaması zorunlu
+  // hâle geliyor. Android 8+ `PACKAGE_INSTALLER` izni verilmemişse
+  // `launchUrl` false döner → `launchFailed`.
+  final launched = await launchUrl(
+    Uri.file(result.file.path),
+    mode: LaunchMode.externalApplication,
+  );
+  return ApkInstallOutcome(
+    status: !launched
+        ? ApkInstallStatus.launchFailed
+        : result.integrity.isVerified
+            ? ApkInstallStatus.opened
+            : ApkInstallStatus.openedUnverified,
+    integrity: result.integrity,
+  );
 }
 
 /// [ApkDownloader] + yükleyici açma zincirinin sonucu.
