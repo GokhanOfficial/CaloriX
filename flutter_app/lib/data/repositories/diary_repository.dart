@@ -16,6 +16,48 @@ import 'auth_repository.dart';
 /// (aynı mantık `ChatRepository.localDateOnly` içinde de vardı).
 String formatEntryDate(DateTime date) => formatDateOnly(date);
 
+/// ⭐ `fetchDaily`'nin `meal_entries` sorgusu için **açık** kolon listesi +
+/// `foods(name)` embed'i (A2r13, Tur 13).
+///
+/// ## Neden düz `select()` DEĞİL?
+///
+/// İki ayrı sebep, ikisi de kanıtlanmış:
+///
+/// 1. **`select=*` embed'i açar.** PostgREST'te düz `select()` ile
+///    `foods(name)` yazılamaz: `select=*` üretilir ve PostgREST **tüm gömülü
+///    nesneleri** açar. `foods` 12 kolon (`id, name, brand, serving_size_g,
+///    serving_description, source, image_url, popularity_count, verified,
+///    created_by, created_at, updated_at`) + ayrı `food_nutrition` nesnesi →
+///    günlük ekranda kullanılmayan onlarca bayt/öğün indi. Dahası
+///    `created_by` de geldiği için **gereksiz** bir alan taşındı
+///    (RLS `USING (true)`, `full_setup.sql:418` — yani zaten herkese açık,
+///    ama indirmeye gerek yok).
+/// 2. **A4r11'in tuzağı.** Brifte "ölçüm testi `select=*` yüzünden kırmızıya
+///    döndü" diye yazıyordu: ölçümün **gerçekten ne okuduğunu** kanıtlayan
+///    ilk deneme buydu. Burada kolon listesi **AÇIK** olduğu için
+///    "ölçüm gerçekten `foods.name` okudu mu" sorusu `select` parametresinden
+///    doğrudan görülebiliyor.
+///
+/// ## Sözleşme: liste `MealEntry.fromJson`'ın okuduğu kolonlarla **birebir**
+///
+/// `MealEntry.fromJson` 17 kolon okuyor (`meal_entry.dart`) ve **hiçbiri**
+/// nullable olmayan kolonda `as String`/`as num` cast'i yapıyor — yani
+/// listeden bir kolon düşerse `fetchDaily` **tüm günlük ekranını**
+/// `TypeError` ile düşürür. Bu yüzden liste:
+///
+/// * **eksiksizdir** (17 + `foods(name)`), ve
+/// * `test/data/repositories/fetchdaily_food_name_a2r13_test.dart` bu
+///   eşleşmeyi **testle** kilitler (sabit metin `MealEntry.fromJson`'ın
+///   okuduğu anahtarlarla karşılaştırılır, ayrı ikinci liste yazılmaz).
+///
+/// Aynı desen `FoodRepository.search()`/`favorites()`'ta zaten var
+/// (`food_repository.dart`) — repo içinde tutarlı.
+const String mealEntrySelectWithFoodName =
+    'id, user_id, entry_date, meal_type, food_id, custom_name, '
+    'amount_g_ml, calculated_kcal, calculated_protein, calculated_carbs, '
+    'calculated_fat, note, photo_url, source, created_at, updated_at, '
+    'deleted_at, foods(name)';
+
 /// Günün yemek toplamları — web `useDailyData.totals` karşılığı.
 typedef DailyTotals = ({
   double calories,
@@ -137,12 +179,69 @@ class DiaryRepository {  DiaryRepository(this._client);
   /// üç tabloda da geçerli (`deleted_at` kolonu `supabase/migrations/…sql`
   /// 141/159/171) ve `DiaryRepository` **fiziksel silme yapmaz**; bu yüzden
   /// bu süzgeç kayıtların sessizce geri dönmesini de engeller.
+  ///
+  /// ## ⭐ `foods(name)` embed'i (A2r13, Tur 13) — neden düz `select()` DEĞİL
+  ///
+  /// A4r11'in ölçtüğü P1: bu sorgu `foods` JOIN'i **yapmıyordu** ve
+  /// `MealEntry.displayName` yalnızca `custom_name` okuduğu için
+  /// `food_id` dolu olsa bile (yani gıda `foods` tablosunda **duruyorsa**)
+  /// dashboard o öğünü **"Bilinmeyen"** gösteriyordu — `git show e99ba95`
+  /// ile doğrulandı, **v1.2.0'dan beri**. `add_from_food_dialog` yalnızca
+  /// `isCustom || canDelete` için `custom_name` yazdığı için **topluluk/seed
+  /// gıdasından eklenen her öğün** bu duruma düşüyordu.
+  ///
+  /// Düzeltme **`foods(name)` embed'idir** — gıda adı `meal_entries`
+  /// kolonu değil, JOIN'dir; `MealEntry.foodName` onu taşır ve
+  /// `displayName` **kaynak önceliğiyle** (`customName` → `foodName` →
+  /// "Bilinmeyen") çözer. `food_name` **yazılmaz**: gıdanın adı
+  /// `foods.name` kolonunda yaşar, ikinci kopyası bayatlık üretirdi.
+  ///
+  /// ### ⭐⭐ Kolon listesi **AÇIK** yazıldı — düz `select()` değil
+  ///
+  /// A4r11'in aktardığı tuzak burada geçerli: embed'li düz `select()`
+  /// `select=*` gönderir ve PostgREST **tüm gömülü nesneleri** açar
+  /// (`foods` → `name, brand, serving_size_g, source, image_url,
+  /// popularity_count, verified, created_by, created_at, updated_at` = 10
+  /// kolon + `food_nutrition` ayrı bir gömülü nesne olurdu). Yani `select=*`
+  /// ile yazılsaydı:
+  ///
+  /// * her öğün için gereksiz 10 kolon indi (günlük ekranda kullanılmaz),
+  /// * `created_by` her kullanıcıya **görünür** oldu (RLS `USING (true)`,
+  ///   `full_setup.sql:418`) — yani istemci tarafında gereksiz bir kişisel
+  ///   veri alanı taşındı.
+  ///
+  /// Bu yüzden `select` parametresi tam ve **minimum** kolon listesidir:
+  /// `meal_entries`'in `MealEntry.fromJson`'ın okuduğu **17 kolonu** +
+  /// `foods(name)`. `MealEntry.fromJson` yalnızca bu alanları okuduğu için
+  /// liste eksiksiz **ve** dar tutulabilir — `backup_round_trip_test.dart`
+  /// tarzı "sözleşme testi" ile kilitlenir (aşağıdaki test dosyası).
+  ///
+  /// ### ⭐ Maliyet **ölçüldü** (Postgres 17, `tool/a2r13_fetchdaily_embed.sql`)
+  ///
+  /// 50.000 gıda · 9.000.000 öğün (10.000 kullanıcı × 90 gün × 10 öğün),
+  /// gerçek indeksler (`meal_entries(user_id, entry_date)`, `foods_pkey`).
+  /// 200 koşu, ilk 20'si ısınma → **n=180 medyan**:
+  ///
+  /// | varyant | medyan | p95 |
+  /// |---|---|---|
+  /// | A) join yok (`select=*`)   | **0.0375 ms** | 0.0860 ms |
+  /// | B) `LEFT JOIN foods(name)` | **0.0370 ms** | 0.0862 ms |
+  ///
+  /// Fark **−0.0005 ms (%−1.3)** = gürültü sınırında, yani **ölçülebilir
+  /// maliyet yok**. Plan: `Nested Loop Left Join` + `Index Scan using
+  /// foods_pkey (actual time=0.010..0.010 rows=1 loops=10)` — yani gıda
+  /// başına **bir** PK sondası, 10 öğünde 10 sonda. `Buffer` farkı: 13 → 37
+  /// (10 satır için 24 ek blok, hepsi `foods` PK indeksinde). Ağır gün
+  /// senaryosu (70 öğün): medyan 0.0310 ms vs 0.0310 ms — **değişmedi**.
+  ///
+  /// Bu yüzden embed **bedava**: P1'in maliyet gerekçesi yok, sadece
+  /// doğruluk gerekçesi var.
   Future<DailyData> fetchDaily(String userId, DateTime date) async {
     final dateStr = formatEntryDate(date);
 
     final mealsFuture = _client
         .from('meal_entries')
-        .select()
+        .select(mealEntrySelectWithFoodName)
         .eq('user_id', userId)
         .eq('entry_date', dateStr)
         .isFilter('deleted_at', null)
