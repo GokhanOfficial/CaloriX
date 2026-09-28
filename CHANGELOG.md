@@ -4,6 +4,110 @@ All notable changes to CaloriX are documented in this file.
 
 ---
 
+## [Unreleased] - 2026-09-28
+
+Denetim döngüsü Tur 3 (`plans/analiz-26-09-27/RAPOR-A6r3-quality-tur3-2026-09-28.md`).
+Sürüm **yükseltilmedi**: aşağıdakiler zaten yayımlanmış 1.3.0+4'ün üzerine
+gelen düzeltmeler; `pubspec.yaml`'da hâlâ `1.3.0+4`.
+
+### Fixed — React PWA (`src/**`)
+- **`activity_level` 400 hatası (P1).** `SettingsPage.recalculateMacros`
+  UI anahtarını (`veryActive`) doğrudan edge function'a gönderiyordu;
+  `calculate-macros` yalnızca DB CHECK kısıtıyla birebir aynı snake_case
+  değerleri kabul ediyor. "Çok Aktif" seçili profilde **yeniden hesapla**
+  her zaman hata veriyordu. `Index.tsx`'te de aynı hata vardı ve orada
+  profil DB'den okunduğu için `activityLevelFromDb` →
+  `activityLevelToDb` çift dönüşümü gerekiyordu.
+- **Vergi dilimi kayması (P1).** `useAnalyticsData` kilo eğrisi
+  etiketlerinde `parseISO(entry_date)` kullanılıyordu; `entry_date` bir
+  `DATE` kolonu olduğu için `parseISO` UTC gece yarısı üretiyor ve
+  `format()` yerel saatte yazdırıyordu — UTC+03:00'te 1 Mart gösterilirken
+  28 Şubat'a kayıyordu. Artık takvim günü doğrudan ayrıştırılıyor.
+- **`RangeError` (P1).** `eachDayOfInterval` ters aralıkta fırlatıyordu;
+  `period` geçersiz olduğunda tüm analitik ekranı patlıyordu. Aralık
+  bugüne kırpılıyor ve `start > end` durumu boş seriye düşüyor.
+- **Ölçü kabulü (P1).** `AddMealDialog` / `EditMealDialog` /
+  `AddWeightDialog` / `CustomWaterDialog` `parseFloat`/`parseInt`
+  sonucunu doğrulamadan kaydediyordu: `NaN`/negatif miktar `amount_g_ml = 0`
+  olarak yazılıp günlük toplamları sessizce bozuyordu. Su için üst sınır
+  da yoktu (tek kayıtla 1.000.000 ml mümkündü).
+- **Eksik `user_id` filtresi (P1).** `useDailyData.updateMealEntry` ve
+  `deleteMealEntry` yalnızca `id` ile güncelliyordu; RLS'e ek savunma
+  katmanı eklendi (`useNotifications.markAsRead` zaten yapıyordu).
+- **BMI bölme hatası (P1).** `calculateBMI(70, 0)` `Infinity` dönüyor ve
+  `getBMICategory` bunu "obez" olarak sınıflıyordu — fiziksel olarak imkânsız
+  bir kayıt yanlış sağlık uyarısı üretiyordu. `calculateProgress` da negatif
+  hedefte `-%400` dönüyordu.
+- **`DEFAULT_GOALS.fat` 65 → 67 (P1).** Flutter tarafı A3'ün `be8158a`
+  commit'iyle 67'ye düzeltildi (`2000 × 0.30 ÷ 9 = 67`); React tarafı 65'te
+  kaldı. Profil kaydı olmayan kullanıcı PWA'da yanlış yağ hedefi görüyordu.
+- **Oturum yarışı (P1).** `AuthContext` içindeki `getSession()` sözü,
+  süresi dolmuş oturum için token yenilerken yayınlanan
+  `TOKEN_REFRESHED` sonucunu **eziyordu**. Ayrıca `getSession` reddederse
+  `loading` hiç düşmüyor ve uygulama sonsuza dek splash ekranında kalıyordu.
+- **Profil yarışı (P1).** `ProfileContext` kullanıcı değiştiğinde eski
+  profil bir kare kalıyor ve eski istek geç çözülürse yeni veriyi eziyordu.
+- **Sessiz `signOut` hatası (P1).** `signOut` hatası yutuluyordu; başarısız
+  olsa bile kullanıcı çıkış yaptığını sanıyordu. `signingOut` bayrağı eklendi.
+- **Hata mesajında veri sızıntısı (P1).** `useDataExport.importData`
+  `error.message` metnini kullanıcıya gösteriyordu: `JSON.parse` hatası
+  dosya yolunu sızdırıyor, Supabase hataları tablo/kısıt adlarını içeriyordu.
+- **Yaş hesabı (P2).** `Index.tsx` yaşı `365.25` günlük ortalama ile
+  hesaplıyordu (duvar saati farkına duyarlı, 29 Şubat doğumlularda yılda bir
+  gün kaydırıyor). Diğer iki ekran zaten `calculateAge` kullanıyordu; üçü
+  de aynı takvim yılı hesabına bağlandı.
+- **Tarih belirsizliği (P2).** `ChatPage` `currentDate`'i
+  `toLocaleDateString("en-CA")` ile üretiyordu; bu her tarayıcıda
+  `yyyy-mm-dd` garantisi vermiyor ve sunucu prompt'a düz metin koyduğu için
+  AI'a belirsiz gün/ay sırası bırakıyordu.
+
+### Added
+- `src/integrations/supabase/functions.ts`: `functions.invoke` için zaman
+  aşımı sarmalayıcısı (60 sn). Önceden `ai-chat` (AI + 3 tablo) veya
+  `calculate-macros` yavaşladığında buton "bekliyor" durumunda kalıyor ve
+  kullanıcı işlemi iptal edemiyordu. Altı çağrı noktası bu sarmalayıcıya
+  taşındı. **JWT davranışı değiştirilmedi** — bkz. sarmalayıcının başındaki
+  kanıt zinciri.
+- `.github/workflows/*.yml`: tüm eylemler **40 haneli commit SHA'sına**
+  pinlendi (`@v4` etiketi hareketli bir referanstır; `# v4.2.2` yorumu
+  Dependabot güncellemeleri için korundu) ve her işe `timeout-minutes`
+  eklendi (flutter check 35, build 45, react check 20). Ağ takılmasında CI
+  6 saatlik runner varsayılanını beklemek yerine kesiliyor.
+- `tool/check_i18n.cjs`: dört yeni kontrol —
+  **placeholder ayracı** (boşluk ayıran dillerde `{min}до` yapışıklığı),
+  **Dart interpolasyonu sızıntısı** (`${...}` çeviri içinde),
+  **RTL sızıntısı** (Arapçada kalan İngilizce cümle / ASCII satır sonu
+  noktalaması) ve **tarih-sayı biçimi** (`DateFormat`/`NumberFormat`
+  locale'siz ya da sabit dile bağlı).
+- `tool/check_versions.cjs` kapsamı genişletildi: `DEFAULT_GOALS`
+  (web) ↔ `AppConstants` (Flutter), makro oranları, atwater Sabitleri,
+  aktivite çarpanları, hedef modifikatörleri, minimum kalori tabanı,
+  `APP_VERSION` ↔ `package.json`, `local.properties` sürüm bayatlığı ve
+  README yayın talimatı ↔ `pubspec`. Aynı sınıf sapmalar (sabitler ve
+  hesap oranları arasında) artık **hiçbir araçla** yakalanmıyordu.
+- `flutter_app/lib/core/utils/calculations.dart`: makro oranları ve atwater
+  değerleri **tek kaynaktan** (`proteinRatio` vb. sabitler) okunuyor; iki
+  istemci karşılaştırması bu sabitlere bakıyor.
+
+### Docs
+- `README.md` / `README_EN.md`: "Bu depoda iki istemci" tablosuna sürümler
+  eklendi (Flutter 1.3.0 / React 1.1.0), özellik listelerinin hangi istemciye
+  ait olduğu belirtildi, `INTERNAL_FUNCTION_TOKEN` / `VAPID_SUBJECT` gibi
+  **edge function secret'ları** kurulum tablosuna eklendi (bunlar `.env`'e
+  değil Supabase projesine tanımlanır).
+- `.env.example`: sunucu tarafı secret'lar (`INTERNAL_FUNCTION_TOKEN`,
+  `VAPID_SUBJECT`) gerekçeleriyle birlikte belgelendi.
+
+### i18n
+- `fr.json`'da 4 eksik anahtar (`updates.unverified`, `integrityFailed`,
+  `tooLarge`, `downloadFailed`) gerçek Fransızca çevirilerle eklendi. Bu
+  anahtarlar A3'ün `apk_integrity.dart`/`apk_downloader.dart` işinden
+  gelmişti; 11 dilde vardı, Fransızca'da yoktu.
+- `ar.json` `dashboard.remaining`: `"kcal متبقية"` (İngilizce "remaining kcal"
+  kalıbı harf harfine bırakılmış) → `"متبقٍّ (kcal)"`.
+
+---
+
 # Flutter App
 
 The Flutter app (`flutter_app/`) carries its own version independent of the

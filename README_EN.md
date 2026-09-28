@@ -24,11 +24,16 @@
 >
 > | Path | Status |
 > |------|--------|
-> | **`flutter_app/`** | **Primary app** — Flutter (Android + web). Version lives in `pubspec.yaml`; actively developed. → [Setup & architecture](flutter_app/README.md) |
-> | `src/` | React PWA — **maintenance mode**, no new features. This is what the Vercel demo serves. |
+> | **`flutter_app/`** | **Primary app** — Flutter (Android + web), version **1.3.0**. New features land here. → [Setup & architecture](flutter_app/README.md) |
+> | `src/` | React PWA (version 1.1.0) — **maintenance mode**, no new features. This is what the Vercel demo serves. |
 >
-> Both use the same Supabase backend and the same data model. The
-> features/installation sections below describe the React PWA.
+> Both use the same Supabase backend and the same data model.
+> `node tool/check_versions.cjs` compares the two clients' **default goals
+> and macro ratios**; a divergence breaks CI.
+>
+> The features/installation sections below describe the **React PWA**. For the
+> primary app's feature list and setup steps see
+> [`flutter_app/README.md`](flutter_app/README.md).
 
 ---
 
@@ -36,9 +41,17 @@
 
 CaloriX is a modern PWA (Progressive Web App) that allows you to track daily calories, macro nutrients, water consumption, and weight. With AI-powered food recognition and the AI Chat nutrition assistant, you can easily track what you eat by taking a photo, typing text, or chatting about your nutrition.
 
-> **Version 1.1.0:** Added the AI Chat nutrition assistant. Removed the offline sync infrastructure because it was causing bugs and data consistency issues.
+> **Version 1.1.0 (React PWA):** Added the AI Chat nutrition assistant. Removed the offline sync infrastructure because it was causing bugs and data consistency issues.
+>
+> **Version 1.3.0 (Flutter — primary app):** Android port, 12-language UI,
+> meal-based reminders, data export/import, forced update gate and **home
+> screen widgets**. Details: [CHANGELOG.md](CHANGELOG.md).
 
 ## ✨ Features
+
+> The list below is for the **React PWA (1.1.0)**. The primary app's
+> (Flutter 1.3.0) features live in
+> [`flutter_app/README.md`](flutter_app/README.md).
 
 ### 🍽️ Food Tracking
 - **AI Powered Recognition**: Recognize food via photo or text
@@ -112,8 +125,23 @@ Configure the `.env` file with the following variables:
 | `OPENAI_MODEL` | (Optional) AI model to use (default: openai) |
 | `RESEND_API_KEY` | (Optional) Resend API key for email notifications |
 | `VAPID_PUBLIC_KEY` | (Optional) Public Key for Web Push notifications |
-| `VAPID_PRIVATE_KEY` | (Optional) Private Key for Web Push notifications |
 
+### Edge function secrets (set on the Supabase project)
+
+React's `supabase.functions.invoke` calls carry **no secret**: the user's JWT
+travels in the `Authorization: Bearer …` header and is verified server-side by
+`_shared/auth.ts` → `requireUserContext()`. The cron-driven flow (meal
+reminders) has no JWT, so it needs an explicit token:
+
+| Secret | Required? | Description |
+|--------|-----------|-------------|
+| `INTERNAL_FUNCTION_TOKEN` | **Required in production** | Authorises `check-reminders` → `send-notification`. Generate with `openssl rand -hex 32`. Without it only a `service_role` JWT is accepted. |
+| `VAPID_PRIVATE_KEY` | Required for web push | P-256 private key (base64url raw 32 bytes, or PEM). |
+| `VAPID_SUBJECT` | Required for web push | `mailto:ops@calorix.app` or `https://calorix.app` — any other form is rejected. |
+| `VAPID_PUBLIC_KEY` | Recommended | Derived from the private key when empty. The client reads `VITE_VAPID_PUBLIC_KEY`. |
+| `OPENAI_API_KEY` | For AI features | Read server-side by the edge functions. |
+
+Full list and production instructions: [`supabase/.env.example`](supabase/.env.example).
 
 4. **Start the development server**
 ```bash
@@ -185,8 +213,8 @@ Release flow:
 
 ```bash
 # 1) Bump the version in flutter_app/pubspec.yaml: version: 1.3.0+4
-#    (keep AppConstants.appVersion and CHANGELOG.md in sync —
-#     node tool/check_versions.cjs is the gate)
+#    (keep AppConstants.appVersion, CHANGELOG.md and the version example in
+#     this README in sync — node tool/check_versions.cjs is the gate)
 
 # 2) Normal release (older versions get an OPTIONAL update):
 tool/release_android.sh --notes-en "Bug fixes" --notes-tr "Hata düzeltmeleri"

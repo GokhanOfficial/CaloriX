@@ -24,11 +24,16 @@
 >
 > | Yol | Durum |
 > |-----|-------|
-> | **`flutter_app/`** | **Ana uygulama** — Flutter (Android + web). Sürüm `pubspec.yaml`'da, geliştirme aktif. → [Kurulum ve mimari](flutter_app/README.md) |
-> | `src/` | React PWA — **bakım modunda**, yeni özellik eklenmez. Vercel demosu bunu sunar. |
+> | **`flutter_app/`** | **Ana uygulama** — Flutter (Android + web), sürüm **1.3.0**. Yeni özellikler buraya eklenir. → [Kurulum ve mimari](flutter_app/README.md) |
+> | `src/` | React PWA (sürüm 1.1.0) — **bakım modunda**, yeni özellik eklenmez. Vercel demosu bunu sunar. |
 >
-> İkisi aynı Supabase backend'ini ve aynı veri modelini kullanır. Aşağıdaki
-> özellik/kurulum bölümleri React PWA içindir.
+> İkisi aynı Supabase backend'ini ve aynı veri modelini kullanır.
+> `node tool/check_versions.cjs` iki istemcinin **varsayılan hedeflerini ve
+> makro oranlarını** karşılaştırır; ayrışma CI'ı kırar.
+>
+> Aşağıdaki özellik/kurulum bölümleri **React PWA** içindir. Ana uygulamanın
+> özellik listesi ve kurulum adımları için
+> [`flutter_app/README.md`](flutter_app/README.md).
 
 ---
 
@@ -36,9 +41,17 @@
 
 CaloriX, günlük kalori, makro besin değerleri, su tüketimi ve kilo takibi yapmanızı sağlayan modern bir PWA (Progressive Web App) uygulamasıdır. AI destekli yemek tanıma ve AI Chat beslenme asistanı ile fotoğraf çekerek, metin yazarak veya sohbet ederek yediklerinizi kolayca takip edebilirsiniz.
 
-> **Sürüm 1.1.0:** AI Chat beslenme asistanı eklendi. Hatalara ve veri tutarsızlıklarına neden olan offline sync altyapısı kaldırıldı.
+> **Sürüm 1.1.0 (React PWA):** AI Chat beslenme asistanı eklendi. Hatalara ve veri tutarsızlıklarına neden olan offline sync altyapısı kaldırıldı.
+>
+> **Sürüm 1.3.0 (Flutter — ana uygulama):** Android'e geçiş, 12 dilde
+> arayüz, öğün bazlı hatırlatıcılar, veri içe/dışa aktarma, zorunlu güncelleme
+> ve **ana ekran widget'ları**. Ayrıntı: [CHANGELOG.md](CHANGELOG.md).
 
 ## ✨ Özellikler
+
+> Aşağıdaki liste **React PWA (1.1.0)** içindir. Ana uygulamanın (Flutter
+> 1.3.0) özellikleri [`flutter_app/README.md`](flutter_app/README.md)
+> altındadır.
 
 ### 🍽️ Yemek Takibi
 - **AI Destekli Tanıma**: Fotoğraf veya metin ile yemek tanıma
@@ -102,6 +115,11 @@ cp .env.example .env
 
 `.env` dosyasını aşağıdaki değişkenlerle yapılandırın:
 
+`.env` dosyasını aşağıdaki değişkenlerle yapılandırın. **Edge function'lar
+için gereken sunucu tarafı secret'lar bu dosyada değildir** — onlar Supabase
+projesinde tanımlanır (bkz. aşağıdaki tablo ve
+[`supabase/.env.example`](supabase/.env.example)).
+
 | Değişken | Açıklama |
 |----------|----------|
 | `VITE_SUPABASE_URL` | Supabase Proje URL'i |
@@ -112,7 +130,21 @@ cp .env.example .env
 | `OPENAI_MODEL` | (Opsiyonel) Kullanılacak AI modeli (varsayılan: openai) |
 | `RESEND_API_KEY` | (Opsiyonel) E-posta bildirimleri için Resend API anahtarı |
 | `VAPID_PUBLIC_KEY` | (Opsiyonel) Web Push bildirimleri için Public Key |
-| `VAPID_PRIVATE_KEY` | (Opsiyonel) Web Push bildirimleri için Private Key |
+
+### Edge function secret'ları (Supabase projesinde)
+
+React'in `supabase.functions.invoke` çağrıları istemciye **hiçbir sır
+gömmez**; kullanıcının JWT'si `Authorization: Bearer …` başlığıyla gider ve
+`_shared/auth.ts` `requireUserContext()` tarafından sunucuda doğrulanır.
+Ancak **cron** ile tetiklenen akışın (öğün hatırlatıcıları) JWT'si yoktur:
+
+| Secret | Zorunlu mu? | Açıklama |
+|--------|-------------|----------|
+| `INTERNAL_FUNCTION_TOKEN` | Üretimde **zorunlu** | `check-reminders` → `send-notification` akışının yetkilendirilmesi. `openssl rand -hex 32` ile üretin. Tanımlanmazsa yalnızca `service_role` JWT'si geçerli olur. |
+| `VAPID_PRIVATE_KEY` | Web push için zorunlu | P-256 özel anahtar (base64url ham 32 bayt ya da PEM). |
+| `VAPID_SUBJECT` | Web push için zorunlu | `mailto:ops@calorix.app` ya da `https://calorix.app` — başka biçim reddedilir. |
+| `VAPID_PUBLIC_KEY` | Önerilir | Boş bırakılırsa private key'den türetilir. İstemci tarafı `VITE_VAPID_PUBLIC_KEY` ile okur. |
+| `OPENAI_API_KEY` | AI özellikleri için | Edge function'lar sunucu tarafında okur. |
 
 
 4. **Geliştirme sunucusunu başlatın**
@@ -184,8 +216,8 @@ Yayınlama akışı:
 
 ```bash
 # 1) flutter_app/pubspec.yaml içinde sürümü yükselt: version: 1.3.0+4
-#    (AppConstants.appVersion ve CHANGELOG.md'yi de eşitle —
-#     node tool/check_versions.cjs kapıdır)
+#    (AppConstants.appVersion, CHANGELOG.md ve bu README'deki sürüm
+#     örneğini de eşitle — node tool/check_versions.cjs kapıdır)
 
 # 2) Normal sürüm (eskiler opsiyonel güncelleme görür):
 tool/release_android.sh --notes-tr "Hata düzeltmeleri" --notes-en "Bug fixes"
