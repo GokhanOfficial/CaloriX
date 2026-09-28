@@ -8,7 +8,7 @@
 // - Push gövdesi RFC 8291 `aes128gcm` ile **şifrelenir** (2026-09-28, A1r3);
 //   düz metin gönderilmez. VAPID imzası ile gövde şifreleme birlikte çalışır:
 //   RFC 8291 §3.3 gereği şifreli istekte `Authorization: vapid` **zorunludur**.
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";

@@ -1,7 +1,7 @@
 // NOT: `supabase-js` generic'leri için `_shared/database.types.ts` kullanılır;
 // böylece `from("...")` çağrıları gerçek satır tipleriyle denetlenir.
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
 import type { Database } from "../_shared/database.types.ts";

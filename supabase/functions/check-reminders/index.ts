@@ -11,7 +11,7 @@
 //    calculated_* ; water_entries.entry_time ve weight_entries.recorded_at yerine entry_date.
 //  - Zaman aşımı: dış AI çağrısında AbortSignal.timeout kullanılıyor.
 //  - Hata sızıntısı: istemciye sabit mesaj, detay yalnızca sunucu logunda.
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   errorResponse,

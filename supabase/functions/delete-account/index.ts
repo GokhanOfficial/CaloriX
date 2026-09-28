@@ -22,7 +22,7 @@
 //
 // `INTERNAL_FUNCTION_TOKEN` KULLANILMAZ: bu fonksiyon bir cron değil, kullanıcı
 // JWT'siyle çağrılan bir uç noktadır.
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
 import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.ts";

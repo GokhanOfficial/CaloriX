@@ -1,7 +1,7 @@
 // Makro hedefi hesaplama (AI).
 // Güvenlik: sunucu tarafı JWT doğrulama, tip/aralık doğrulaması, hız sınırı,
 // timeout, hata sızıntısı yok. Dönen şema istemciyle (MacroCalculator) uyumludur.
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
 import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
