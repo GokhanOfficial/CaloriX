@@ -130,7 +130,8 @@
       "title": "Modifica voce",
       "updated": "Voce aggiornata",
       "deleted": "Voce eliminata",
-      "conflict": "Questa voce è stata aggiornata su un altro dispositivo. L'elenco è stato aggiornato."
+      "conflict": "Questa voce è stata aggiornata su un altro dispositivo. L'elenco è stato aggiornato.",
+      "nameMissing": "Questo alimento non ha un nome salvato. Inserisci un nome per salvare."
     },
     "fiberG": "Fibre (g)",
     "photoTooLarge": "Foto troppo grande",

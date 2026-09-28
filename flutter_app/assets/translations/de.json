@@ -130,7 +130,8 @@
       "title": "Eintrag bearbeiten",
       "updated": "Eintrag aktualisiert",
       "deleted": "Eintrag gelöscht",
-      "conflict": "Dieser Eintrag wurde auf einem anderen Gerät aktualisiert. Die Liste wurde aktualisiert."
+      "conflict": "Dieser Eintrag wurde auf einem anderen Gerät aktualisiert. Die Liste wurde aktualisiert.",
+      "nameMissing": "Für dieses Lebensmittel ist kein Name gespeichert. Gib einen Namen ein, um zu speichern."
     },
     "fiberG": "Ballaststoffe (g)",
     "photoTooLarge": "Foto ist zu groß",

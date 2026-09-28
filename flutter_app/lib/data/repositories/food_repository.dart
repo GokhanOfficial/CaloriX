@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/observability/app_logger.dart';
 import '../models/food_item.dart';
 import '../supabase/supabase_client_provider.dart';
 import 'auth_repository.dart';
@@ -60,6 +61,222 @@ class FoodRepository {
     final v = row['created_by'];
     if (v == null) return null;
     return v.toString();
+  }
+
+  // =====================================================================
+  // ⭐ foods INSERT YOLU (A2r12, Tur 12) — ölçülmüş karar (a)
+  // =====================================================================
+  //
+  // ## ÖLÇÜM: `foods` tablosuna istemciden INSERT yazan **hiçbir yol yoktu**
+  //
+  // Tur 12'de `rg "from\('foods'\)" -A6 | rg "insert"` → **boş**. Repo'nun
+  // tek `foods` yazan yolu `DataTransferRepository._insertBatched('foods', …)`
+  // (yedek **içe aktarma**; `data_transfer_repository.dart:701`) ve
+  // `supabase/functions/recognize-food*` yalnızca **istemci metni** üretir
+  // (JSON şeması, insert yok). Yani:
+  //
+  // | yol | `foods` INSERT? |
+  // |---|---|
+  // | `add_manual_entry_dialog` | ✗ `meal_entries.custom_name` |
+  // | `recognition_confirm_dialog` | ✗ `meal_entries.custom_name` |
+  // | `add_from_food_dialog` | ✗ mevcut `food_id`'yi **okur** |
+  // | `DataTransferRepository` | ✓ yalnız **yedek import** |
+  // | `FoodRepository` (arayüz) | ✗ |
+  //
+  // ## ⭐ Sonucu: `canDelete == true` pratikte **hiç gerçekleşmiyordu**
+  //
+  // `canDelete == (created_by == auth.uid())` (A2r11) ve `foods.created_by`'i
+  // yazan tek istemci yolu yedek import olduğu için normal kullanıcının
+  // `canDelete == true` göreceği **tek** gıdalar kendi yedeğinden gelenler
+  // olabilir. Silme düğmesi ve A4r11'in ölçtüğü yetki mantığı bu yüzden
+  // **ölü arayüz**ydi.
+  //
+  // Favoriler de aynı sınıfta: `favorite_foods.food_id` `NOT NULL` FK →
+  // favorilenebilecek tek gıdalar `foods` tablosundakiler. O tabloya
+  // yazmayan istemci, favorilerin **türetilmiş** listeden
+  // (`frequentFoods`) gelmesine bağlı kalıyordu — A4r7'nin tabloya geçirme
+  // kararının (`favorites` artık türetilmiyor) pratikte hiçbir şey
+  // kazanmadığı ölçüldü.
+  //
+  // ## Karar: (a) INSERT yolunu ekle
+  //
+  // (b) `canDelete`/favorileri geri almak **geri alış** olurdu: A4r11'in ölçtüğü
+  // yetki kuralı (`created_by == auth.uid()`) doğru ve Postgres'te kanıtlı;
+  // geri almak onu da, A4r7b'nin favori arayüzünü de silerdi. (c) kabul,
+  // "ölü arayüz"ü bilinçli bırakmaktır.
+  //
+  // ## Kapsam bilinçli olarak dar
+  //
+  // Bu turda **yalnız veri katmanı** yolu açılıyor (`createFood`); yeni bir
+  // arayüz eklenmiyor. Gerekçe: `add_manual_entry_dialog` **zaten** tam
+  // olarak aynı formu (ad + miktar + kcal/P/K/Y, 100g) sunuyor ve aynı
+  // veriyi `meal_entries.custom_name` ile kaydediyor. Yani kullanıcı bugün
+  // de yarın da "kendi yiyeceğini ekleme" yapabiliyor — eksik olan şey
+  // **kendi yiyeceğini kaydetmek/kullanmak**, "yemek kaydetme formu" değil.
+  // Arayüzde "Yemeklerime kaydet" gibi yeni bir düğme **ürün kararı**dır ve
+  // 12 dil + ayrı test turu ister.
+  //
+  // ## RLS ve CHECK sözleşmesi (ölçüldü, `full_setup.sql` + migration)
+  //
+  // - `foods` INSERT: `WITH CHECK (created_by = auth.uid())`
+  //   (`full_setup.sql:420`, `20260927120000:227-230`) → `created_by`
+  //   **her kayıtta** yazılmalı, aksi halde `42501` (RLS reddi).
+  // - `food_nutrition` INSERT:
+  //   `EXISTS (foods.id = food_id AND foods.created_by = auth.uid())`
+  //   (`20260927120000:233-236`) → besin satırı **önce** yazılan gıdaya
+  //   bağlanmalı; iki istek sıralı (aynı `POST`/batch **yok**).
+  // - `food_nutrition` UNIQUE(food_id) → bir gıda için **tek** besin satırı.
+  // - `food_nutrition_values_non_negative` (`20260928300000:308-315`) →
+  //   negatif değer `23514` ile **tüm** kaydı düşürür; istemci tarafında
+  //   `ArgumentError` ile önden reddedilir.
+  // - `foods_name_brand_unique` UNIQUE(lower(name), lower(COALESCE(brand,'')))
+  //   (`20260927120000:496`) → **aynı adlı** gıda ikinci kez kaydedilirse
+  //   `23505`. Sessiz hata üretmemek için `createFood` bunu `null` döner
+  //   (aşağıda).
+  // - `food_source` enum: `photo | text | manual` → `source` yalnız bu üçü.
+  // - `created_at`/`updated_at` **gönderilmez** (A2r5 hatası; `DEFAULT now()`).
+  // - `popularity_count`, `verified`, `image_url`, `serving_description`:
+  //   yazılmaz → `DEFAULT`/`NULL` kalır. `popularity_count` **yazılmamalıdır**:
+  //   topluluk sıralamasını (`idx_foods_popularity`) kullanıcı verisi bozmamalı.
+  //
+  // ## `food_nutrition.per_100_g_ml`
+  //
+  // Tüm `FoodItem` besin değerleri **100g başına** normalize edilmiştir
+  // (`food_item.dart:34-44` ve `FoodRepository.customItem` formülü) ve
+  // `search()`'te okunan `food_nutrition` de bu sözleşmeyi kullanır. Bu
+  // yüzden `per_100_g_ml: true` yazılır — `false` yazsaydık arama sonuçları
+  // porsiyon başına dönerdi ve `forAmount` 100 kat yanlış hesaplardı.
+
+  /// Yeni bir gıda + besin satırı yazar.
+  ///
+  /// ## Dönüş sözleşmesi
+  ///
+  /// - Başarılı → yazılan gıdanın `id`'si.
+  /// - **Aynı adlı gıda zaten varsa** → `null`. `foods_name_brand_unique`
+  ///   `23505` döndürür; kullanıcı için doğru sonuç "zaten kayıtlı"dır, hata
+  ///   değil. Arayüz mevcut satırı arayıp kullanabilir.
+  /// - Diğer hatalar (`PostgrestException` vb.) **fırlatılır** — sessiz
+  ///   "kaydedilmedi" üretmek, kullanıcının verisini kaybettirmekten iyidir.
+  ///
+  /// ## Yazma sırası neden önemli?
+  ///
+  /// `foods` önce, `food_nutrition` sonra. Sebep: `food_nutrition.food_id`
+  /// FK'si `foods.id`'ye bağlı ve RLS politikası `foods.created_by`'ye
+  /// bakıyor — ters sırada besin satırının gıdası **henüz yoktur**.
+  ///
+  /// ## ⭐ Yarım yazım (partial write) ne olur?
+  ///
+  /// `foods` yazıldıktan sonra `food_nutrition` `23505`/`23514` alırsa
+  /// **besinsiz bir gıda** kalır. `search()`/`favorites()`/`frequentFoods()`
+  /// besin satırı olmayan gıdayı **eliyor** (`nutrition == null → continue`,
+  /// `food_repository.dart:286/438`) → kullanıcıya görünmez, zararsız ama
+  /// sessiz bir artık. Bu yüzden iki yazma **tek `try` içinde** ve
+  /// besin satırı reddedilirse gıda **geri silinir**; silme de reddedilirse
+  /// (`false`) hata `StateError` ile yukarı çıkar — yani kullanıcı "kaydedilmedi"
+  /// der, DB'de de tutarlı (ya da tutarsız ama görünmez) bir artık kalmaz.
+  Future<String?> createFood({
+    required String userId,
+    required String name,
+    String? brand,
+    required double servingSizeG,
+    required double kcalPer100,
+    required double proteinPer100,
+    required double carbsPer100,
+    required double fatPer100,
+    String source = 'manual',
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'Gıda adı boş olamaz');
+    }
+    // CHECK koruması: `food_nutrition_values_non_negative`. `NaN`/`Infinity`
+    // Postgres'e JSON olarak gidince `numeric` kolonunda hata üretir.
+    _requireFiniteNonNegative('kcalPer100', kcalPer100);
+    _requireFiniteNonNegative('proteinPer100', proteinPer100);
+    _requireFiniteNonNegative('carbsPer100', carbsPer100);
+    _requireFiniteNonNegative('fatPer100', fatPer100);
+    if (servingSizeG.isNaN || servingSizeG.isInfinite || servingSizeG <= 0) {
+      throw ArgumentError.value(
+          servingSizeG, 'servingSizeG', 'NaN, Infinity veya sıfırdan küçük olamaz');
+    }
+    if (!_foodSources.contains(source)) {
+      throw ArgumentError.value(
+          source, 'source', 'food_source enum: photo | text | manual');
+    }
+
+    // `foods_name_brand_unique` UNIQUE(lower(name), lower(COALESCE(brand,'')))
+    // → aynı adlı gıda ikinci kez kaydedilirse `23505`. Kullanıcı için
+    // doğru sonuç "zaten kayıtlı" olduğu için **`null`** dönülür (hata değil,
+    // çift kayıt). Diğer hatalar **fırlatılır** — sessiz "kaydedilmedi"
+    // üretmek, kullanıcının verisini kaybettirmekten iyidir.
+    final Object inserted;
+    try {
+      inserted = await _client
+          .from('foods')
+          .insert({
+            'name': trimmed,
+            'brand': brand,
+            'serving_size_g': servingSizeG,
+            // `source` kayıt kökenidir, yetki değil (A2r11 ölçümü).
+            'source': source,
+            // ⭐ RLS `WITH CHECK (created_by = auth.uid())` — **her kayıtta**
+            // yazılmalı, yoksa `42501`.
+            'created_by': userId,
+          })
+          .select('id')
+          .single();
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') return null; // zaten kayıtlı
+      rethrow;
+    }
+
+    final foodId = (inserted as Map)['id'].toString();
+
+    try {
+      await _client.from('food_nutrition').insert({
+        'food_id': foodId,
+        // 100g sözleşmesi — bkz. sınıf dokümanı.
+        'per_100_g_ml': true,
+        'kcal': kcalPer100,
+        'protein_g': proteinPer100,
+        'carbs_g': carbsPer100,
+        'fat_g': fatPer100,
+      });
+    } catch (e) {
+      // Yarım yazımı kapat: besinsiz gıda görünmez ama DB'de kalmasın.
+      // `deleteFood` kendi filtresiyle siler; `false` dönerse kayıt
+      // başka bir işlemde zaten silinmiştir (çakışma → zararsız).
+      final cleaned = await deleteFood(userId, foodId);
+      if (!cleaned) {
+        // ⚠️ Gıda silinemedi. Bu **nadir** bir durum (RLS DELETE politikası
+        // INSERT ile aynı koşulu kullanır) ama olursa kullanıcının girdiği
+        // veri DB'de besinsiz kalır; yutulmaz, `AppLog`'a gider ve çağıran
+        // bunu öğrenir.
+        AppLog.w(
+          'Gıda yazıldı ama besin satırı reddedildi ve geri silinemedi '
+          '(food=$foodId, ${e.runtimeType})',
+          e,
+        );
+      }
+      rethrow;
+    }
+
+    return foodId;
+  }
+
+  /// `foods.source` enum etiketleri — `full_setup.sql:63`.
+  static const _foodSources = <String>{'photo', 'text', 'manual'};
+
+  /// Besin değeri yazma sırasındaki CHECK doğrulaması (negatif/NaN reddi).
+  ///
+  /// `food_nutrition` kolonları `numeric(6,2)/(7,2)`; negatif değer
+  /// `food_nutrition_values_non_negative` CHECK'iyle `23514` döner ve **tek
+  /// `try` içindeki iki yazmanın ikisini birden** düşürür. `NaN`/`Infinity`
+  /// ise JSON'da gidince Postgres ayrıştıramaz.
+  static void _requireFiniteNonNegative(String name, double v) {
+    if (v.isNaN || v.isInfinite || v < 0) {
+      throw ArgumentError.value(v, name, 'NaN, Infinity veya negatif olamaz');
+    }
   }
 
   /// `favorite_foods` tablosu (`full_setup.sql:185-192`).

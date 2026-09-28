@@ -130,7 +130,8 @@
       "title": "Edit Entry",
       "updated": "Entry updated",
       "deleted": "Entry deleted",
-      "conflict": "This entry was updated on another device. The list has been refreshed."
+      "conflict": "This entry was updated on another device. The list has been refreshed.",
+      "nameMissing": "This food has no saved name. Enter a name to save."
     },
     "fiberG": "Fiber (g)",
     "photoTooLarge": "Photo is too large",

@@ -130,7 +130,8 @@
       "title": "Kaydı Düzenle",
       "updated": "Kayıt güncellendi",
       "deleted": "Kayıt silindi",
-      "conflict": "Bu kayıt başka bir cihazda güncellendi. Liste yenilendi."
+      "conflict": "Bu kayıt başka bir cihazda güncellendi. Liste yenilendi.",
+      "nameMissing": "Yemek adı kayıtlı değil. Kaydetmek için bir ad yazın."
     },
     "fiberG": "Lif (g)",
     "photoTooLarge": "Fotoğraf çok büyük",

@@ -130,7 +130,8 @@
       "title": "Modifier l'entrée",
       "updated": "Entrée mise à jour",
       "deleted": "Entrée supprimée",
-      "conflict": "Cette entrée a été modifiée sur un autre appareil. La liste a été actualisée."
+      "conflict": "Cette entrée a été modifiée sur un autre appareil. La liste a été actualisée.",
+      "nameMissing": "Cet aliment n’a pas de nom enregistré. Saisissez un nom pour enregistrer."
     },
     "fiberG": "Fibres (g)",
     "photoTooLarge": "Photo trop volumineuse",

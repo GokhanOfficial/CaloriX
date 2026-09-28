@@ -130,7 +130,8 @@
       "title": "Editar registro",
       "updated": "Registro actualizado",
       "deleted": "Registro eliminado",
-      "conflict": "Este registro se actualizó en otro dispositivo. La lista se ha refrescado."
+      "conflict": "Este registro se actualizó en otro dispositivo. La lista se ha refrescado.",
+      "nameMissing": "Este alimento no tiene nombre guardado. Escribe un nombre para guardar."
     },
     "fiberG": "Fibra (g)",
     "photoTooLarge": "La foto es demasiado grande",

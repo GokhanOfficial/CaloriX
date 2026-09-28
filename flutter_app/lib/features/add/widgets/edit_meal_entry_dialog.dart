@@ -76,7 +76,8 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
   void initState() {
     super.initState();
     final e = widget.entry;
-    _nameController.text = e.customName ?? '';
+    // ⭐ A2r12: `custom_name` boşsa **kayıtlı ad** seed edilir (bkz. `_seedName`).
+    _nameController.text = _seedName;
     _amountController.text = formatAmount(e.amountGMl);
     _kcalController.text = formatAmount(_per100(e.calculatedKcal, e.amountGMl));
     _proteinController.text =
@@ -100,8 +101,54 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
 
   /// Kaydet için: ad dolu **ve** miktar > 0. Miktar 0 iken tüm makrolar 0'a
   /// düşüyor ve kayıt sessizce bozuluyordu.
+  ///
+  /// ## ⭐ A2r12: bu koşul tek başına **"kayıt bozuk"** durumunu üretiyordu
+  ///
+  /// A4r11'in ölçtüğü (ve raporuna yazdığı) durum: topluluk/seed gıdasından
+  /// eklenen öğünde `custom_name` **NULL** yazılır (`add_from_food_dialog:109`
+  /// yalnız `isCustom || canDelete` için ad yazar) ve `foods` satırı silinirse
+  /// `food_id` `ON DELETE SET NULL` olur. Sonuç: `food_id == null` **ve**
+  /// `custom_name == null`.
+  ///
+  /// Ölçüm (A2r12, `test/features/add/edit_orphan_meal_a2r12_test.dart`):
+  /// bu öğünü açan kullanıcı **boş bir ad alanı** görür, "Kaydet" düğmesi
+  /// **kapalıdır** ve ekranda hangi yemeği düzenlediğini gösteren **hiçbir
+  /// ipucu yoktur** — dashboard'da satır "Bilinmeyen" (`meal_entry.dart:89`).
+  /// Kullanıcı adı nereden bulacak? Diyalog tek görevi bu satırı onarmaktı.
+  ///
+  /// Düzeltme: ad alanının **üstüne** `displayName` gösterilir ve boş
+  /// `custom_name` bu değerle **seed** edilir. Böylece:
+  /// - kullanıcı adı görür ve "düzenliyorum" der,
+  /// - "Kaydet" **açılır** (miktar zaten `amount_g_ml`'den geliyor),
+  /// - kaydetmek `custom_name`i doldurur → `displayName` düzelir.
+  ///
+  /// `displayName` `"Bilinmeyen"` ise (yani gerçekten ad yoksa) boş bırakılır:
+  /// kullanıcıya `"Bilinmeyen"` adını yazdırmak veri uydurmak olurdu.
   bool get _valid =>
       _nameController.text.trim().isNotEmpty && _amount > 0;
+
+  /// Ad alanının seed değeri — `custom_name` boşsa kayıtlı gıdanın adı.
+  ///
+  /// Ölçülen akış: `food_id` dolu ama `custom_name` NULL olan bir satır
+  /// (A4r11'in topluluk gıdası yolu) düzenlendiğinde ekranda **hiçbir ad**
+  /// görünmüyordu; bu değer onu kurtarır. `food_id` NULL ise (gıdası
+  /// silinmiş ya da manuel girdi) yalnız `custom_name` vardır ve zaten
+  /// seed edilmiştir.
+  String get _seedName {
+    final custom = widget.entry.customName;
+    if (custom != null && custom.trim().isNotEmpty) return custom;
+    // `displayName` `customName ?? 'Bilinmeyen'` — gerçek ad yoksa uydurma.
+    final shown = widget.entry.displayName;
+    return shown == _unknownFoodLabel ? '' : shown;
+  }
+
+  /// `meal_entry.dart`deki "Bilinmeyen" etiketinin **tek** karşılığı.
+  ///
+  /// İki yerde de sabit metin tutulması (model + dialog) iki doğruluk kaynağı
+  /// üretirdi. Sabit metin **zaten** modelde tek yerde; buradaki eşleşme
+  /// `MealEntry.displayName`'in ürettiği değerle yapılır, yani `custom_name`
+  /// doluysa bu dal **hiç** çalışmaz.
+  static const _unknownFoodLabel = 'Bilinmeyen';
 
   double get _amount => _parse(_amountController.text);
 
@@ -220,6 +267,13 @@ class _EditMealEntryDialogState extends ConsumerState<EditMealEntryDialog> {
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 labelText: 'dialogs.foodName'.tr(),
+                // ⭐ A2r12: `food_id` var ama `custom_name` boşsa (topluluk
+                // gıdası, A4r11) alan **boş** görünür ve kullanıcı hangi
+                // yemeği düzenlediğini bilmez. Kayıtlı ad burada gösterilir.
+                helperText: _nameController.text.trim().isEmpty
+                    ? 'dialogs.edit.nameMissing'.tr()
+                    : null,
+                helperMaxLines: 2,
                 border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
