@@ -16,6 +16,7 @@ class FoodItem {
     this.isCustom = false,
     this.useCount,
     this.lastUsedAt,
+    this.canDelete = false,
   });
 
   /// DB yemeğinde `foods.id`, custom'da `custom_<entry.id>` (web parity).
@@ -50,6 +51,39 @@ class FoodItem {
 
   /// Sadece son yenilenlerde: son kullanım zamanı.
   final String? lastUsedAt;
+
+  /// ⭐ Bu gıdayı kullanıcı **silebilir mi?** (A2r11, Tur 11)
+  ///
+  /// ## Karar (ölçülmüş)
+  ///
+  /// `foods` DELETE politikası `USING (created_by = auth.uid())`
+  /// (`full_setup.sql:424`). Postgres 16.15 + ölçüm (`tool/a2r11_consistency.sql`):
+  ///
+  /// | `foods.created_by`     | `deleteFood` sonucu | `canDelete` |
+  /// |---|---|---|
+  /// | `= auth.uid()`        | `true`  (1 satır)  | **`true`**  |
+  /// | `IS NULL` (seed/topluluk) | `false` (0 satır) | **`false`** |
+  /// | başka kullanıcı      | `false` (0 satır) | **`false`** |
+  ///
+  /// Yani **`canDelete == (created_by == auth.uid())`**: RLS'in kabul ettiği tek
+  /// ve aynı koşul. Başka bir kural (ör. `source == 'manual'`) **ek koşul**
+  /// olurdu ve aynı gıdayı iki yerde farklı karar verdirirdi.
+  ///
+  /// ## Varsayılan `false` neden güvenli?
+  ///
+  /// Veri katmanı **kanıtlayamadığı** bir yetkiyi `true` ilan etmez (fail-closed).
+  /// Bu alan bilinmeyen yollarda (`recognized_food.toItem()`, elle kurulan test
+  /// öğeleri) `false` kalır ve düğme gizlenir — kullanıcı "neden silemiyorum"
+  /// yerine düğmeyi hiç görmez. `FoodRepository.deleteFood` yine de `false`
+  /// dönebilir (yarış durumu: gıda başka cihazda silinmiş olabilir) ve o
+  /// durum arayüzde zaten ayrı bir mesajla karşılanır.
+  ///
+  /// ## Neden `isCustom`/`foodId` yetmiyor?
+  ///
+  /// `foodId != null` yalnızca "`foods` tablosunda bir satır var" demektir;
+  /// o satırın **kimin** olduğunu söylemez. `search()`'e `created_by`
+  /// eklenmeden önce düğme her DB gıdasında görünüyordu (A4r10 aktarımı).
+  final bool canDelete;
 
   /// `amount` g/ml için hesaplanmış besin değerleri (web parity):
   /// kcal yuvarlanır, makrolar 1 ondalık basamağa yuvarlanır.

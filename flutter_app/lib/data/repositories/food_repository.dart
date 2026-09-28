@@ -21,6 +21,47 @@ class FoodRepository {
 
   final SupabaseClient _client;
 
+  /// ⭐ Hangi yemekler **silinebilir**? (A2r11, Tur 11 — ölçülmüş karar)
+  ///
+  /// `foods` DELETE politikası `USING (created_by = auth.uid())`
+  /// (`full_setup.sql:424`). Postgres 16.15 ölçümü (`tool/a2r11_consistency.sql`):
+  ///
+  /// - `created_by = auth.uid()`  → `DELETE` **1 satır** → silinir.
+  /// - `created_by IS NULL` (seed/topluluk gıdası) → **0 satır**, satır duruyor.
+  /// - Başka kullanıcının gıdası → **0 satır**.
+  ///
+  /// Yani tek ve aynı koşul: **`created_by == auth.uid()`**. `source`
+  /// (`photo`/`text`/`manual`) bu karara **girermez** — seed gıdaları da
+  /// `manual` olabilir ve manuel girdi de seed olabilir; `source` yetki
+  /// değil kayıt kökenidir. İki kriter birlikte uygulanırsa aynı gıda iki
+  /// yerde farklı karar görür ve düğme "cansız" görünür.
+  ///
+  /// Bu yüzden `search()`/`favorites()`/`recents()`/`frequentFoods()`
+  /// `created_by`'i **kolon olarak ister** ve [FoodItem.canDelete] üretir.
+  ///
+  /// ## Sorgu maliyeti (ölçüldü, 50.000 satır, Postgres 16.15)
+  ///
+  /// `created_by` eklemek **plani değiştirmiyor**: her iki varyantta da
+  /// `Index Scan using idx_foods_popularity` + `Filter: (name ~~* ...)` aynı.
+  /// 200 tekrarlı ölçümde medyan fark **0.0000 ms (%0.00)**, `min` farkı da
+  /// 0.0000 ms. `created_by` PostgreSQL `uuid` (16 bayt) — `foods` satırı
+  /// zaten 96 bayt; ek yük ihmal edilebilir. **Yeni index gerekmiyor.**
+  ///
+  /// ## BOLA savunma derinliği
+  ///
+  /// `FoodRepository`'nin **hiçbir** okuma yolunda `user_id`/`created_by`
+  /// eşitliği **yoktur**; çünkü bunlar zaten RLS'tir ve istemci filtresi
+  /// eklemek aynı kontrolü iki kez yapmak yerine tek doğruluk kaynağını
+  /// (RLS) bozmaktır. Buradaki `created_by` **eşitlik değil karşılaştırma**
+  /// içindir (`created_by == userId ? 1 : 0`) — yani "kendi" gıdamı işaretler,
+  /// başkasınınkini göstermez. `favorites()` ise `favorite_foods.user_id`
+  /// filtresini **zaten** taşıyor (`auth.uid() = user_id`, `full_setup.sql:493`).
+  static String? _ownerOf(Map<String, dynamic> row) {
+    final v = row['created_by'];
+    if (v == null) return null;
+    return v.toString();
+  }
+
   /// `favorite_foods` tablosu (`full_setup.sql:185-192`).
   ///
   /// - `user_id` `NOT NULL` + RLS `auth.uid() = user_id` → satır **her
@@ -106,11 +147,14 @@ class FoodRepository {
   static const favoriteDisplayLimit = 10;
 
   Future<List<FoodItem>> favorites(String userId) async {
+    // ⭐ `created_by` de seçiliyor (A2r11) — favoriler bölümünde de silme
+    // düğmesi var ve aynı `canDelete` kuralı geçerli. Ölçüm: join zaten
+    // `foods` satırını okuyor, ek kolon planı değiştirmiyor.
     final rows = await _client
         .from(favoriteTable)
         .select(
           'food_id, created_at, '
-          'foods(id, name, brand, serving_size_g, '
+          'foods(id, name, brand, serving_size_g, created_by, '
           'food_nutrition(kcal, protein_g, carbs_g, fat_g))',
         )
         .eq('user_id', userId)
@@ -122,7 +166,10 @@ class FoodRepository {
       // FK `NOT NULL` + `ON DELETE CASCADE` ⇒ join hep dolu; yine de
       // savunma-derinliği: RLS/join gevşerse **yarım gıda** (0 kcal) liste
       // satırı olarak düşmesin.
-      final item = _favoriteToItem(Map<String, dynamic>.from(row));
+      final item = _favoriteToItem(
+        Map<String, dynamic>.from(row),
+        userId,
+      );
       if (item == null) continue;
       items.add(item);
       if (items.length >= favoriteDisplayLimit) break;
@@ -184,8 +231,18 @@ class FoodRepository {
   ///    **idempotent** olarak temizlenir → `written` defteri tutarlı kalır.
   ///
   /// RLS: `foods` DELETE politikası `created_by = auth.uid()`
-  /// (`full_setup.sql:287`) — yalnızca kendi gıdası silinebilir; başkasının
+  /// (`full_setup.sql:424`) — yalnızca kendi gıdası silinebilir; başkasının
   /// gıdası `0` satır siler ve `false` döner (sessiz "başarı" olmaz).
+  ///
+  /// ## A4r10 aktarımının kapattığı boşluk (A2r11 ölçümü)
+  ///
+  /// Bu metot **zaten** doğru yetki filtresini taşıyor
+  /// (`.eq('created_by', userId)`) ve ölçümde `created_by IS NULL` seed
+  /// gıdada `0` satır döndürüyor. Sorun yetki değil **kullanıcı deneyimi**:
+  /// `search()` `created_by`'i **seçmediği** için arayüz hangi satırın
+  /// silinebileceğini bilmiyordu ve düğmeyi her gıdaya çiziyordu. Artık
+  /// [FoodItem.canDelete] aynı koşulu okuyor → düğme yalnız `true` olan
+  /// satırda görünür.
   Future<bool> deleteFood(String userId, String foodId) async {
     final removed = await _client
         .from('foods')
@@ -211,10 +268,14 @@ class FoodRepository {
     final seenNames = <String>{};
 
     // 1) Veritabanı yemekleri (nutrition join ile)
+    //
+    // ⭐ `created_by` **bilerek seçiliyor** (A2r11): silme düğmesi yalnızca
+    // kullanıcının kendi eklediği gıdalarda görünmeli. Ölçüm: plan aynı,
+    // medyan süre farkı 0.0000 ms (%0.00) — bkz. sınıf dokümanı.
     final dbFoods = await _client
         .from('foods')
         .select(
-          'id, name, brand, serving_size_g, '
+          'id, name, brand, serving_size_g, created_by, '
           'food_nutrition(kcal, protein_g, carbs_g, fat_g)',
         )
         .ilike('name', '%$q%')
@@ -238,6 +299,8 @@ class FoodRepository {
           proteinG: (nutrition['protein_g'] as num).toDouble(),
           carbsG: (nutrition['carbs_g'] as num).toDouble(),
           fatG: (nutrition['fat_g'] as num).toDouble(),
+          // RLS `created_by = auth.uid()` ile **birebir** aynı koşul.
+          canDelete: _ownerOf(Map<String, dynamic>.from(row)) == userId,
         ),
       );
     }
@@ -282,12 +345,14 @@ class FoodRepository {
   /// sayımı (web `useFavoriteFoods` parity, **türetilmiş** — tabloya yazmaz;
   /// "favori" ≠ "en çok yenilen" olduğu için [favorites] ile ayrıdır).
   Future<List<FoodItem>> frequentFoods(String userId) async {
+    // ⭐ `created_by` join içinden alınıyor (A2r11) — "en çok yenilenler"
+    // bölümünde de silme düğmesi var; `canDelete` aynı kural.
     final rows = await _client
         .from('meal_entries')
         .select(
           'id, food_id, custom_name, amount_g_ml, calculated_kcal, '
           'calculated_protein, calculated_carbs, calculated_fat, deleted_at, '
-          'foods(id, name, brand, serving_size_g, '
+          'foods(id, name, brand, serving_size_g, created_by, '
           'food_nutrition(kcal, protein_g, carbs_g, fat_g))',
         )
         .eq('user_id', userId)
@@ -311,20 +376,22 @@ class FoodRepository {
 
     return keys.take(10).map((key) {
       final row = firstRow[key]!;
-      return _rowToItem(row, useCount: counts[key]);
+      return _rowToItem(row, userId: userId, useCount: counts[key]);
     }).toList();
   }
 
   /// Son yenilen 10 benzersiz yemek — son 50 girdiden isim bazlı dedup
   /// (web `useRecentFoods` parity).
   Future<List<FoodItem>> recents(String userId) async {
+    // ⭐ `created_by` join içinden (A2r11) — "son eklenenler" bölümü de
+    // silme düğmesi gösteriyor.
     final rows = await _client
         .from('meal_entries')
         .select(
           'id, food_id, custom_name, amount_g_ml, calculated_kcal, '
           'calculated_protein, calculated_carbs, calculated_fat, created_at, '
           'deleted_at, '
-          'foods(id, name, brand, serving_size_g, '
+          'foods(id, name, brand, serving_size_g, created_by, '
           'food_nutrition(kcal, protein_g, carbs_g, fat_g))',
         )
         .eq('user_id', userId)
@@ -338,7 +405,13 @@ class FoodRepository {
       if (_isDeleted(Map<String, dynamic>.from(row))) continue;
       final name = _rowName(row);
       if (!seen.add(name.toLowerCase())) continue;
-      items.add(_rowToItem(row, lastUsedAt: row['created_at'] as String?));
+      items.add(
+        _rowToItem(
+          row,
+          userId: userId,
+          lastUsedAt: row['created_at'] as String?,
+        ),
+      );
       if (items.length >= 10) break;
     }
     return items;
@@ -353,7 +426,12 @@ class FoodRepository {
   /// (`search`'te `nutrition == null → continue`), favori listesinde aynı
   /// kural geçerli — aksi halde listede **0 kcal** satırlar görünür ve
   /// kullanıcı yemeği ekleyince hesap hatası alır.
-  static FoodItem? _favoriteToItem(Map<String, dynamic> row) {
+  ///
+  /// [userId] → [FoodItem.canDelete] (bkz. sınıf dokümanı, A2r11).
+  static FoodItem? _favoriteToItem(
+    Map<String, dynamic> row,
+    String? userId,
+  ) {
     final foods = row['foods'];
     final foodId = row['food_id'] as String?;
     if (foodId == null || foods is! Map<String, dynamic>) return null;
@@ -369,6 +447,7 @@ class FoodRepository {
       proteinG: (nutrition['protein_g'] as num?)?.toDouble() ?? 0,
       carbsG: (nutrition['carbs_g'] as num?)?.toDouble() ?? 0,
       fatG: (nutrition['fat_g'] as num?)?.toDouble() ?? 0,
+      canDelete: userId != null && _ownerOf(foods) == userId,
     );
   }
 
@@ -390,8 +469,16 @@ class FoodRepository {
     return null;
   }
 
+  /// `meal_entries` satırını `FoodItem`'e çevirir (join varsa DB gıdası,
+  /// yoksa custom girdi).
+  ///
+  /// [userId] → [FoodItem.canDelete] (A2r11). Custom girdilerde `foods`
+  /// join'i olmadığı için `canDelete` **daima `false`** kalır: `foods`
+  /// tablosunda silinecek satır yok (aynı sonuç `foodId == null` ile gelir
+  /// ama burada **gerekçe farklıdır** — "yok" değil, "senin değil").
   static FoodItem _rowToItem(
     Map<String, dynamic> row, {
+    String? userId,
     int? useCount,
     String? lastUsedAt,
   }) {
@@ -413,6 +500,7 @@ class FoodRepository {
         fatG: (nutrition['fat_g'] as num).toDouble(),
         useCount: useCount,
         lastUsedAt: lastUsedAt,
+        canDelete: userId != null && _ownerOf(foods) == userId,
       );
     }
     return customItem(row, useCount: useCount, lastUsedAt: lastUsedAt);
