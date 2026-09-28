@@ -72,8 +72,7 @@ class DailyData {
 ///
 /// Tüm sorgular `entry_date = yyyy-MM-dd` + `deleted_at IS NULL`
 /// filtreleriyle; silme soft-delete (`deleted_at = now()`).
-class DiaryRepository {
-  DiaryRepository(this._client);
+class DiaryRepository {  DiaryRepository(this._client);
 
   final SupabaseClient _client;
 
@@ -97,6 +96,34 @@ class DiaryRepository {
     if (v.isNaN || v.isInfinite || v <= 0) {
       throw ArgumentError.value(v, name, 'NaN, Infinity veya sıfırdan küçük olamaz');
     }
+  }
+
+  /// `amount_g_ml` / `amount_ml` için **görünür** miktar doğrulaması.
+  ///
+  /// ## Neden ayrı bir yardımcı
+  ///
+  /// Miktar alanı iki ayrı katmanda, **farklı ölçütlerle** doğrulanıyordu:
+  ///
+  ///  * Veri katmanı: `NaN`/`≤0` → `ArgumentError` (DB'ye hiç yazılmaz),
+  ///  * Arayüz (tanıma onayı): `r.amount <= 0` → **"Miktar gerekli"**
+  ///    (`dialogs.amountRequired`). Kullanıcı 250 yazıp ondalık noktasını
+  ///    unutmuşsa "girilmedi" mesajı alıyor, yani ekranda ne yaptığını
+  ///    anlamıyor. Doğru mesaj `dialogs.invalidAmount` ("Geçerli bir miktar
+  ///    girin") — 12 dilde **zaten var**, kod değişikliği 0 çeviri işidir.
+  ///
+  /// Bu metot tek doğruluk kaynağı olsun diye eklendi: arayüz
+  /// `DiaryRepository.isUsableAmount` ile hem uyarı metnini hem de
+  /// "kaydet" düğmesinin durumunu aynı anda yönetir, iki dal ayrışamaz.
+  ///
+  /// ## Neden üst sınır yok
+  ///
+  /// DB CHECK'i 10000 g/ml (`20260927120000_security_hardening_round1.sql:389`).
+  /// Bu metot **kullanılabilirlik** içindir (`0 < miktar`), DB sözleşmesi
+  /// zaten [_requireFinitePositive] + CHECK ile korunur.
+  static bool isUsableAmount(double? amount) {
+    if (amount == null) return false;
+    if (amount.isNaN || amount.isInfinite) return false;
+    return amount > 0;
   }
 
   /// Seçili günün tüm verisi: öğünler (created_at asc), su (entry_time asc)
@@ -260,14 +287,32 @@ class DiaryRepository {
   /// eklenir: RLS zaten `auth.uid() = user_id` ile koruyor, ama istemci
   /// tarafında ikinci filtre **kırık/eksik yetki** durumunda (örn. RLS
   /// politikası yanlışlıkla gevşetilirse) başkasının kaydının sessizce
-  /// ezilmesini imkânsız kılar. Kullanıcının oturumu dışındaki bir id
-  /// geçilirse `.single()` 0 satır döner ve `PostgrestException` fırlatır —
-  /// sessiz veri kaybı yerine yüzeye çıkan hata.
+  /// ezilmesini imkânsız kılar.
+  ///
+  /// ## Eşzamanlı düzenleme (kayıp güncelleme)
+  ///
+  /// [expectedUpdatedAt] verilirse **iyimser kilit** uygulanır: güncelleme
+  /// yalnızca satırın `updated_at`'ı hâlâ verilen değere eşitse yazılır.
+  ///
+  /// Sorun: kullanıcı iki ekranda (telefon + tablet) aynı öğünü açtığında
+  /// ikinci kaydetme, ilkinin değişikliklerini **sessizce** eziyordu. Kayıt
+  /// "güncellendi" onayı veriyordu ama kullanıcı ilk düzenlemenin miktarını
+  /// kaybetmişti ve hiçbir iz kalmıyordu. `updated_at` bu senaryoda yeterli
+  /// bir sürüm damgasıdır: `update_updated_at_column` trigger'ı
+  /// (`full_setup.sql:547`) her yazmada `now()` yazar, Postgres `now()` işlem
+  /// başına sabit olduğu için iki yazma saniyelerce sonra bile farklı damga
+  /// alır.
+  ///
+  /// Çağıran davranışı (A4 alanı): `entry.updatedAt` değerini geçirir;
+  /// çakışma [MealEntryConflictError] ile bildirilir. Damga verilmeyen
+  /// çağıranlar **son yazan kazanır** semantiğinde çalışır (geriye dönük
+  /// uyum).
   Future<MealEntry> updateMealEntry(
     String userId,
     String id,
-    Map<String, dynamic> updates,
-  ) async {
+    Map<String, dynamic> updates, {
+    String? expectedUpdatedAt,
+  }) async {
     // Kısmi güncelleme: `updates` yalnızca verilen alanları içerir, diğer
     // alanlar (source/food_id/photo_url/entry_date) korunur. Yazılan sayısal
     // alanlar yine de doğrulanır — UI `_parse` boş metni 0'a çevirdiği
@@ -284,14 +329,47 @@ class DiaryRepository {
       if (v is double) _requireFiniteNonNegative(key, v);
     }
 
-    final data = await _client
+    final query = _client
         .from('meal_entries')
         .update({...updates, 'updated_at': _nowIso()})
         .eq('id', id)
+        .eq('user_id', userId);
+    final rows = await (expectedUpdatedAt == null
+            ? query
+            : query.eq('updated_at', expectedUpdatedAt))
+        .select();
+
+    if (rows.isNotEmpty) return MealEntry.fromJson(rows.first);
+
+    // 0 satır: ya kayıt yok/silinmiş, ya da başka cihaz güncellemiş.
+    // Kullanıcıya **doğru** mesaj için ayırt etmek şart — "bulunamadı" ile
+    // "çakıştı" farklıdır.
+    if (expectedUpdatedAt == null) {
+      // Damga verilmediyse 0 satır = kayıt yok. Eski davranış (`.single()`
+      // `PostgrestException` yerine anlaşılır `StateError`) korunur.
+      throw StateError(
+        'Güncellenecek öğün bulunamadı (id=$id) — başka cihazdan silinmiş olabilir',
+      );
+    }
+    final current = await _client
+        .from('meal_entries')
+        .select('updated_at, deleted_at')
+        .eq('id', id)
         .eq('user_id', userId)
-        .select()
-        .single();
-    return MealEntry.fromJson(data);
+        .maybeSingle();
+    if (current == null) {
+      throw StateError(
+        'Güncellenecek öğün bulunamadı (id=$id) — başka cihazdan silinmiş olabilir',
+      );
+    }
+    if (current['deleted_at'] != null) {
+      throw StateError('Bu öğün başka bir cihazdan silinmiş (id=$id)');
+    }
+    throw MealEntryConflictError(
+      entryId: id,
+      expectedUpdatedAt: expectedUpdatedAt,
+      actualUpdatedAt: current['updated_at'] as String?,
+    );
   }
 
   /// Yemek girdisi sil — soft delete (web parity).
@@ -437,3 +515,42 @@ final dailyDataProvider = FutureProvider<DailyData>((ref) {
   final date = ref.watch(selectedDateProvider);
   return ref.watch(diaryRepositoryProvider).fetchDaily(user.id, date);
 });
+
+/// Aynı öğün **eşzamanlı** iki ekranda düzenlendiğinde fırlatılır.
+///
+/// ## Anlamı
+///
+/// Kullanıcı telefonunda öğünü açtı, tablette de aynı öğünü düzenlemeye başladı.
+/// Tablet'te "Kaydet" dediğinde `updated_at` filtresi artık eşleşmiyor, bu
+/// yüzden yazma **yapılmaz** — aksi halde telefonun değişiklikleri sessizce
+/// ezilirdi (kayıp güncelleme). Kullanıcıya "kayıt başka yerde değişti,
+/// tekrar dene" demelidir.
+///
+/// ## Neden ayrı sınıf, neden `StateError` değil
+///
+/// * `StateError`'ın anlamı "program hatası / kayıt yok"; burada ise
+///   **kullanıcının yapması gereken bir şey** var (tekrar denemek).
+/// * Çağıran (`edit_meal_entry_dialog.dart`, **A4 alanı**) bu türü yakalayıp
+///   farklı bir mesaj gösterecek; `catch (_)` bunu yutamaz.
+class MealEntryConflictError implements Exception {
+  const MealEntryConflictError({
+    required this.entryId,
+    required this.expectedUpdatedAt,
+    this.actualUpdatedAt,
+  });
+
+  final String entryId;
+
+  /// Arayüzün gönderdiği (ekranda gördüğü) damga.
+  final String expectedUpdatedAt;
+
+  /// DB'deki güncel damga — teşhis ve "yeniden yükle" akışı için.
+  final String? actualUpdatedAt;
+
+  /// Kullanıcıya gösterilebilecek tek satır. **Sunucu ayrıntısı taşımaz.**
+  String get summary => 'Bu öğün başka bir cihazda değiştirilmiş.';
+
+  @override
+  String toString() => 'MealEntryConflictError(entryId: $entryId, '
+      'expected: $expectedUpdatedAt, actual: $actualUpdatedAt)';
+}

@@ -15,6 +15,24 @@ class FoodRepository {
 
   final SupabaseClient _client;
 
+  /// `foods` tablosunda **`deleted_at` kolonu yoktur** (`full_setup.sql:70-80`)
+  /// ve `FoodRepository` hiçbir yerde `.delete()` çağırmaz — yani gıda
+  /// silme yolu fiziksel silmedir ve istemci süzgeci gerekmez.
+  /// `meal_entries` tarafındaki üç sorgu ise `deleted_at IS NULL` gönderir
+  /// (sunucu süzgeci) ve dönen satırlar istemcide de elenir — aynı savunma
+  /// derinliği burada da uygulanır: süzgeç **kaybolsa** bile silinmiş bir
+  /// öğün favorilerde/son yenilenlerde "yemek önerisi" olarak görünmez.
+  ///
+  /// Sorgular `meal_entries`'ten yalnız gıda adı için yararlanır; `deleted_at`
+  /// kolonu `select()` listesine **açıkça eklenir** çünkü istemci elemesi
+  /// ancak kolon geldiyse mümkündür (analytics/fetchDaily ile aynı desen).
+  static bool _isDeleted(Map<String, dynamic> row) {
+    final v = row['deleted_at'];
+    if (v == null) return false;
+    if (v is String) return v.isNotEmpty;
+    return true;
+  }
+
   /// Metin araması — min 2 karakter. Önce `foods` tablosu (popülerlik
   /// sıralı, limit 10), sonra kullanıcının custom girdileri
   /// (`food_id IS NULL`, limit 50). İsme göre (küçük harf) dedup,
@@ -58,7 +76,8 @@ class FoodRepository {
     final customFoods = await _client
         .from('meal_entries')
         .select('id, custom_name, amount_g_ml, calculated_kcal, '
-            'calculated_protein, calculated_carbs, calculated_fat, food_id')
+            'calculated_protein, calculated_carbs, calculated_fat, food_id, '
+            'deleted_at')
         .eq('user_id', userId)
         .isFilter('deleted_at', null)
         .isFilter('food_id', null)
@@ -67,6 +86,9 @@ class FoodRepository {
         .limit(50);
 
     for (final row in customFoods) {
+      // İkinci savunma katmanı: sunucu süzgeci bir gün gevşerse silinmiş bir
+      // öğün arama sonucunda "yeniden eklenebilir yemek" olarak görünür.
+      if (_isDeleted(Map<String, dynamic>.from(row))) continue;
       final customName = row['custom_name'] as String?;
       if (customName == null || customName.isEmpty) continue;
       final key = customName.toLowerCase();
@@ -90,7 +112,7 @@ class FoodRepository {
     final rows = await _client
         .from('meal_entries')
         .select('id, food_id, custom_name, amount_g_ml, calculated_kcal, '
-            'calculated_protein, calculated_carbs, calculated_fat, '
+            'calculated_protein, calculated_carbs, calculated_fat, deleted_at, '
             'foods(id, name, brand, serving_size_g, '
             'food_nutrition(kcal, protein_g, carbs_g, fat_g))')
         .eq('user_id', userId)
@@ -102,6 +124,7 @@ class FoodRepository {
     final counts = <String, int>{};
     final firstRow = <String, Map<String, dynamic>>{};
     for (final row in rows) {
+      if (_isDeleted(Map<String, dynamic>.from(row))) continue;
       final name = _rowName(row);
       final key = name.toLowerCase();
       counts[key] = (counts[key] ?? 0) + 1;
@@ -124,6 +147,7 @@ class FoodRepository {
         .from('meal_entries')
         .select('id, food_id, custom_name, amount_g_ml, calculated_kcal, '
             'calculated_protein, calculated_carbs, calculated_fat, created_at, '
+            'deleted_at, '
             'foods(id, name, brand, serving_size_g, '
             'food_nutrition(kcal, protein_g, carbs_g, fat_g))')
         .eq('user_id', userId)
@@ -134,6 +158,7 @@ class FoodRepository {
     final seen = <String>{};
     final items = <FoodItem>[];
     for (final row in rows) {
+      if (_isDeleted(Map<String, dynamic>.from(row))) continue;
       final name = _rowName(row);
       if (!seen.add(name.toLowerCase())) continue;
       items.add(_rowToItem(row, lastUsedAt: row['created_at'] as String?));
