@@ -361,7 +361,342 @@ Sonuç: (a) geri yüklenen favoriler **bugün UI'da görünmez**; (b) iki tablo
 DB'de gereksiz. Ya türetilmiş kalmalı (tablolar silinmeli), ya da gerçek tablo
 olmalı. Şu an "hangi gerçek?" belirsiz.
 
+## T6 — A3r6 aktarımları (çekirdek denetimi, commit `69a3a54`+`f1684b9`+`5e2422a`)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P0 (benim kodum)** | **Widget tazeleme hiç çalışmıyordu.** `HomeWidget.updateWidget(name: name, androidName: name)` çağrılıyordu; home_widget 0.10.0 sınıfı `qualifiedAndroidName ?: "$packageName.$className"` ile çözüyor → `applicationId` = `com.calorix.app` olduğu için `com.calorix.app.DailyWidgetProvider` arıyor → `ClassNotFoundException`. Yani öğün ekleme, ayar değişimi, "Güncelle" — **hiçbiri widget'a ulaşmıyordu**. Düzeltme: yalnız `androidName`. A6r3'ün "ilk değer yok" bulgusundan bağımsız. | — | ✅ (A3r6) |
+| **P1** | Bildirimde 4 sessiz kayıp: (a) `zonedSchedule` bir öğünde patlayınca **diğerleri de** planlanmıyordu; (b) `_exactAllowed` yalnız init'te bir kez okunuyordu → kullanıcı tam alarm iznini kapatınca hatırlatıcılar **sessizce hiç gelmiyordu**; (c) `POST_NOTIFICATIONS` reddi hiçbir yerde görünmüyordu; (d) dilim çözülemezse UTC'ye düşülüyordu ama `AppLog` release'de DSN boşsa **tamamen kayboluyordu**. `NotificationScheduleOutcome` + her `reschedule`'te izin yeniden okuma. | — | ✅ (A3r6) |
+| **P1** | `nextDailyOccurrence` sonucu `tz.local` ile kuruyordu → farklı dilimdeki `now` sessizce kayıyordu. Ayrıca **mevcut DST testleri hiçbir şey ölçmüyordu** (test ortamında `tz.local` = UTC) — yanlış güven. Artık `now.location`. | — | ✅ (A3r6) |
+| **P1** | Hesap hataları: `bmi(70,-180) = 24.2` döndü (**kare pozitif** olduğu için imkânsız kayıt geçerli görünüyordu); `progress`/`waterTargetMl` NaN'da `UnsupportedError`; `tdee` alt sınırı açıktı. | — | ✅ (A3r6) |
+| P2 | `ForceUpdatePage` hâlâ `sha256` atlıyor — engel kalktı, 4 satır. | features | **AJAN ATAANDI (A4r7'ye ilet)** |
+| P2 | `isSafeApkUrl` **host kısıtı yok**, TLS pinning yok. | core | Tur 8 |
+| P2 | `refreshTimeZone` bağlı değil → seyahat sonrası 1-2 gün yanlış saat. | features | Tur 8 |
+| **P2 (ürün kararı)** | **Haftalık widget + nudge görünür ama işlevsiz.** `publishWeekly` (`lib/`'de 0 çağıran → haftalık widget hep boş), `shouldSendNudge` (ayar UI'da görünür, hiç bildirim gitmiyor). A3r6 silmedi, yorumla işaretledi. | mimari | **URUN-KARARLARI'na eklendi** |
+| P2 | Web'de `Gender.other` **kadın** formülüne düşüyor (166 kcal fark), Flutter erkek formülünde. | src | Tur 8 |
+
+### A3r6'nın doğruladığı "temiz" bulgular (kanıtlanmış)
+- **Göç mantığı doğru ve artık testli**: `reminder_enabled → kahvaltı` **bir kez**
+  çalışıyor; legacy anahtar siliniyor; yeni öğün anahtarları varsa dokunmuyor.
+  Yeni test: legacy anahtar yeniden yazılsa bile kullanıcının 9:00 ayarı **ezilmiyor**.
+- **Zamanlayıcı sızıntısı yok**: `reschedule` önce 4×2 ID'nin tamamını iptal ediyor.
+- `update_gate`: sonsuz döngü riski yok (`_promptScheduled` bayrağı ikinci
+  post-frame kaydını engelliyor, `dismissOptional` zorunluyu bastıramıyor).
+- BMR formülü doğru (80/175/30 → 1749 = `800+1093.75-150+5`).
+
+### ⭐ A3r6'nın **ölü kod** tespiti (silmedi, işaretledi — mantıklı)
+- `downloadVerifyAndOpen` `_UpdateGateState` **içindeydi** → Dart'ta `State`
+  gizli olduğu için `ForceUpdatePage` **çağıramıyordu**; "tek giriş noktası"
+  yorumu fiilen imkânsızdı. Top-level'a taşındı.
+- Kanıtlanmış ölü: `publishWeekly`, `shouldSendNudge`, `refreshTimeZone`,
+  `workmanager` bağımlılığı (0 referans). Hepsi **eksik özellik**, ölü hata değil.
+
+### Widget sözleşme testi (çok değerli)
+`test/core/widgets/widget_key_contract_test.dart` (7 test) — `WidgetData.kt`'yi
+**metin olarak okuyup** 40 sabiti `WidgetKeys` ile **her iki yönde** karşılaştırıyor;
+ayrıca tip sözleşmesini (`putLong(rawLongBits)` + `home_widget.double.` bayrağı,
+`Double.fromBits`), `ACTION_REFRESH == AndroidManifest` ve tazeleme yayınının
+`androidName` ile yapıldığını (`name: name` **yokluğu**) kilitliyor.
+**Ders: iki taraflı sözleşmeler metin karşılaştırmasıyla teste bağlanmalı.**
+
+## T8 — A1r8 aktarımları (commit `2582dc0` + `b011f0c` + `3dc591f`)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P1 ⭐** | **"Proje frozen, veri yok" varsayımı DOĞRULANAMADI.** `.gitignore`lu `supabase/.temp/` içinde gerçek proje kanıtı var (ref `bzfnncensolirkqdohpq`, PG 17.6.1, GoTrue v2.185.0, eu-central-1) ve kök `.env`'de **düz metin DB parolası**. 3 turdur aynı gerekçeyle CHECK eklenemiyordu. | operasyon | **A1r8 doğru davranışı seçti: 13 CHECK'i satır değiştirmeyen/doğrulayan tasarımla ekledi** (ihlal varsa `RAISE EXCEPTION` + hangi `SELECT`'in çalıştırılacağı yazılı). Geri alınmadı. **Ama canlı veri doğrulanmadı** → aşağıya bak |
+| **P1** | **`src/hooks/useNotifications.ts:29-33` `interval_hours: 0` yazıyor** → `notification_preferences_hours_range` **reddediyor** (canlı Postgres'te kanıtlandı). Web'de bildirim ayarı **kaydedilemiyor**. | src | **AJAN ATAANDI (A5r8'e iletildi)** |
+| P1 | **`profiles_weigh_in_frequency_days_range` gerçek istemci hatası** (varsayım değil): `notifications_dialog.dart:146` `int.tryParse` ile aralık denetimi yapmıyor, `-5` yazılabiliyor, `check-reminders`'ta her koşuda tetikliyor. | features | **AJAN ATAANDI (Tur 9)** |
+| P1 | `isAlreadyDeletedAuthError` genişliği: `{message:"", status:404, code:"session_not_found"}` idempotent *başarı* sayılıyordu — A1r4'ün kapattığı açık `code` alanından **yeniden açılmıştı**. Artık önce `code === "user_not_found"` (GoTrue `apierrors/errorcode.go`, mühürlü). `User already deleted` diye hata GoTrue'da **yok** (doğrulandı). | — | ✅ (A1r8) |
+| P1 | `dbBypassUntil` tek global → kova bazlı yapıldı. Anahtar RPC'nin `p_bucket`'ıyla **birebir aynı** türetiliyor, çağrı yerlerinde sıfır değişiklik. Negatif ölçüm: kontrolü geri alınca **3 test kırmızı**. | — | ✅ (A1r8) |
+| P1 | `full_setup.sql` artık **idempotent**: 2. çalıştırmada 105 hata → **0 gerçek hata** (1/2/3. kez). 3 tip, 15 tablo, 10 index, 59 politika, 13 trigger, 7 constraint. | — | ✅ (A1r8) |
+| **P2** | **`cron.schedule` hiçbir yerde yok** → `check-reminders` elle tetikleniyor, **hatırlatıcılar hiç gitmiyor**. A1 Tur 1'den beri. | operasyon + supabase | Tur 9 (dashboard'da kurulmalı veya migration) |
+| P2 | Storage: magic-byte (içerik imzası) doğrulaması yok (MIME başlığı kontrolü var). | supabase | Tur 9 |
+| P2 | SQL testleri (`supabase/tests/*.sql`) **CI'a bağlı değil** — `supabase.yml` sadece `deno check`/`deno test` çalıştırıyor. | ci | Tur 9 |
+| P3 | `full_setup.sql` `CREATE TYPE` idempotansı A1r8 tarafından çözüldü (yukarıda). | — | ✅ |
+
+### Temiz çıkanlar (ölçülmüş)
+- **Storage politikaları iyi**: `public=false`, 10 MB limit, 4 MIME tipi, 4 politika
+  `TO authenticated`, hepsi `<user_id>/` önek zorunlu, `anon` erişimi yok.
+- **SSRF**: 4 AI fonksiyonu `OPENAI_BASE_URL`'a istek atıyor ama bu **env**,
+  kullanıcı girdisi değil. `subscription.endpoint` kullanıcı girdisi ama
+  allow-list arkasında — 11 senaryo test edildi (`userinfo`, metadata IP,
+  suffix sahteciliği dahil) **11/11 doğru**.
+- Rate limit anahtarları kullanıcı bazlı, `rate_limit_hit` RPC parametreli, injection yok.
+- Parite `diff` (migration vs full_setup): FK + CHECK + politika → **boş**.
+
+### A1r8'in doğrulama kanıtları
+`deno check` 0 hata · `deno test` **124/0** (115'ten) · 18 migration sıfırdan 0 hata ·
+yeni migration 3× idempotent · `full_setup` 1/2/3. kez 0 gerçek hata ·
+5 SQL testi iki yolda yeşil · **3 negatif ölçüm yapıldı** (kırmızı görüldü, geri kondu).
+
+## T8 — A5r8 aktarımları (web, commit `1e49218`, 42 dosya +2866/−377)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P1** | `check_versions.cjs` **kendi denetimini yaparken gerçek bir Flutter hatası buldu**: "BMI ağırlık alt sınırı iki tarafta farklı" → `bmi(70, -180) = 24.2`. A3r6 boyu düzeltmiş ama **ağırlığı** düzeltmemiş. | core | **AJAN ATAANDI (Tur 9)** |
+| P2 | 21/50 shadcn bileşeni ulaşılamaz; `chart.tsx` `dangerouslySetInnerHTML` içeriyor (statik, A5 doğrulamış) | src | Tur 10 |
+| P3 | `@hookform/resolvers` ölü bağımlılık · `src/App.css` ölü dosya | src | Tur 10 |
+| P3 | `OnboardingPage.loadProfile` hatası hâlâ yutuluyor | src | Tur 10 |
+| — | Kilo penceresi 1 yıla sabitlendi — ürün kararı bekliyor | ürün | `URUN-KARARLARI` |
+
+### A5r8'in kapatılan ayrışmaları
+1. **`Gender.other` 166 kcal (toplam 257 kcal/gün) farkı.** Web `other`/`null`'ı
+   **kadın** formülüne düşürüyordu, Flutter **erkek**'e. BMR 1583↔1749,
+   TDEE 2454↔2711 — profil kalıcı yazılıyordu. Karar: **erkek (`+5`)**;
+   Flutter sözleşmesi kaynak alındı. Gerekçe: Mifflin'in `−161`'i 60+ kadın
+   grubundan, `+5` daha geniş kitleden; yüksek taraf güvenli (düşük taraf
+   "hedefim 300 kcal arttı" yanılgısı üretir).
+2. **Hesap katmanı 10 fark** — `bmi` negatif kilo, BMR clamp yok, TDEE negatif,
+   makro negatif gram, `age` üst sınırı yok, **`progress` koruması 3 katman
+   vardı ama HİÇ çağrılmıyordu**, su hedefi `NaN` yazabiliyordu, per-100g 3 kopya.
+3. **UTC gün kaçıklığı: 4 gerçek desen / 8 çağrı noktası.**
+   `toISOString().split("T")[0]` (TR'de onboarding `max` = **yarın**),
+   `new Date("2000-01-15")` UTC gece yarısı (**yaş 1 gün önce** ×3),
+   `Math.floor(/864e5)` (uyarı **1 gün geç**), `eachDayOfInterval` (DST + `RangeError`).
+   Yeni `src/lib/dates.ts` tek kaynak; **27 test 4 saat diliminde** koşuyor.
+4. **Veri katmanı**: `try/catch` **3 yerde hiç çalışmıyordu** — "eklendi" toast'u
+   hiçbir kayıt yazılmadan; `addMealEntry`'de miktar sınırı yoktu; 3 yarış
+   koşulu (kullanıcı B'nin ekranında A'nın verisi); "en son kilo" belirsiz
+   sıralama; **sonsuz sayfalama döngüsü**; `clearVisibleChat`'te `user_id` yok;
+   yarım yazma kalıcı artık; uzantı beyaz listesi yok; 4 yerde ham
+   `error.message` **şema sızıntısı**.
+
+### A5r8'in `check_versions.cjs` genişletmesi (çok değerli)
+6 kapı eklendi: BMR sabitleri + **`genderForBmr` kuralı**, BMI negatif ağırlık,
+su çarpanı, yaş sınırı + **uygulanıyor mu**, öğün miktarı + `isUsableAmount`,
+**`calculateProgress` çağrılıyor mu**. 3'ü regresyon enjeksiyonuyla kırmızya
+döndürüldü.
+⭐ **Dürüst yöntem notu:** ilk denemeler **yanlış yeşil** verdi (yorum satırları
+ve ölü import'lar "kullanım" sanılıyordu) → kapı artık yorum/import temizleyip
+gerçek çağrı arıyor. 2 mevcut kapı kırıldı (sabitler taşındı) → güncellendi +
+**"ölü sabit" kontrolü** eklendi.
+
+### Doğrulama
+build ✓ · lint 0 hata · tsc exit 0 · **test 40 → 113 pass** ·
+`check_i18n` ✓ · `check_versions` ✓ (1 uyarı = Flutter borcu) · 27 tarih testi 4 TZ
+
+### A5r8'in kalan riskleri
+Testler **saf katman**la sınırlı (`requestIdRef`/telafi çalıştırılmadı, jsdom gerekir) ·
+`.or()` keyset **URL düzeyinde** doğrulandı, gerçek PostgREST'e karşı koşulamadı ·
+`TZ` değiştirme V8'e özgü.
+
+## T10 — Kalan P1'ler (ürün kararları kapandıktan sonra)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P1** | **Web istemcisi sunucu bildirim tercihini kaydedemiyor.** `src/hooks/useNotifications.ts` `interval_hours: 0` yazıyor → `notification_preferences_hours_range` CHECK'i reddediyor (A1r8 canlı Postgres'te kanıtladı, A4r8 da teyit etti). Ayrıca **aynı master gölgelenmesi** web'de de var: `send-notification:423` `preference?.push_enabled ?? profile.push_notifications_enabled` — satır yazılınca profil master anahtarı ölüyor. | src | **AJAN ATAANDI (A5r10)** |
+| **P1** | `weigh_in_frequency_days` aralık denetimi yok: `0` yazılırsa **CHECK reddi** tüm `_save`'i düşürüyor (profil + sunucu birlikte). A2r9 veri katmanına savunma koydu ama A4r7b "0 da reddedilmeli" diyor — **UI seviyesinde** de gerekli. | features | **AJAN ATAANDI (A4r10)** |
+| P1 | `deleteFood`'ın **hiç UI çağıranı yok** — sözleşme yalnız veri katmanında ölçülüyor. Kullanıcı eklediği yizeceği silemiyor → tablo şişiyor. | features | Tur 11 |
+| P2 | `goal_achieved` tipi **kimse göndermiyor**: `check-reminders` işlemiyor, `send-notification`'ı çağıran yok → ölü tercih tipi. | features | Tur 11 |
+| P2 | Gece aralığı (21→09) desteklenmiyor. | features | Tur 11 |
+| P2 | `std@0.168.0` kodda sabit (11 dosya) → CVE riski. | supabase | Tur 11 |
+| P3 | `analysis_options.yaml` 25 Ağustos'tan beri commitlenmemişti | — | ✅ (`43e0f7c`) |
+| P3 | Web PWA'da hesap silme giriş noktası yok (`src/**`). Android zorunluluğu karşılandı, web'de KVKK "sil" elle. | src | Tur 11 |
+
+### A4r8'in bulduğu 2 **gerçek** hata (sunucu tercihleri)
+1. **P1 — master anahtarlar ölmüştü.** `send-notification:423`
+   `preference?.push_enabled ?? profile.push_notifications_enabled`;
+   `??` yalnız NULL'a düşer. "Her tip için satır yaz" özelliği devreye girince
+   `push_enabled` **dolu** oldu → **profil master anahtarı hiç okunmuyor**.
+   Ölçülen: master `false`, varsayılan `true` → yazılan satır `true`.
+   Düzeltme: `applyMasterSwitches` (AND mantığı).
+2. **P1 — `start_hour > end_hour` sessizce hiç göndermiyordu.**
+   `index.ts:356` koşulu hiçbir saatte sağlanmaz; DB CHECK'i iki saati de
+   0..23 olduğu için **izin veriyor**. `toRow` artık `end`'i 23'e çekiyor.
+
+### A4r7b'nin bulduğu tuzak (hafta günü etiketleri)
+`DateTime(2024,1,7)` kullanılmıştı → `weekday == 7` = **Pazar**; liste
+`Cmt→Paz` idi, kullanıcı "Pzt" görüp `summary_day=0` yazıyordu.
+⚠️ **İlk düzeltmesi (`2024-01-14`) de yanlıştı** — test kırmızı döndü,
+12 dilde ölçüp `2024-01-08` ile düzeltti. Tarih sabitleri gözle değil testle doğrulanmalı.
+
+### A4r7b'nin **kendisinin neredeyse kaçırdığı** tuzak ⭐
+`tester.tap('Kaydet')` **sessizce hiçbir şey yapıyordu**
+(`Offset(713.7,1140) outside root Size(800,600)`) → 3 test **yeşil** görünürken
+**hiçbir şey ölçmüyordu** (`verify` = 0). `tapSave` artık `drag` ile kaydırıyor.
+**Ders: yeşil test ≠ etkin test. Etkileşimin gerçekten gerçekleştiğini doğrula.**
+
+### A6r9'un düzelttiği tutarsızlık (deno.lock)
+A6r5 kilidi **takip etme** kararı verdi ve kökteki `deno.lock`'u commit'ledi —
+ama `supabase/deno.json` `"lock": "deno.lock"` diyor, Deno bunu çalışma
+dizinine göre çözüyor → `supabase/deno.lock`, o **untrackted**. Yani karar
+**fiilen uygulanmamıştı**. Ölçüldü: kök lock'u hiçbir `deno` komutu okumuyordu.
+Düzeltme: `supabase/deno.lock` takipte (8382 → 4920 bayt, React'ın 70 npm
+kaydı çıktı), CI'da **`--frozen=true`** kapısı eklendi. Negatif ölçüm:
+`--frozen`'sız yeni uzak import kilidi **sessizce yeniliyordu** (görünmez kayıp).
+`.gitignore`'daki `supabase/functions/*/deno.lock` glob'u o dosyayı asla
+yakalamıyordu, "izlenmiyor" yanılsaması üretiyordu → silindi.
+
+## T11 — A4r10 aktarımları (ekranlar, commit `1778cf8`+`207e38d`+`994d371`)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P0 ⭐ (daha önce 3 kez raporlandı)** | **`check-reminders` için `pg_cron` job'ı hâlâ yok.** Bu turdaki tüm sunucu bildirim düzeltmeleri kullanıcıya **görünmez** olmaya devam ediyor. | operasyon | **KULLANICIYA İLETİLDİ** (A1r10 da uyaracak) |
+| P1 | Silme düğmesi **veritabanı/seed** gıdalarında da görünüyor (`created_by` NULL → `false` + toast). Veri kaybı yok ama **UX gürültüsü**. `food_repository.search()` `created_by`/`source` seçmiyor. | data | **AJAN ATAANDI (A2r11)** |
+| P1 | Gece aralığı (21→09) sunucuda **desteklenmiyor** (`check-reminders:356` koşulu `start>end` için hiçbir saatte sağlanmaz). Gerçek destek iki koşul gerektiriyor: sarma + **gece yarısını geçen damganın günü** (aksi halde gece diliminde **her saat** gönderim). | supabase | **AJAN ATAANDI (A1r10)** |
+| P2 | 4 ekranda `catch (_)` loglamıyor (`personal_info`, `goals`, `settings_page`, `recognition_confirm`). Alan doğrulaması tetiklemiyor ama log eksik. | features | Tur 12 |
+| P3 | `goalAchieved` çeviri anahtarı Flutter'da silinmedi (React PWA kullanıyor) — A5'e aynı karar aktarıldı. | src | A5r10 |
+
+### A4r10'un bulduğu **ikinci `tryParse` tuzağı** (A4r7b'den sonra ikinci kez)
+Dart `int.tryParse('0x10')` → **16**, `int.tryParse('+7')` → **7** döner.
+`tryParse` "rakam yazıldı" demek değil. Parser artık `^\d+$` ile biçimi de
+doğruluyor. Testler: harf, ondalık, `1e3`, `0x10`, `+7`, boş, yalnız boşluk, `null`, `" 7 "`.
+
+### A4r10'un **kendi kodundaki hatasını testin yakalaması** ⭐
+`_save` erken çıkışı yanlışlıkla `_frequencyErrorOf` çağırıyordu →
+"geçersiz değer bul" yerine "**her dolu metin geçersiz**" dönüyordu, yani
+**geçerli** değerler de kaydedilemiyordu.
+Ayrıca `hitTestOnBinding` düğmeye ulaşıldığını doğruluyordu ama `verify` 0 çağrı
+buldu → **etkileşim gerçekleşmiyordu** (A4r7b'nin tuzağının 2. biçimi).
+`_tapSave` artık kaydırma + `verifyNever` ile etkileşimi doğruluyor.
+
+### Diğer kararlar
+- **`goal_achieved` UI'dan gizlendi** ((b) seçildi). Gerekçe: `check-reminders`
+  bu tipi hiç okumuyor; kullanıcı anahtar görüp hiçbir şey olmuyor.
+  (a)'nın gerektirdiği: tetikleme koşulu **ürün kararı** + **idempotency**
+  (`last_goal_achieved` damgası, aksi halde cron saatte bir "Tebrikler!"
+  gönderir — A1r3'ün `weekly_summary` hatasının aynısı).
+- **`deleteFood` arayüzü eklendi**: `shared/widgets/delete_food_button.dart`,
+  `add_page`'in 4 bölümüne. Onay diyaloğu yemek adı + kullanım sayısı +
+  favori uyarısı. `foods.deleted_at` **yok** → fiziksel silme.
+  `meal_entries.food_id` `ON DELETE SET NULL` (öğünler korunur).
+  `false` dönerse **"başarı" söylenmiyor** — RLS/FK nedeni kullanıcıya açıklanıyor.
+- Negatif ölçüm: 4 düzeltme, hepsi kırmızı görüldü.
+
+## T11 — A5r10 aktarımları (web, commit `6f411f9`, test 113 → 142)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P1 ⭐ kök neden** | **`SettingsPage.saveNotifications` ÖLÜ KODDU** — `grep` tek sonuç verdi: **tanımı**, hiç çağrılmıyordu. Yani web'de profil master anahtarları **hiç yazılmıyordu** ve "her tip için satır yaz" hiç tetiklenmiyordu → sessiz-kapalı `water`/`daily_log`/`weekly_summary` hiç satır kazanamıyordu. Diyaloga master anahtarları + "Kaydet" eklendi. | — | ✅ (A5r10) |
+| **P1** | `interval_hours: 0` → CHECK reddi. Yeni saf katman `src/lib/notificationPreferences.ts`: `clampInt` ← Flutter `_clamp`, `normalizePreference`/`buildPreferenceRow` ← `toRow`, `_asInt` `Number()` ile kapatıldı. Varsayılan tablosu Flutter'ınkiyle **sayı sayı eşit**. `fetchPreferences` de normalize ediyor (kolonlar nullable). | — | ✅ (A5r10) |
+| P2 | `send-notification:423-424` sunucu tarafında hâlâ `??` — ikinci savunma katmanı eklenecek. | supabase | Tur 12 |
+| P2 | `useDataExport`/`backupRestore` tercihleri geri yüklerken **normalize katmanı kullanmıyor** → yedekte `interval_hours: 0` varsa aynı CHECK reddi oradan gelir. | src | Tur 12 |
+| P3 | Hafta günü etiketleri Türkçe sabit (değer doğru, çeviri eksik). | src | Tur 12 |
+
+### ⭐ A5r10'un **"yanlış yeşil"** bulgusu (3. kez, farklı biçim)
+Varsayılan tablosu testi `buildPreferenceRow`'dan geçirip **sonucu** denetliyordu;
+`0 → 3` çevrildiği için `interval_hours: 0` yazan tabloyla bile **yeşil** kalıyordu —
+**test, hatanın kendisini gizleyen katmandan geçiriyordu.** Ham değer denetimine çevrildi.
+Bu, A4r7b (`tap` sessizce başarısız → 3 test hiçbir şey ölçmüyor) ve A4r10
+(`hitTest` ulaşılıyor ama tıklama gerçekleşmiyor) ile **aynı sınıf**.
+⭐ **Ders: test, üretim kodunun aynı fonksiyonundan geçirilip çıktısı
+denetleniyorsa, o fonksiyon bir hata düzeltiyorsa test o hatayı da gizler.**
+
+### Diğer doğrulamalar
+- `summary_day` 0=Pazar: web'de gün **üretilmiyor** (ölçtü), yalnız kullanıcı seçimi.
+  `WEEKDAY_OPTIONS` ilk etiketi Pazar; `weekdayIndexFor` 7 gerçek tarihle
+  sunucu dizinine karşı ölçülüyor.
+- Hesap silme giriş noktası (P3) eklendi: saf `lib/accountDeletion.ts` +
+  `useAccountDeletion` + iki aşamalı diyalog. Elle `fetch` **kullanımadı**
+  (415 + token sızıntısı riski). Test: parola `String`/`JSON`/stack içinde
+  **arandı**, bulunamadı.
+- `convert_locales.cjs` **ters yönlü** çalışıp 152 anahtarı siliyormuş →
+  kullanılmadı; bunun yerine `tool/sync_locales_once.cjs` (idempotent).
+
+## T11 — A1r10 aktarımları (commit `1f936bf`+`2272411`+`08944c8`+`ff25bf7`, deno 124 → 164)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P0 ⭐ 4 turdur raporlanıyordu** | **`pg_cron` job'ı kuruldu** — `cron.schedule` repoda hiçbir yerde yoktu, `water`/`daily_log`/`weekly_summary`/`weigh_in` **hiç gönderilmiyordu**. 5 turdaki tüm sunucu bildirim düzeltmeleri görünmezdi. Sıklık `7-59 * * * *`: 5 dk = saatte 12 AI çağrısı + rate-limit kovası tükeniyor; saatte 1 = 09:00/18:00 bildirimleri **1/24 ihtimalle** kaçıyor (A1r3'ün `weekly_summary` sınıfı). Token **Vault**'ta; `Authorization` **reddedildi** (kaynak kod `x-calorix-internal-token` arıyor, `Authorization` service_role JWT yolu). | — | ✅ (A1r10) |
+| **P1** | **Master anahtar gölgelenmesinin SUNUCU tarafı hâlâ açıktı** → `resolveChannelEnabled` (AND) ile kapatıldı. İstemci tek katmandı; **DB'de yazılı satırları** (yedek içe aktarım, elle SQL) engellemiyordu. | — | ✅ (A1r10) |
+| **P1** | `check-reminders` **master anahtarları hiç okumuyordu** → kapalı kullanıcı için de **her koşuda HTTP çağrısı**. Kapı + `skippedByMaster` sayacı eklendi (sessiz değil). | — | ✅ (A1r10) |
+| **P1** | Gece aralığı (21→09) **gerçekten** destekleniyor. A4r10'ın uyardığı tuzak **ölçüldü**: sarma tek başına → günde **13 gönderim** + 90 art arda çift. Neden: damga UTC'de saklanıyor (dün 23:50 TR = 20:50 UTC, bugün 00:10 TR = 21:10 UTC) → gün+saat mantığı "1 saat" diyordu. `zonedMinutesBetween` her iki zamanı da kullanıcının kendi gün/saat/dakika parçalarına çeviriyor → **20 dakika**. | — | ✅ (A1r10) |
+| P1 ⭐ | A4r10'un "bonus tuzak"ı: **saat (0-23) tek başına yetmez** — 22:50→23:00 "1 saat" sanılıyor ama 10 dakika, yani **50 dk erken** gönderim. Karşılaştırma artık `>= intervalHours * 60`. | — | ✅ (A1r10) |
+| P2 | `std 0.168.0`/`0.190.0` → **`0.224.0`** (registry'den teyitli). Transitif bağımlılık 11 → 2 modül. ⚠️ `deno cache`/`test` kilidi **kısmi** bırakıyor (A6r9 gözlemi teyit) → lock **elle** düzeltildi. | — | ✅ (`2272411`) |
+| **P2** | Flutter tarafı artık **gereksiz** bir sınırlama yapıyor: `notification_preferences_repository.dart:188` `end >= start ? end : 23` → kullanıcının seçimini sessizce değiştiriyor. Sunucu artık desteklediği için `_clamp(endHour, 0, 23, 21)` yeterli. `endHourOptions`'ın `start..23` sınırlaması (A4r10) geri açılabilir, "gece aralığı yazılamaz" notu kaldırılabilir. **Ürün kararı.** | data/features | **AJAN ATAANDI (A2r12)** |
+| P2 | `check-reminders` **N+1 sorgu** yapıyor | supabase | Tur 13 |
+| P2 | SQL testleri (`supabase/tests/*.sql`) hâlâ **CI'da değil** | ci | Tur 13 |
+| P2 | DST'de ±60 dk sapma (gece aralığında) | supabase | Tur 13 |
+| P2 | `goal_achieved` hâlâ ölü tercih tipi (A4r10 gizledi) | — | Ürün kararı bekliyor |
+
+### A1r10'un ⭐ 3 kez "yanlış yeşil" yaşaması ve düzeltmesi
+Ajan, kendi testlerinin **3 kez yanlış yeşil** verdiğini itiraf edip düzeltti.
+Bu, bu döngünün en önemli metodolojik gözlemi: **test, üretim kodunun hata
+düzeltten fonksiyonundan geçirildiğinde hatayı da gizler.**
+Bu turda toplam: A4r7b (`tap` gerçekleşmiyor), A4r10 (`hitTest` ama tıklama yok),
+A5r10 (normalize katmanından geçirme), A1r10 (3 kez) = **5 vaka**.
+
+### A1r10'un test sınırı (dürüst raporlama)
+Shim yazdı (Supabase imzaları birebir). Doğrulanan: tanım + gövdenin SQL'i +
+üretilen HTTP isteği (URL/başlık/timeout). **Doğrulanamayan:** `pg_cron`'un
+gerçek zamanlayıcısı ve `pg_net`'in gerçek HTTP gönderimi → **operasyon adımı zorunlu**.
+Migration 3× çalıştırıldı → **1 job** (ölçüldü). `CREATE EXTENSION` `EXCEPTION`'a
+sarıldı → A1r8'in atlama zorunda kaldığı hata gitti, hangi ortamda da 0 gerçek hata.
+
+### T12 — A4r11 (P0 düzeltmesi, `1b83c2c`)
+Yemek silinince öğün **"Bilinmeyen"** oluyordu (A2r11'in bulduğu P0, A4r10'un
+eklediği özelliğin verdiği zarar). `custom_name` yalnız `isCustom`'a bağlıydı;
+kullanıcının **kendi gıdası** silinince `food_id` NULL + `custom_name` NULL →
+dashboard'da adsız öğün. Düzeltildi.
+
+## T12 — A4r11 aktarımları (P0 düzeltmesi, `1b83c2c`, 1067 → 1081 test)
+
+| Sev | Konu | Hedef | Durum |
+|---|---|---|---|
+| **P1 ⭐ asıl kapsam daha geniş** | **"Bilinmeyen"in tamamı çözülmedi.** A4r11 brifimden **ağır** olduğunu kanıtladı: ad **hiç yazılmamıştı zaten** — `fetchDaily` `foods` join'i **yapmıyor**, `displayName` yalnız `custom_name` okuyor. `git show e99ba95` ile doğrulandı: **v1.2.0'dan beri** böyle. Yani **topluluk gıdası** öğünleri silinmeden "Bilinmeyen" görünüyor. Alternatif: `fetchDaily`'e `foods(name)` embed ekle. | data | **AJAN ATAANDI (A2r13)** |
+| P2 | `EditMealEntryDialog` boş ad kilidi | features | Tur 13 |
+| — | Web PWA'da aynı P0 **yok** (`AddFromFoodDialog.tsx:93` koşulsuz yazıyor) — doğrulandı | — | Temiz |
+
+### A4r11'in ⭐ dürüst düzeltmesi (brif yanlıştı)
+Görev brifim "gıda silinince kaybolan ad" diyordu. Gerçek: ad **hiç yazılmamıştı**,
+`fetchDaily` join yapmıyor. Yani P0 hem A4r11'in sandığından **dar** (yalnız kendi
+gıdası) hem de **eski** (v1.2.0'dan beri). Ajan her iki yönü de düzeltti ve
+kalan kısmı aktardı.
+
+### A4r11'in kararı: `canDelete` koşulu neden bu
+`canDelete` = `created_by == auth.uid()` = `deleteFood`'in **RLS süzgeciyle
+birebir aynı** koşul. Yani "adı yedekle" ile "gıda silinebilir" **aynı sorunun
+iki yüzü**. Topluluk/seed gıdası öğünleri için `custom_name` yazmak
+gereksiz tekrar (10k öğün ≈ 200 KB + index şişmesi) — bu yüzden yazılmadı.
+
+Eski bozuk veri için **migration gerekmedi**, 3 kanıt: (a) proje frozen,
+(b) eski kural `food_id`'yi **dolu** bırakıyordu yani `(NULL, NULL)`
+kendiliğinden oluşamazdı, (c) 3 yazma yolu da böyle satır yazmıyor.
+⚠️ Kanıt **statik** — A1r8'in bulduğu gerçek proje kanıtı nedeniyle sıfır
+değil; envanter sorgusu rapora yazıldı.
+
+### ⭐ A4r11'in "etkin test" doğrulaması (6. vaka, yeni biçim)
+- Yazma testi `invocation.namedArguments[#customName]` ile **ham** değeri
+  denetliyor (A5r10 tuzağı değil).
+- `_tapAdd` + `expect(captured.calls, 1)` ile kaydın **gerçekten** oluştuğunu
+  kanıtlıyor — bu olmasa altındaki denetimler `null` görüp yeşil kalırdı
+  (A4r7b tuzağı).
+- ⭐ **Yeni**: `'Ekle'` sabiti kırmızı oldu (gerçek: `Yiyecek Ekle`). Sabiti
+  düzeltmek yerine **çeviri anahtarından türettirdi** + sözleşme testi ekledi.
+- Ölçüm testi ilk denemede `select=*` yüzünden kırmızı oldu → **ölçümün
+  gerçekten okuduğunun** kanıtı.
+
+Negatif ölçüm 3 enjeksiyon, hepsi kırmızı. P0 geri alınınca **yalnız
+`canDelete:true` olanlar** kırmızı oldu, manuel/tanıma/community yeşil kaldı
+= düzeltmenin **seçici** olduğunun kanıtı.
+
 ## Operasyon (dashboard)
+
+### ⭐ `pg_cron` canlı doğrulaması ZORUNLU
+`pg_cron` job'ı kuruldu ama **gerçek zamanlayıcısı test edilmedi** (shim sınırı).
+Supabase Dashboard'dan veya `psql` ile:
+```sql
+select jobname, schedule, command from cron.job;
+```
+Sonra `check-reminders`'ın **gerçekten HTTP çağrısı yaptığını** doğrula
+(log'da istek, kullanıcıda bildirim). Vault secret'ının **tanımlı** olması
+gerekiyor — `INTERNAL_FUNCTION_TOKEN`:
+```sql
+select name from vault.secrets;
+```
+
+### ⚠️ Canlı veri doğrulaması gerekiyor (A1r8'in eklediği CHECK'ler)
+13 CHECK eklendi; ihlal varsa migration **`RAISE EXCEPTION` ile duruyor** ve
+hangi `SELECT`'in çalıştırılacağını yazıyor. Migration dosyasındaki mesajı oku.
+**Uygulamadan önce** o `SELECT`'leri çalıştır — veri temizse sorun yok.
+
+### ⭐ `check-reminders` hiç tetiklenmiyor
+`cron.schedule` tanımı **yok**. Sunucu tarafı hatırlatıcıları (`water`,
+`daily_log`, `weekly_summary`, öğün hatırlatıcılarının push ayağı) **hiç gitmiyor**.
+Dashboard'da `pg_cron` job'ı kurulmalı:
+`Authorization: Bearer <INTERNAL_FUNCTION_TOKEN>` başlığıyla.
+
+## Operasyon (eski kayıt)
 
 Detay: `OPS-tur1-security.md`
 - `INTERNAL_FUNCTION_TOKEN` secret tanımla
