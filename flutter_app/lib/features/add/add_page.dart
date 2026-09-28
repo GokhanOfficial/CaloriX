@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/food_item.dart';
 import '../../data/repositories/food_repository.dart';
+import '../../shared/widgets/delete_food_button.dart';
 import '../../shared/widgets/favorite_button.dart';
 import 'widgets/add_from_food_dialog.dart';
 import 'widgets/add_manual_entry_dialog.dart';
@@ -201,21 +202,28 @@ class _AiCard extends StatelessWidget {
 }
 
 /// Yiyecek satırı — web `FoodListSection` içi button karşılığı:
-/// ad + (marka) + `100g • X kcal`, sağda P/K/Y ve favori yıldızı.
+/// ad + (marka) + `100g • X kcal`, sağda P/K/Y, favori yıldızı ve
+/// **silme** düğmesi.
 ///
 /// [initialFavorite] yalnız **favoriler bölümünde** `true` verilir (o
 /// listenin öğeleri zaten favoridir). Arama sonuçlarında `false` verilir ve
 /// düğmenin gerçek durumu `favoriteIdsProvider`'dan tek sorguda okunur.
+///
+/// [onFoodChanged] silme sonrası bölümü tazelemek için çağrılır
+/// (`DeleteFoodButton` favorite/recents/frequent provider'larını kendi
+/// geçersiz kılar; bölümün kendi `FutureProvider`'ı da tazelenmelidir).
 class _FoodTile extends StatelessWidget {
   const _FoodTile({
     required this.food,
     required this.onTap,
     this.initialFavorite = false,
+    this.onFoodChanged,
   });
 
   final FoodItem food;
   final VoidCallback onTap;
   final bool initialFavorite;
+  final VoidCallback? onFoodChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -265,6 +273,17 @@ class _FoodTile extends StatelessWidget {
                 foodName: food.name,
                 initialFavorite: initialFavorite,
               ),
+              // ⭐ Silme (A4r10). `InkWell`'in dışında, aynı desen: çöp
+              // kutusuna basmak yemeği **eklememeli**.
+              //
+              // `foodId == null` (manuel girdi) → düğme kendi içinde
+              // `SizedBox.shrink()` döner.
+              //
+              // RLS `foods` DELETE politikası `created_by = auth.uid()`
+              // → yalnızca **kendi eklediği** gıda silinir; başkasının
+              // gıdasında düğme görünür ama `deleteFood` `false` döner ve
+              // kullanıcıya bunun nedeni söylenir.
+              DeleteFoodButton(food: food, onDeleted: onFoodChanged),
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -370,6 +389,13 @@ class _FoodListSection extends ConsumerWidget {
                             food: food,
                             onTap: () => onSelect(food),
                             initialFavorite: itemsAreFavorites,
+                            // ⭐ Silme sonrası bölümün **kendi** listesi
+                            // tazelenir; `DeleteFoodButton` favorite/recents
+                            // provider'larını geçersiz kılsa bile bu
+                            // `FutureProvider` önbelleğini tutmaya devam
+                            // ederdi → silinen yemek listede kalırdı.
+                            onFoodChanged: () =>
+                                ref.invalidate(provider),
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -452,6 +478,12 @@ class _SearchCard extends ConsumerWidget {
                                 _FoodTile(
                                   food: food,
                                   onTap: () => onSelect(food),
+                                  // Arama sonuçları **aile** (`.family`)
+                                  // provider'ıdır → silinen yemek
+                                  // aramadan da anında düşmeli.
+                                  onFoodChanged: () => ref.invalidate(
+                                    foodSearchProvider(query),
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                               ],

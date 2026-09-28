@@ -26,11 +26,33 @@ import '../../../data/repositories/notification_preferences_repository.dart';
 
 /// Sunucu hatırlatıcıları bölümü — [prefs] durum, [onChanged] güncelleme.
 ///
-/// Dört tip listelenir: `water`, `daily_log`, `weekly_summary`,
-/// `goal_achieved`. `weigh_in` **burada gösterilmez** — onun kaynağı profil
-/// sıklığıdır (`profiles.weigh_in_frequency_days`) ve `check-reminders`
-/// profil varsayılanını kullanır; iki yerde ayrı ayrı ayar çift
-/// doğruluk kaynağı olurdu (A4r3'ün dersi).
+/// ## Görünecek tipler (A4r10, Tur 11)
+///
+/// Üç tip listelenir: `water`, `daily_log`, `weekly_summary`.
+///
+/// ### `goal_achieved` **artık gösterilmiyor** (ürün kararı 2-B)
+///
+/// A4r10'ın ölçümü: `goal_achieved` **hiçbir yerde üretilmiyor**.
+/// `check-reminders/index.ts` (610 satır, dört blok: `weigh_in` :287, `water`
+/// :346, `daily_log` :410, `weekly_summary` :464) bu tipi **hiç okumuyor**;
+/// `send-notification`'ı çağıran dört çağrı da `weigh_in` / `water` /
+/// `daily_log` / `weekly_summary` gönderiyor. Yani kullanıcı ekranda bir
+/// anahtar görüyor, açıp kapatıyor ve **hiçbir şey olmuyor** — hatta
+/// `defaultServerPreference(goalAchieved)` "push açık" olduğu için
+/// `check-reminders`'ın diğer üç tipinden hiçbiri etkilenmiyor (yalnız
+/// kullanılmaz bir satır yazılıyor).
+///
+/// **(a) devreye almak** hangi koşulda tetikleneceğini gerektirir ve bu bir
+/// **ürün kararıdır**: "hedef kilo" mı, "günlük kalori hedefi" mi, "üst üste
+/// N gün hedefte" mi? Üçü de farklı ürün davranışıdır ve hiçbiri şu an
+/// şemada tanımlı değil (`profiles` üzerinde "başarıldı" işareti yok).
+/// Yanlış bir bildirim kullanıcıyı sinir eder; bu yüzden **gizle** kararı
+/// uygulandı. (a)'nın gerektirdikleri raporda listelendi.
+///
+/// ### `weigh_in` **burada gösterilmez** (A4r3 kuralı)
+///
+/// Kaynağı profil sıklığıdır (`profiles.weigh_in_frequency_days`); iki yerde
+/// ayrı ayrı ayar çift doğruluk kaynağı olurdu.
 class ServerNotificationPreferencesSection extends StatelessWidget {
   const ServerNotificationPreferencesSection({
     super.key,
@@ -46,13 +68,14 @@ class ServerNotificationPreferencesSection extends StatelessWidget {
   onChanged;
 
   /// Görünecek tipler ve çeviri anahtarları.
+  ///
+  /// ⭐ `goalAchieved` **bilinçli olarak** yok (A4r10, ürün kararı 2-B):
+  /// sunucu bu tipi göndermiyor. Gerekçe sınıf dokümanında.
   static const _visible = <ServerNotificationType, String>{
     ServerNotificationType.water: 'settings.notifications.server.water',
     ServerNotificationType.dailyLog: 'settings.notifications.server.dailyLog',
     ServerNotificationType.weeklySummary:
         'settings.notifications.server.weeklySummary',
-    ServerNotificationType.goalAchieved:
-        'settings.notifications.server.goalAchieved',
   };
 
   @override
@@ -190,8 +213,65 @@ List<DropdownMenuItem<int>> _hourItems(TextStyle? style) => [
     ),
 ];
 
+/// `startHour`..23 arası saat **değerleri** — **bitiş** saati için.
+///
+/// ⭐ A4r10: `check-reminders/index.ts:356`
+/// (`normalizedHour >= startHour && normalizedHour <= endHour`) `start > end`
+/// iken hiçbir saatte sağlanmaz. Bitiş listesini `start`'tan başlatmak
+/// **yazılamaz** bir kısıt yerine **yazılabilir** bir kısıt koyar: kullanıcıya
+/// gösterilen her saat dilimi gerçekten çalışır ve `toRow`'nun `end = 23`
+/// normalleştirmesine arayüzden bir yol kalmaz.
+///
+/// **Dışa aktarıldı** çünkü `DropdownButton`ın `items` listesi
+/// `DropdownButtonFormField` üzerinden okunamıyor (`FormField` alanı
+/// gizliyor) ve menü **tembel** kurulduğu için `find.text('08')` gibi
+/// gözlemler yalnız görünen öğeleri yakalar. Saf liste, arayüzün
+/// **gerçekten** ne sunduğunu ölçmenin tek yoludur (A4r7b'in
+/// "yeşil test ≠ etkin test" dersi).
+List<int> endHourOptions(int startHour) => [
+      for (var h = startHour.clamp(0, 23); h < 24; h++) h,
+    ];
+
+/// [endHourOptions]'ı `DropdownMenuItem` listesine çevirir.
+List<DropdownMenuItem<int>> _hourItemsFrom(int startHour, TextStyle? style) => [
+      for (final h in endHourOptions(startHour))
+        DropdownMenuItem(
+          value: h,
+          child: Text(h.toString().padLeft(2, '0'), style: style),
+        ),
+    ];
+
 /// `water` — saat aralığı (`start_hour`/`end_hour`) + aralık saati
 /// (`interval_hours`, DB CHECK 1..24).
+///
+/// ## ⭐ Gece aralığı (21:00 → 09:00) **desteklenmiyor** (A4r10, Tur 11)
+///
+/// **Sunucu tarafı ölçümü** — `check-reminders/index.ts:356`:
+///
+/// ```ts
+/// if (normalizedHour >= startHour && normalizedHour <= endHour) { … }
+/// ```
+///
+/// Bu koşul `start > end` iken **hiçbir saatte** sağlanmaz (ör. 21:00'de
+/// `21 >= 9` doğru ama `21 <= 9` yanlış; 09:00'de tersi). Yani gece aralığı
+/// **sunucuda da** imkânsız; yalnız istemcide `end`'i 23'e çekmek hatırlatmayı
+/// **sessizce 09:00–23:00**e dönüştürüyordu (A4r8'in düzeltmesi) — kullanıcı
+/// istediği şeyi almıyor, üstelik "23:00'e kadar" diye de bilmiyor.
+///
+/// Bu yüzden arayüz **aralığı sınırlar**: bitiş saati `>=` başlangıç saati
+/// seçeneklerinden oluşur. Böylece
+///
+/// - gece aralığı **yazılamaz** → sessizce bozulmaz,
+/// - `NotificationPreference.toRow`'ın `end = 23` normalleştirmesi
+///   (veri katmanı savunması) arayüzden **gelen** bir değer için tetiklenmez,
+/// - kullanıcı gece hatırlatması isterse bile **doğru davranış** "gün içinde
+///   hatırlat" olur ve uygulama sessizce farklı bir davranış üretmez.
+///
+/// **Gerekçe raporda:** gece aralığını **gerçekten** desteklemek
+/// `check-reminders`'ta iki koşul gerektirir (gece ise `h >= start ||
+/// h <= end`, artı "gece yarısını geçen `last_water_reminder` damgasının
+/// hangi güne ait olduğu" mantığı) ve `supabase/**` A1'in alanıdır. Kullanıcı
+/// etkisi doğrudan olduğu için **AKTARIM** bölümüne yazıldı.
 class _HourRangeFields extends StatelessWidget {
   const _HourRangeFields({required this.pref, required this.onChanged});
 
@@ -202,14 +282,20 @@ class _HourRangeFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall;
+    final start = pref.startHour.clamp(0, 23);
+    // `end` kayıtlı değer `start`'tan küçükse (eski veri / `toRow`'nun 23'e
+    // çektiği bir satır) listede **bulunmayan** bir değer olurdu ve Flutter
+    // `DropdownButton` "no item" hatası verirdi → en az `start`'a sabitlenir.
+    final end = pref.endHour.clamp(start, 23);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: DropdownButtonFormField<int>(
-                initialValue: pref.startHour,
+                initialValue: start,
                 decoration: InputDecoration(
                   labelText: 'settings.notifications.server.startHour'.tr(),
                   isDense: true,
@@ -224,12 +310,14 @@ class _HourRangeFields extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<int>(
-                initialValue: pref.endHour,
+                initialValue: end,
                 decoration: InputDecoration(
                   labelText: 'settings.notifications.server.endHour'.tr(),
                   isDense: true,
                 ),
-                items: _hourItems(style),
+                // ⭐ `start`'tan **küçük** saatler sunucuda hiçbir koşulu
+                // sağlamaz → listede **gösterilmezler** (A4r10).
+                items: _hourItemsFrom(start, style),
                 onChanged: (v) {
                   if (v == null) return;
                   onChanged((p) => copyPreference(p, endHour: v));
@@ -258,6 +346,15 @@ class _HourRangeFields extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'settings.notifications.server.rangeNoNight'.tr(),
+            style: style?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       ],
     );
