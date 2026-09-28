@@ -64,6 +64,54 @@ abstract final class WidgetKeys {
   static const sAvg = 'str.avg';
   static const sOnTarget = 'str.onTarget';
   static const sQuickAdd = 'str.quickAdd';
+
+  /// Sözleşmedeki **tüm** anahtar değerleri (Dart tarafı).
+  ///
+  /// Kotlin tarafındaki karşılık listesi `test/core/widgets/
+  /// widget_key_contract_test.dart` içinde birebir karşılaştırılır; iki
+  /// taraf ayrışırsa (anahtar eklendi/yeniden adlandırıldı) `flutter test`
+  /// kırmızıya döner. Test, anahtarları sayımak için bu listeyi kullanır.
+  static const List<String> stateValues = <String>[
+    state,
+    date,
+    updatedAt,
+    locale,
+    dCalories,
+    dTarget,
+    dRemaining,
+    dPermille,
+    dProtein,
+    dProteinT,
+    dCarbs,
+    dCarbsT,
+    dFat,
+    dFatT,
+    dWater,
+    dWaterT,
+    dWeightText,
+    dHasMeals,
+    dEncText,
+    dShowMacros,
+    dShowWater,
+    dShowWeight,
+    wValues,
+    wLabels,
+    wTodayIdx,
+    wTarget,
+    wAvg,
+    wOnTarget,
+    wShowAvg,
+    wShowOnTarget,
+    sDailyTitle,
+    sWeeklyTitle,
+    sSignedOut,
+    sStale,
+    sRemaining,
+    sKcal,
+    sAvg,
+    sOnTarget,
+    sQuickAdd,
+  ];
 }
 
 /// Günlük özet snapshot'ı — tüm değerler native taraf için önceden
@@ -296,6 +344,21 @@ List<String> weeklyLabels({
 /// Koşullar: nudge açıksa, bugün öğün yoksa, saat planlanan nudge anına
 /// ermişse ve bugün için daha önce gönderilmemişse ([lastNudgeDate]
 /// `yyyy-MM-dd`, [formatEntryDate] ile aynı biçim).
+///
+/// ## Durum: `lib/` içinden **hiç çağrılmıyor** (yarım kalmış özellik)
+///
+/// `WidgetSettings.nudgeEnabled/nudgeHour/nudgeMinute` ayar ekranında
+/// yazılıyor (`widget_settings_dialog.dart:170-192`) ve kalıcıya
+/// kaydediliyor, ama **hiçbir yer** bu değerleri okuyup bir bildirim
+/// göndermiyor. `WidgetStrings.nudgeTitle/nudgeBody` de aynı şekilde
+/// yalnızca `WidgetStrings.current()` içinde üretiliyor, native tarafa
+/// `str.*` paketiyle **geçmiyor** (`buildStringPack` 9 metin yazıyor,
+/// `nudge*` yok). Kullanıcı ayarı açıp hiçbir davranış değişimi görmüyor.
+///
+/// `lastNudgeDate` parametresi de hiçbir yerden beslenmiyor; fonksiyon
+/// yalnızca testlerde çalışıyor. Bu, "özellik yazıldı ama bağlanmadı"
+/// tipi yarım yapıdır — tur 7'de ya tamamlanmalı ya da ayar UI'ından
+/// çıkarılmalı.
 bool shouldSendNudge({
   required WidgetSettings settings,
   required bool hasMealsToday,

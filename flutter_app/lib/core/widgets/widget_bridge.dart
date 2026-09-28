@@ -36,14 +36,28 @@ class WidgetBridge {
   /// dahil), başka bir değer görürse nötr duruma düşer.
   static const String stateReady = 'ready';
   static const String stateSignedOut = 'signedOut';
+
+  /// `WidgetData.STATE_NO_CONFIG` ile aynı değer.
+  ///
+  /// `lib/` içinde **üretilmiyor**: `noConfig` yalnızca native tarafın
+  /// "hiç anahtar okunamadı" için kendi varsayılanı. Dart tarafı veri
+  /// yazmadığında `state` anahtarı hiç yazılmadığı için Kotlin tarafı zaten
+  /// bu değere düşüyor — sabiti tekrarlamak sözleşmeyi gereksiz yere
+  /// iki noktaya bağlar.
   static const String stateNoConfig = 'noConfig';
 
   /// Native provider sınıf adları — `home_widget` bunları manifest'te arar
-  /// (`androidName` bir WidgetProvider sınıf adı olmalıdır).
+  /// (`androidName` bir WidgetProvider **sınıf adı** olmalıdır; paket öneki
+  /// eklenmez — bkz. [HomeWidgetSave.update]).
   static const String _dailyProvider = 'DailyWidgetProvider';
   static const String _weeklyProvider = 'WeeklyWidgetProvider';
 
   /// Tüm anahtarları yazar, ardından widget'ları tazeler.
+  ///
+  /// Tazeleme başarısız olursa **veri yine de yazılmış olur**; hata yalnızca
+  /// loglanır. `HomeWidget.updateWidget` iOS'ta sahte sınıf adı
+  /// (`DailyWidgetProvider`) arayacağı için platform hatası verir — bu bir
+  /// hat değil, iOS widget'ı henüz yazılmadığının göstergesi.
   static Future<void> publish(Map<String, Object?> snapshot) async {
     try {
       for (final entry in snapshot.entries) {
@@ -67,15 +81,22 @@ class WidgetBridge {
   }
 
   /// Her iki widget provider'ına da tazeleme isteği gönderir.
+  ///
+  /// Hata ayrı ayrı yutulur: iki provider'dan biri çözülemezse (ör. ileride
+  /// haftalık widget kaldırılırsa) diğeri yine de tazelenmelidir. Toplu
+  /// `try/catch` ikisini de düşürürdü.
   static Future<void> _refreshAll() async {
     for (final name in [_dailyProvider, _weeklyProvider]) {
-      await HomeWidgetSave.update(name);
+      try {
+        await HomeWidgetSave.update(name);
+      } catch (e, s) {
+        AppLog.w('Widget tazelemesi başarısız: $name', e, s);
+      }
     }
   }
 
   /// Günlük özet widget'ı için bugünün verisini yayınlar.
-  static Future<void> publishDaily({
-    required DailyData daily,
+  static Future<void> publishDaily({    required DailyData daily,
     required Profile? profile,
     required WidgetSettings settings,
     required WidgetStrings strings,
@@ -136,11 +157,30 @@ abstract final class HomeWidgetSave {
       (k, v) => HomeWidget.saveWidgetData<String>(k, v);
   static Future<String?> Function(String) readString =
       (k) => HomeWidget.getWidgetData<String>(k);
+
+  /// Provider sınıf adıyla widget tazeleme yayını gönderir.
+  ///
+  /// ## `name` **verilmez** — neden?
+  ///
+  /// `home_widget` Android tarafında sınıfı şöyle çözer
+  /// (`HomeWidgetPlugin.kt:260,269`):
+  /// ```kotlin
+  /// val className = call.argument<String>("android") ?: call.argument<String>("name")
+  /// val resolvedName = qualifiedName ?: "${context.packageName}.${className}"
+  /// Class.forName(resolvedName)   // → ClassNotFoundException
+  /// ```
+  /// Yani `name` verilirse `"$packageName.$name"` aranır; paket adı
+  /// `com.calorix.app` olduğu için `com.calorix.app.DailyWidgetProvider`
+  /// bulunamaz (`ClassNotFoundException` → `result.error(-3, …)`) ve
+  /// **hiçbir widget tazelenmez**.
+  ///
+  /// Doğru kullanım sınıf adını `androidName` (`android` anahtarı) ile
+  /// vermektir — paket öneki olmadan çözülür; paket `home_widget` dokümanında
+  /// da açıkça belirtilir ("must match the classname of the AppWidgetProvider").
   static Future<bool?> Function(String) update =
       (name) => HomeWidget.updateWidget(
         androidName: name,
         iOSName: name,
-        name: name,
       );
 
   /// Test sonrası orijinal implementasyonlara dön.
@@ -150,10 +190,9 @@ abstract final class HomeWidgetSave {
     saveString = (k, v) => HomeWidget.saveWidgetData<String>(k, v);
     readString = (k) => HomeWidget.getWidgetData<String>(k);
     update = (name) => HomeWidget.updateWidget(
-      androidName: name,
-      iOSName: name,
-      name: name,
-    );
+          androidName: name,
+          iOSName: name,
+        );
   }
 }
 
@@ -229,16 +268,11 @@ class _WidgetBridgeScopeState extends ConsumerState<WidgetBridgeScope> {
       // `currentUserProvider` zinciri `authRepositoryProvider` →
       // `Supabase.instance` üzerinden geçiyor; **exceptionsız** okunmalı
       // (`ref.read` aksi hâlde widget'ın build'ini patlatıyor — Supabase
-      // başlatılmamışsa assertion fırlatıyor). Oturum durumu zaten 1)
+      // başlatılmamışsa assertion fırlatıyor). Oturum durumu zaten 2)
       // bloğundaki `ref.listen` ile gelir; bu satır yalnızca "abone
       // olduğumuz provider'ın değeri hâlihazırda hazırsa" ilk yayını
       // tetikler.
-      User? initialUser;
-      try {
-        initialUser = ref.read(currentUserProvider);
-      } catch (_) {
-        initialUser = null;
-      }
+      final initialUser = _readUserSafely();
       _publishState(initialUser == null, localeCode);
     }
 
@@ -268,6 +302,20 @@ class _WidgetBridgeScopeState extends ConsumerState<WidgetBridgeScope> {
     });
 
     return widget.child;
+  }
+
+  /// `currentUserProvider`'ı istisna fırlatmadan okur.
+  ///
+  /// `ref.read` bir platform eklentisine (Supabase `instance`) erişir;
+  /// Supabase başlatılmadıysa assertion fırlatır ve widget'ın `build`'i
+  /// patlar. Bu yüzden `null` dönmek ve nötr durumu yayınlamak gerekir.
+  User? _readUserSafely() {
+    try {
+      return ref.read(currentUserProvider);
+    } catch (e, s) {
+      AppLog.w('Oturum durumu okunamadı, widget nötr durumda', e, s);
+      return null;
+    }
   }
 
   /// Günlük snapshot'ı yayınlar. Aynı `DailyData` örneği için tekrar
@@ -352,6 +400,28 @@ bool isWidgetKey(String key) =>
     key.startsWith('str.');
 
 /// Haftalık grafiği yayınlar (7 günlük sorgu gerektirir, ayrı akış).
+///
+/// ## Durum: `lib/` içinden **hiç çağrılmıyor** (ölü kod)
+///
+/// `WidgetBridgeScope` yalnızca [WidgetBridge.publishDaily] ve
+/// [WidgetBridge.publishState] çağırıyor. `dailyDataProvider` günün verisini
+/// getirir; son 7 günün kalorisi **ayrı bir sorgu** gerektirir ve
+/// `publishWeekly` bu sorguyu kendisi yapmaz — çağıran `mealRows` listesini
+/// sağlamak zorundadır. `lib/` altında bunu yapan tek bir çağrı yok.
+///
+/// Sonuç: `WeeklyWidgetProvider` native tarafı tam çalışıyor, verisini okuyup
+/// çiziyor ama `weekly.values`/`weekly.labels` **hiç yazılmıyor**, dolayısıyla
+/// haftalık widget her zaman boş/bayat gösteriyor. `widget_weekly_info.xml`'de
+/// `updatePeriodMillis="1800000"` (30 dk) tanımlı olsa da `onUpdate` yalnızca
+/// mevcut veriyi çizer, veri üretmez.
+///
+/// Bu bir **eksik özellik**, silinebilir ölü kod değil. Kapatmanın iki
+/// yolu var (bkz. rapor): (a) `DiaryRepository`'ye 7 günlük kalori sorgusu
+/// ekleyip `WidgetBridgeScope`'ta `publishWeekly` çağırmak — `lib/data/**`
+/// A2 alanında, (b) `WeeklyWidgetProvider` + `weekly.*` anahtarlarını
+/// kaldırıp yalnızca günlük widget'ı bırakmak. Karar tur 7'ye bırakıldı;
+/// bu turda işlev **dokunulmadan** bırakıldı (yanlışlıkla silinmesin diye
+/// buradaki uyarı yazıldı).
 Future<void> publishWeekly({
   required List<Map<String, dynamic>> mealRows,
   required Profile? profile,

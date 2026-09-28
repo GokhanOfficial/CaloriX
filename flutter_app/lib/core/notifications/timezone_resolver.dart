@@ -63,9 +63,23 @@ tz.Location? _tryGetLocation(String name) {
 /// Önceki kod `when.add(const Duration(days: 1))` ile bir gün ileri atıyordu;
 /// bu **duvar saati değil mutlak süre** eklediği için DST geçişlerinde plan
 /// 1 saat kayıyordu (Türkiye'de bile geçmişte +1 saat, AB'de ±1 saat).
-/// Burada `TZDateTime(tz.local, …)` her gün için **yeniden** oluşturulur; boylece
+/// Burada `TZDateTime` her gün için **yeniden** oluşturulur; böylece
 /// hedef saat dilimde mevcut değilse (yaz saati boşluğu) `tz` paketinin
 /// standart çözümlemesi uygulanır ve sonraki gün doğru saate düşer.
+///
+/// ## Neden `now.location` ve `tz.local` değil?
+///
+/// Önceki sürüm sonucu **`tz.local`** diliminde kuruyordu. Üretimde bu doğru
+/// çalışır (çağıran `now`'u `tz.TZDateTime.now(tz.local)` ile üretir, yani
+/// ikisi aynı konumdur), ama **saf fonksiyonun sözleşmesi bozuktu**:
+/// farklı bir dilimdeki bir `now` verildiğinde sonuç sessizce başka bir
+/// dile kayıyordu — TR'de 08:30 istenip UTC'de 08:30 dönüyordu (3 saat).
+///
+/// Bu aynı zamanda test edilebilirliği yok ediyordu: mevcut DST testleri
+/// `Europe/Berlin`/`Tokyo` `now` değerleriyle hesap yapıyor ama gerçekte
+/// `tz.local` (test ortamında UTC) üzerinde çalıştığı için **hiçbir şey
+/// ölçmüyordu**. Konumu `now`'dan almak hem sözleşmeyi düzeltir hem de bu
+/// testleri gerçek ölçüme çevirir.
 ///
 /// [hour]/[minute] aralık dışıysa değer `DateTime` normalizasyonuyla
 /// kaydırılır (ör. 25:30 → ertesi gün 01:30).
@@ -74,10 +88,11 @@ tz.TZDateTime nextDailyOccurrence({
   required int hour,
   required int minute,
 }) {
-  var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+  final loc = now.location;
+  var when = tz.TZDateTime(loc, now.year, now.month, now.day, hour, minute);
   if (!when.isAfter(now)) {
     when = tz.TZDateTime(
-      tz.local,
+      loc,
       now.year,
       now.month,
       now.day + 1,
@@ -87,3 +102,4 @@ tz.TZDateTime nextDailyOccurrence({
   }
   return when;
 }
+

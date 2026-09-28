@@ -46,6 +46,27 @@ abstract final class ApkDownloader {
   /// (`Directory.systemTemp`) ile değiştirilir.
   static Future<Directory> Function() tempDir = () => getTemporaryDirectory();
 
+  /// Geçici APK dosyasının ad öneki.
+  static const String stagedFilePrefix = 'calorix-update-';
+
+  /// Geçici APK dosyasının adı — sürüm ve kod ile ayrıştırılır.
+  ///
+  /// Sabit ad (`calorix-update.apk`) yerine sürümlü ad kullanılıyor:
+  /// kullanıcı güncellemeyi iptal ettiğinde (yükleyiciyi kapattı) dosya
+  /// diskte kalıyordu ve aynı ad kullanıldığı için sonraki denemede
+  /// sessizce eziliyordu. Sürümlü ad, "hangi sürüm indirildi" ayrımını
+  /// dosya adından okunur kılar ve [_deleteStaleSiblings] eskiyi temizler.
+  static String stagedFileName(UpdateManifest manifest) {
+    // `..` ve ayraçlar ayrıca engellenir: sürüm adı `..` içerirse
+    // `.._.._evil` gibi bir ad üretilir ve `File('${dir.path}/$name')`
+    // yine de dizin dışına kaçamaz, ama "temizlenmesi gereken eski dosya"
+    // süzgeci için belirsizlik yaratır.
+    final safeVersion = manifest.versionName
+        .replaceAll('..', '_')
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    return '$stagedFilePrefix${manifest.versionCode}-$safeVersion.apk';
+  }
+
   /// Test sonrası orijinal implementasyonlara dön.
   static void reset() {
     fetch = (uri) => http.get(
@@ -121,14 +142,65 @@ abstract final class ApkDownloader {
 
     // Hash yoksa `unavailable` → yine de yazılır ve açılabilir (uyarı gösterilir).
     final dir = await tempDir();
-    final file = File('${dir.path}/calorix-update.apk');
-    await file.writeAsBytes(bytes, flush: true);
+    final name = stagedFileName(manifest);
+    final file = File('${dir.path}/$name');
+    try {
+      await file.writeAsBytes(bytes, flush: true);
+    } catch (e, s) {
+      // Disk dolu / izin yok: yarım kalan dosyayı temizle, yoksa bir sonraki
+      // denemede `file://` üzerinden **yarım APK** yükleyiciye açılabilir.
+      AppLog.w('APK diske yazılamadı', e, s);
+      _deleteQuietly(file);
+      throw const ApkDownloadException(
+        kind: ApkDownloadFailure.write,
+        message: 'APK kaydedilemedi',
+      );
+    }
+    // Önceki sürümden kalmış dosyaları temizle (disk dolmasın).
+    _deleteStaleSiblings(dir, keepName: name);
 
     return ApkDownloadResult(
       file: file,
       integrity: integrity,
       byteLength: bytes.length,
     );
+  }
+
+  /// Geçici dizindeki eski sürüm artıklarını temizler.
+  ///
+  /// `calorix-update.apk` **sabit bir ad** kullanıyor; her indirme aynı
+  /// dosyayı ezer. Bu tek dosya kendiliğinden sınırsız büyümez, ama:
+  ///  * kullanıcı güncellemeyi iptal ederse (yükleyiciyi kapatır) dosya
+  ///    diskte kalır ve güncelleme sürümü değişene kadar (haftalar) yer
+  ///    kaplar,
+  ///  * indirme başarısız olduğunda yarım dosya kalabilirdi.
+  ///
+  /// `stagedFileName` (sürüm + kod) adlandırması, sürüm başına en fazla bir
+  /// dosya tutar; eskiler ilk başarılı indirmede silinir.
+  static void _deleteStaleSiblings(
+    Directory dir, {
+    required String keepName,
+  }) {
+    try {
+      for (final entity in dir.listSync()) {
+        if (entity is! File) continue;
+        final name = entity.path.split(Platform.pathSeparator).last;
+        if (!name.startsWith(stagedFilePrefix) || name == keepName) continue;
+        _deleteQuietly(entity);
+      }
+    } catch (e, s) {
+      // Temizlik başarısız olursa indirme yine de geçerli — sadece disk
+      // biraz daha dolu kalır.
+      AppLog.w('Eski APK geçici dosyaları temizlenemedi', e, s);
+    }
+  }
+
+  static void _deleteQuietly(File file) {
+    try {
+      if (file.existsSync()) file.deleteSync();
+    } catch (_) {
+      // Disk yazma/erişim hatası: dosya kalır, sonraki indirme üzerine yazar.
+    }
   }
 }
 

@@ -64,6 +64,19 @@ class NotificationService {
   /// Başarıyla çözülen cihaz saat dilimi (`null` = UTC'ye düşüldü).
   String? get localTimeZoneName => _tzName;
 
+  /// Saat dilimi çözülemedi mi? (sessiz UTC düşüşü)
+  ///
+  /// `true` ise hatırlatıcılar **UTC'de** planlanıyor — TR için 3 saat,
+  /// ABD için 5-8 saatlik sessiz kayma. `AppLog` bunu kaydeder ama release'de
+  /// Sentry DSN boşsa log tamamen kaybolur (bkz. `app_logger.dart:36`), yani
+  /// kullanıcı hatırlatıcının yanlış saatte geldiğini "sihirbazlık" olarak
+  /// yaşıyor. Bu bayrak ayar ekranının uyarı göstermesini mümkün kılar.
+  bool get timeZoneUnresolved => _tzResolvedOnce && _tzName == null;
+
+  /// `applyLocalTimeZone` en az bir kez çalıştı mı? (`timeZoneUnresolved`
+  /// ancak bu anlamlı — aksi halde her yeni servis "çözülmemiş" görünür.)
+  bool _tzResolvedOnce = false;
+
   /// Saat dilimi değiştiğinde çağrılacak geri çağrılar. Uygulama ön planı
   /// (arkada reschedule) tarafından doldurulur.
   final List<void Function()> _timezoneWatchers = [];
@@ -74,6 +87,30 @@ class NotificationService {
 
   /// Android 12+ exact alarm izni yoksa inexact planlamaya düşer.
   bool _exactAllowed = true;
+
+  /// Kullanıcı Android 13+ bildirim iznini vermemiş mi? (`null` = bilinmiyor)
+  ///
+  /// `areNotificationsEnabled()` **her planlamada** sorulur
+  /// ([_refreshPermissions]): kullanıcı ayarlardan geri dönerken izni açmış
+  /// olabilir. Reddedildiyse planlama yine de yapılır — kullanıcı ayarı
+  /// silmeden önce izni geri açarsa bildirim doğru saatte gelmeye başlar.
+  bool? _notificationsAllowed;
+
+  /// Son uygulanan planlama sonucu — çağıran (ayarlar ekranı) bunu okuyup
+  /// kullanıcıya "izin yok / planlama başarısız" uyarısı gösterebilir.
+  NotificationScheduleOutcome _lastOutcome =
+      const NotificationScheduleOutcome();
+
+  /// `reschedule`/`snoozeOneHour` sonrası planlama durumu.
+  NotificationScheduleOutcome get lastScheduleOutcome => _lastOutcome;
+
+  /// Kullanıcı Android 13+ bildirim iznini vermemiş mi? (`null` = bilinmiyor)
+  ///
+  /// `areNotificationsEnabled()` **her planlamada** sorulur
+  /// ([_refreshPermissions]): kullanıcı ayarlardan geri dönerken izni açmış
+  /// olabilir. Reddedildiyse planlama yine de yapılır — kullanıcı ayarı
+  /// silmeden önce izni geri açarsa bildirim doğru saatte gelmeye başlar.
+  bool? get notificationsAllowed => _notificationsAllowed;
 
   Future<void> init() async {
     if (kIsWeb || _initialized) return;
@@ -116,6 +153,7 @@ class NotificationService {
       tzdata.initializeTimeZones();
       _tzReady = true;
     }
+    _tzResolvedOnce = true;
     String platformZone;
     try {
       platformZone = await FlutterTimezone.getLocalTimezone();
@@ -162,13 +200,48 @@ class NotificationService {
     _timezoneWatchers.remove(onChanged);
   }
 
+  /// Bildirim + tam alarm izinlerini ister ve sonucu kaydeder.
+  ///
+  /// `requestExactAlarmsPermission()` **yalnızca init'te bir kez** sorulur:
+  /// Android 12+ bu çağrı bir sistem ayarları ekranı açır ve her yeniden
+  /// planlamada sorulursa kullanıcı ayar kaydettikçe ayarlar ekranına
+  /// ışınlanır. Bunun yerine her `reschedule`'te **okuma** yapılır
+  /// ([_refreshPermissions]).
   Future<void> _ensurePermission() async {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
+    // Asıl doğrulama `areNotificationsEnabled()` ile yapılır
+    // (bkz. [_refreshPermissions] — aynı turda tazelenir).
     await android.requestNotificationsPermission();
-    _exactAllowed =
-        await android.requestExactAlarmsPermission() ?? true;
+    _exactAllowed = await android.requestExactAlarmsPermission() ?? true;
+    await _refreshPermissions();
+  }
+
+  /// İzin durumunu **yeniden okur** (kullanıcı ayarlardan dönerken çağrılır).
+  ///
+  /// Önceki davranış iki sorunu birden taşıyordu:
+  ///  * `_exactAllowed` yalnızca `init`'te bir kez belirlendiği için
+  ///    kullanıcı tam alarm iznini sonradan kapatırsa uygulama hâlâ
+  ///    `exactAllowWhileIdle` gönderiyor, `zonedSchedule` başarısız oluyor
+  ///    ve hatırlatıcılar **sessizce hiç gelmiyordu**.
+  ///  * `POST_NOTIFICATIONS` reddi hiçbir yerde görünmüyordu.
+  ///
+  /// İki okuma da platform kanalına gittiği için her ayar değişiminde
+  /// (nadir, kullanıcı eylemi) çağırmak kabul edilebilir; her `build`'de
+  /// çağırmak değil.
+  Future<void> _refreshPermissions() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return;
+    try {
+      _notificationsAllowed = await android.areNotificationsEnabled();
+      _exactAllowed = await android.canScheduleExactNotifications() ??
+          _exactAllowed;
+    } catch (e, s) {
+      // Platform kanalı yok (test/iOS): mevcut değerleri koru.
+      AppLog.w('Bildirim izinleri okunamadı', e, s);
+    }
   }
 
   void _onNotificationResponse(NotificationResponse response) {
@@ -204,21 +277,40 @@ class NotificationService {
       _pendingSchedule = Map.of(meals);
       return;
     }
+
+    // İzin durumu her planlamada yeniden okunur: kullanıcı ayarlardan
+    // dönerken tam alarm iznini vermiş/verilmemiş olabilir. Önceki kod
+    // bunu yalnızca init'te yapıyordu, `exactAllowWhileIdle` gönderimi
+    // başarısız olup hatırlatıcılar **sessizce hiç gelmiyordu**.
+    await _refreshPermissions();
+
     for (final meal in MealType.values) {
       await _plugin.cancel(mealReminderId(meal));
       await _plugin.cancel(snoozeReminderId(meal));
     }
+
+    var failed = 0;
     for (final meal in reminderMeals) {
       final reminder = meals[meal];
       if (reminder == null || !reminder.enabled) continue;
-      await _scheduleDaily(
+      final ok = await _scheduleDaily(
         mealReminderId(meal),
         meal,
         reminder.hour,
         reminder.minute,
         payload: 'daily_reminder:${meal.name}',
       );
+      if (!ok) failed++;
     }
+    _lastOutcome = NotificationScheduleOutcome(
+      scheduledCount: reminderMeals.where((m) {
+        final r = meals[m];
+        return r != null && r.enabled;
+      }).length,
+      failedCount: failed,
+      notificationsAllowed: _notificationsAllowed,
+      exactAllowed: _exactAllowed,
+    );
   }
 
   /// Bir sonraki `reschedule`'ın tetiklenip tetiklenmeyeceğini bilmeden
@@ -226,7 +318,14 @@ class NotificationService {
   @visibleForTesting
   bool get hasPendingSchedule => _pendingSchedule != null;
 
-  Future<void> _scheduleDaily(
+  /// Günlük hatırlatıcıyı planlar. Başarı durumunu döner.
+  ///
+  /// Neden `try/catch`: `zonedSchedule` tam alarm izni olmadığında
+  /// `ExactAlarmPermissionException` fırlatıyor ve **istisna, planlanan
+  /// diğer öğünlerin de planlanmasını engelliyordu** — bir öğünün planlama
+  /// hatası diğer ikisini de sessizce bırakıyordu. Şimdi hata yakalanır,
+  /// loglanır ve [reschedule] devam eder.
+  Future<bool> _scheduleDaily(
     int id,
     MealType meal,
     int hour,
@@ -234,46 +333,59 @@ class NotificationService {
     required String payload,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
-    var when = nextDailyOccurrence(
+    final when = nextDailyOccurrence(
       now: now,
       hour: hour,
       minute: minute,
     );
 
-    await _plugin.zonedSchedule(
-      id,
-      meal.notifTitleKey.tr(),
-      meal.notifBodyKey.tr(),
-      when,
-      _details(meal),
-      androidScheduleMode: _exactAllowed
-          ? AndroidScheduleMode.exactAllowWhileIdle
-          : AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: payload,
-    );
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        meal.notifTitleKey.tr(),
+        meal.notifBodyKey.tr(),
+        when,
+        _details(meal),
+        androidScheduleMode: _exactAllowed
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: payload,
+      );
+      return true;
+    } catch (e, s) {
+      AppLog.w('Hatırlatıcı planlanamadı (${meal.name})', e, s);
+      return false;
+    }
   }
 
   /// "1 saat ertele" — günlük plan korunur, ek olarak 1 saat sonra tek seferlik
   /// hatırlatma gösterir.
+  ///
+  /// [reschedule] ile aynı gerekçeyle hata yutulur: erteleme planlanamazsa
+  /// istisna `app.dart`'deki aksiyon işleyicisine kaçıyordu.
   Future<void> snoozeOneHour(MealType meal) async {
     if (kIsWeb || !_initialized) return;
     await _plugin.cancel(snoozeReminderId(meal));
-    await _plugin.zonedSchedule(
-      snoozeReminderId(meal),
-      meal.notifTitleKey.tr(),
-      meal.notifBodyKey.tr(),
-      tz.TZDateTime.now(tz.local).add(const Duration(hours: 1)),
-      _details(meal, showActions: false),
-      androidScheduleMode: _exactAllowed
-          ? AndroidScheduleMode.exactAllowWhileIdle
-          : AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'snooze_reminder:${meal.name}',
-    );
+    try {
+      await _plugin.zonedSchedule(
+        snoozeReminderId(meal),
+        meal.notifTitleKey.tr(),
+        meal.notifBodyKey.tr(),
+        tz.TZDateTime.now(tz.local).add(const Duration(hours: 1)),
+        _details(meal, showActions: false),
+        androidScheduleMode: _exactAllowed
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'snooze_reminder:${meal.name}',
+      );
+    } catch (e, s) {
+      AppLog.w('Erteleme planlanamadı (${meal.name})', e, s);
+    }
   }
 
   NotificationDetails _details(MealType meal, {bool showActions = true}) {
@@ -308,4 +420,52 @@ class NotificationService {
     _timezoneWatchers.clear();
     unawaited(_actions.close());
   }
+}
+
+/// Bir [NotificationService.reschedule] çağrısının sonucu.
+///
+/// Amaç: "hatırlatıcılar çalışmıyor" şikâyetini teşhis edilebilir kılmak.
+/// Önceki kodda planlama hataları ya istisna fırlatıp diğer öğünlerin
+/// planlanmasını engelliyordu ya da tamamen sessizce yutuluyordu; kullanıcı
+/// tek gözlemiyle "bildirim gelmiyor" diyebiliyordu.
+@immutable
+class NotificationScheduleOutcome {
+  const NotificationScheduleOutcome({
+    this.scheduledCount = 0,
+    this.failedCount = 0,
+    this.notificationsAllowed,
+    this.exactAllowed = true,
+  });
+
+  /// Planlanmayı denenen öğün sayısı.
+  final int scheduledCount;
+
+  /// `zonedSchedule` istisna fırlattığı öğün sayısı.
+  final int failedCount;
+
+  /// `areNotificationsEnabled()` sonucu (`null` = bilinmiyor/okunamadı).
+  final bool? notificationsAllowed;
+
+  /// `canScheduleExactNotifications()` sonucu — `false` ise planlama inexact
+  /// moda düşmüş demektir (birkaç dakikalık kayma olabilir).
+  final bool exactAllowed;
+
+  /// En az bir planlama başarısız oldu mu?
+  bool get hasFailure => failedCount > 0;
+
+  /// Bildirim izni kapalı mı? (Android 13+; `null` ise bilinmiyor.)
+  bool get notificationsDisabled => notificationsAllowed == false;
+
+  /// Kullanıcıya gösterilecek bir uyarı gerekiyor mu?
+  ///
+  /// `notificationsDisabled` **en kritik** durum: plan doğru kurulmuştur ama
+  /// Android hiç göstermeyecek. `failedCount > 0` ikinci sırada, tam alarm
+  /// eksikliği üçüncüde (kullanıcı hatırlatıcıyı biraz geç alabilir).
+  bool get needsUserAttention =>
+      notificationsDisabled || hasFailure || !exactAllowed;
+
+  @override
+  String toString() => 'NotificationScheduleOutcome('
+      'scheduled=$scheduledCount, failed=$failedCount, '
+      'allowed=$notificationsAllowed, exact=$exactAllowed)';
 }

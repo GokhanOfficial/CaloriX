@@ -18,8 +18,15 @@ abstract final class Calculations {
   }
 
   /// Günlük toplam enerji harcaması.
-  static int tdee(int bmr, ActivityLevel level) =>
-      (bmr * level.multiplier).round();
+  ///
+  /// `bmr` zaten `minBmr` (0) altına kırpıldığı için sonuç negatif olamaz;
+  /// yine de `isFinite` koruması `Int` taşması (çok büyük profil) ve
+  /// `round()`'ın `UnsupportedError` fırlatması ihtimaline karşı durur.
+  static int tdee(int bmr, ActivityLevel level) {
+    if (bmr <= minBmr) return minBmr;
+    final value = (bmr * level.multiplier).round();
+    return value < minBmr ? minBmr : value;
+  }
 
   /// Hedefe göre kalori (minimum 1200 kcal güvenlik sınırı, web ile aynı).
   static int targetCalories(int tdee, Goal goal) {
@@ -62,7 +69,8 @@ abstract final class Calculations {
   /// `try` bloğu DIŞINDA kullandığı için istisna akışı kırıp ekranı düşürüyordu.
   /// Böyle bir kayıt fiziksel olarak da geçersizdir; 0.0 = "hesaplanamadı".
   static double bmi(double weightKg, double heightCm) {
-    if (!heightCm.isFinite || heightCm == 0) return 0;
+    if (!heightCm.isFinite || heightCm <= 0) return 0;
+    if (!weightKg.isFinite) return 0;
     final hM = heightCm / 100;
     final raw = weightKg / (hM * hM);
     if (!raw.isFinite) return 0;
@@ -78,7 +86,15 @@ abstract final class Calculations {
   }
 
   /// Günlük su hedefi (ml) — web: kg * 33.
-  static int waterTargetMl(double weightKg) => (weightKg * 33).round();
+  ///
+  /// `NaN`/`Infinity` kilo girdisinde `round()` `UnsupportedError` fırlatıyordu.
+  /// Çağıranlar (`MacroCalculator`) zaten sonlu olmayan kilo nedeniyle
+  /// 0 bekliyor; burada aynı sözleşme açıkça uygulanır.
+  static int waterTargetMl(double weightKg) {
+    if (!weightKg.isFinite) return 0;
+    final value = (weightKg * 33).round();
+    return value < 0 ? 0 : value;
+  }
 
   /// Yaş hesaplama (doğum günü geçmemişse 1 eksik).
   ///
@@ -105,10 +121,16 @@ abstract final class Calculations {
 
   /// İlerleme yüzdesi (0-100).
   ///
-  /// Hem sıfır/negatif hedef (bölme) hem negatif tüketim alt sınırı 0'a
-  /// çekilir — ilerleme çubuğunda eksi yüzde gösterilmez.
+  /// Üç savunma katmanı:
+  ///  * sıfır/negatif hedef → 0 (bölme tanımsız; ayrıca bölme işareti),
+  ///  * `NaN`/`Infinity` girdi → 0. `round()` bu değerlerde
+  ///    `UnsupportedError` fırlatıyordu; hedefi bozuk bir öğün ekranı
+  ///    düşürüyordu (`macro_calculator.dart` bunu `_safeInt` ile sarıyordu,
+  ///    diğer çağıranlar sarıyordu),
+  ///  * negatif tüketim / hedef aşımı → 0..100 aralığı.
   static int progress(num current, num target) {
-    if (target == 0) return 0;
+    if (!target.isFinite || target == 0) return 0;
+    if (!current.isFinite) return 0;
     final pct = ((current / target) * 100).round();
     if (pct < 0) return 0;
     return pct > 100 ? 100 : pct;

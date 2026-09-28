@@ -41,25 +41,50 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   /// SnackBar/dialog göstermeye çalışıyordu.
   UpdateStatus? _lastHandledStatus;
 
+  /// Bu frame için bir post-frame istemi zaten kuyruğa alınmış mı?
+  ///
+  /// `_maybeShowPrompts` async olduğu için `_lastHandledStatus` yalnızca
+  /// callback **çalıştığında** güncellenir. Durum arka arkaya iki kez
+  /// değişirse (ör. `check()` → `checking` → `optional`) aradaki `checking`
+  /// için kaydedilen callback henüz çalışmamışken yeni bir tane daha
+  /// kuyruğa girerdi. Bu bayrak aynı frame içinde ikinci kaydı engeller.
+  bool _promptScheduled = false;
+
   @override
   void initState() {
     super.initState();
     unawaited(ref.read(updateCheckerProvider.notifier).check());
   }
 
+  /// Durum değiştiğinde ilgili istemi gösterir. Aynı durum için ikinci kez
+  /// çalışmaz.
+  ///
+  /// Not: `identical` yerine `==` karşılaştırması **bilinçli seçildi** —
+  /// `UpdateRequired(manifest)`/`UpdateOptional(manifest)` her kontrolde yeni
+  /// bir örnek üretir (`check()` her çağrıda yeni manifest okur), bu yüzden
+  /// referans eşitliği yalnızca aynı nesne döndüğünde tutar. Aynı durum
+  /// için iki farklı örnek gelirse `==` de `false` dönerdi; yalnızca
+  /// `_optionalDialogShown`/`_unknownWarningShown` bayrakları koruyor.
   Future<void> _maybeShowPrompts(UpdateStatus status) async {
     if (identical(status, _lastHandledStatus)) return;
     _lastHandledStatus = status;
+    // Kilit riski: `UpdateRequired` tek çıkışı olan ekranı gösterir ve
+    // `_lastHandledStatus` burada güncellenir. "Yeniden kontrol et" düğmesi
+    // `check()`'i tetikler; aynı karar dönerse `identical` tutmaz, ama
+    // `UpdateRequired` dalında `default: break` ile **hiçbir istem
+    // gösterilmez** — kullanıcı sonsuz uyarı döngüsüne girmez.
     switch (status) {
       case UpdateOptional(:final manifest):
         if (_optionalDialogShown) return;
-        if (await ref
+        // AWAIT SONRASI REF KULLANIMI: `await` sırasında widget dispose
+        // olabilir (`mounted` kontrolü aşağıda var) ama `ref.read` çağrısı
+        // `await`'tan **önce** başlatıldığı için güvenli.
+        final dismissed = await ref
             .read(updateCheckerProvider.notifier)
-            .isDismissed(manifest.versionCode)) {
-          return;
-        }
-        _optionalDialogShown = true;
+            .isDismissed(manifest.versionCode);
+        if (dismissed) return;
         if (!mounted) return;
+        _optionalDialogShown = true;
         await _showOptionalDialog(manifest);
       case UpdateUnknown():
         if (_unknownWarningShown) return;
@@ -218,10 +243,17 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(updateCheckerProvider);
-    if (!identical(status, _lastHandledStatus)) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _maybeShowPrompts(status),
-      );
+    // Durum değiştiğinde yalnızca bir kez post-frame kaydedilir. Önceki
+    // sürüm her frame'de `addPostFrameCallback` çağırıyordu; widget
+    // arka plana alınınca (veya hızlı yeniden çizimlerde) kuyruk büyüyor,
+    // toplanan callback'ler uygulama açıldığında SnackBar/dialog göstermeye
+    // çalışıyordu.
+    if (!identical(status, _lastHandledStatus) && !_promptScheduled) {
+      _promptScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _promptScheduled = false;
+        unawaited(_maybeShowPrompts(status));
+      });
     }
 
     return switch (status) {
