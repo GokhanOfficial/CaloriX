@@ -45,5 +45,29 @@ verify_jwt = false
 # Kullanıcının KENDİ JWT'si ile çağrılır ve gövdedeki parola ile onaylanır.
 # Bu bir cron DEĞİLDİR: INTERNAL_FUNCTION_TOKEN deseni **kullanılmaz**;
 # fonksiyon kendi yetkilendirmesini (requireUserContext + parola) taşır.
+#
+# A1r4 denetimi: `verify_jwt = true` **doğru** ve `verify_jwt = false`
+# YANLIŞ olurdu. Gerekçe:
+#  - `false` olsaydı kapı yalnızca fonksiyon içindeki `requireUserContext`'e
+#    kalırdı. O da `auth.getUser()` ile doğrulama yaptığı için *işlevsel*
+#    olarak koruma sürerdi, ANCAK `requireUserContext` `Authorization` başlığı
+#    yoksa `AuthError(401)` fırlatır — yani davranış aynı kalırdı. Buna
+#    rağmen `true` doğrudur çünkü:
+#    (a) JWT doğrulaması edge runtime'ın **önünde** (gateway'de) yapılır:
+#        süresi dolmuş/imzasız jetonlar kullanıcı koduna hiç ulaşmaz →
+#        daha az yüzey alanı, daha az kaynak tüketimi.
+#    (b) Sahte `Authorization` başlığıyla gelen istekler kullanıcı kodunu ve
+#        `service_client` oluşturma maliyetini hiç ödemez.
+#    (c) Bu fonksiyon `service_role` **istemcisi** açıyor
+#        (`requireUserContext(req, { serviceRole: true })`). Bu yetki
+#        yalnızca fonksiyon içinde kullanılır ve kapsam doğrulanmış
+#        `userId`'ye sabitlendikten sonra daraltılır; `verify_jwt = true`
+#        bu zincirin ilk halkasıdır.
+#  - YANLIŞ olabilecek tek yön, OTP/magic-link ya da parolasız (OAuth)
+#    oturumlarda parola onayı çalışmazdı. Flutter istemcisinde **tek**
+#    giriş yolu `signInWithPassword` (bkz.
+#    flutter_app/lib/data/repositories/auth_repository.dart) olduğu için bu
+#    risk bugün mevcut değil. OAuth eklenirse kısıt **yeniden
+#    değerlendirilmelidir** (rapor: "Kalan riskler").
 [functions.delete-account]
 verify_jwt = true

@@ -150,7 +150,11 @@ YANIT FORMATI (JSON):
     return jsonResponse(req, result);
   } catch (error) {
     if (error instanceof AuthError) return errorResponse(req, error.status, error.status === 401 ? "Yetkisiz" : "İstek işlenemedi");
-    if (error instanceof ValidationError) return errorResponse(req, error.status, error.message);
+    // A1r4: sabit mesaj — `ValidationError` metni alan adı/şema sızdırır.
+    if (error instanceof ValidationError) {
+      console.error("recognize-food doğrulama hatası:", error.message);
+      return errorResponse(req, error.status, "Eksik veya geçersiz istek");
+    }
     console.error("recognize-food beklenmeyen hata", error);
     return errorResponse(req, 500, "Beklenmeyen bir hata oluştu");
   }

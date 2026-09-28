@@ -18,7 +18,7 @@ import {
   jsonResponse,
   preflightResponse,
 } from "../_shared/http.ts";
-import { isSameIsoWeek } from "./helpers.ts";
+import { isSameIsoWeek, getZonedParts, writeReminderStamp } from "./helpers.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 
 /** Dış AI çağrısı için üst süre sınırı. */
@@ -223,25 +223,25 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const now = new Date();
-    const currentHour = now.getUTCHours() + 3; // Turkey time (UTC+3)
-    const normalizedHour = currentHour >= 24 ? currentHour - 24 : currentHour;
-    const today = now.toISOString().split("T")[0];
-    const dayOfWeek = now.getDay();
 
     // 3) İdempotency: aynı tip hatırlatma bu saat içinde zaten gönderildiyse atlanır.
     //    (Aksi halde her çalıştırmada last_*_reminder güncellenmeden önceki
     //     zamanlayıcı çalıştırmaları aynı bildirimi tekrar tekrar gönderebiliyordu.)
     const sentThisRun: Array<{ userId: string; type: string; at: string }> = [];
+    // Damga yazılamayan gönderimler (A1r3'ün bıraktığı P2 düzeltmesi):
+    // sessizce yutulurdu, sonuç kullanıcıya günde ~12 kez aynı bildirim gider.
+    // Artık hem loglanır hem de koşu özetine yansır → izlenebilir.
+    const stampFailures: Array<{ userId: string; column: string }> = [];
 
-    console.log(
-      `Hatırlatıcı kontrolü: ${now.toISOString()} saat=${normalizedHour} gün=${dayOfWeek}`,
-    );
+    console.log(`Hatırlatıcı kontrolü: ${now.toISOString()} (saat/gün profilden)`);
 
     // Get all users with notifications enabled
+    // `timezone` artık SELECT'e dahil: sabit `UTC+3` yerine kullanıcının
+    // kendi saat dilimi kullanılır (A1r4).
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, daily_water_target_ml, weigh_in_frequency_days, last_weigh_in_reminder, last_water_reminder, last_daily_log_reminder, last_weekly_summary, onboarding_completed",
+        "id, display_name, timezone, daily_water_target_ml, weigh_in_frequency_days, last_weigh_in_reminder, last_water_reminder, last_daily_log_reminder, last_weekly_summary, onboarding_completed",
       )
       .eq("onboarding_completed", true);
 
@@ -254,6 +254,19 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Kontrol edilecek profil sayısı: ${profileList.length}`);
 
     for (const profile of profileList) {
+      // Saat dilimi (A1r4): `now` sabit `UTC+3` ile kaydırılmıyor artık.
+      // Kullanıcının `profiles.timezone` değeri **kendi gün ve saat parçalarını**
+      // üretir; geçersiz/boş değerde `Intl` RangeError fırlatmasın diye
+      // `getZonedParts` `UTC`'ye düşer ve bunu loglar (sessiz hata yok).
+      // `summary_day` (0=Pazar..6=Cumartesi) ile `weekday` aynı dizindir.
+      const zoned = getZonedParts(profile.timezone, now, console.error);
+      const normalizedHour = zoned.hour;
+      const dayOfWeek = zoned.weekday;
+      // Su hatırlatmasının "bugün" süzgeci kullanıcının kendi günüdür; eski
+      // `now.toISOString().split("T")[0]` UTC günüydü (TR'de 03:00'e kadar
+      // bir gün geriden hesaplanıyordu → gece yenen su "dün" sayılıyordu).
+      const today = zoned.date;
+
       // Tercihleri tek sorguda çek (N+1 azaltma + alan yazım hatası düzeltmesi:
       // "last_daily_log_reminder" kolonu migration ile eklenmişti, SELECT'te yoktu).
       const { data: preferences } = await supabase
@@ -318,9 +331,14 @@ const handler = async (req: Request): Promise<Response> => {
               at: now.toISOString(),
             });
 
-            await supabase.from("profiles").update({
-              last_weigh_in_reminder: now.toISOString(),
-            }).eq("id", profile.id);
+            const stamped = await writeReminderStamp(
+              supabase,
+              profile.id,
+              "last_weigh_in_reminder",
+              now.toISOString(),
+              console.error,
+            );
+            if (!stamped) stampFailures.push({ userId: profile.id, column: "last_weigh_in_reminder" });
           }
         }
       }
@@ -376,9 +394,14 @@ const handler = async (req: Request): Promise<Response> => {
                 at: now.toISOString(),
               });
 
-              await supabase.from("profiles").update({
-                last_water_reminder: now.toISOString(),
-              }).eq("id", profile.id);
+              const stamped = await writeReminderStamp(
+                supabase,
+                profile.id,
+                "last_water_reminder",
+                now.toISOString(),
+                console.error,
+              );
+              if (!stamped) stampFailures.push({ userId: profile.id, column: "last_water_reminder" });
             }
           }
         }
@@ -426,9 +449,14 @@ const handler = async (req: Request): Promise<Response> => {
               at: now.toISOString(),
             });
 
-            await supabase.from("profiles").update({
-              last_daily_log_reminder: now.toISOString(),
-            }).eq("id", profile.id);
+            const stamped = await writeReminderStamp(
+              supabase,
+              profile.id,
+              "last_daily_log_reminder",
+              now.toISOString(),
+              console.error,
+            );
+            if (!stamped) stampFailures.push({ userId: profile.id, column: "last_daily_log_reminder" });
           }
         }
       }
@@ -542,17 +570,36 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Idempotency damgası: aynı ISO haftasında tekrar gönderilmesin.
         // Önceki hatırlatıcılar gibi burada da "gönderdikten sonra" yazılır.
-        await supabase
-          .from("profiles")
-          .update({ last_weekly_summary: now.toISOString() })
-          .eq("id", profile.id);
+        // Damga yazılamazsa **bu koşuda tekrar gönderim yapılmaz**; kullanıcı
+        // bir sonraki cron'da tekrar alacak, ama bu artık loglanan ve
+        // özetlenen bir durumdur (eskiden tamamen sessizdi).
+        const stamped = await writeReminderStamp(
+          supabase,
+          profile.id,
+          "last_weekly_summary",
+          now.toISOString(),
+          console.error,
+        );
+        if (!stamped) stampFailures.push({ userId: profile.id, column: "last_weekly_summary" });
       }
+    }
+
+    if (stampFailures.length > 0) {
+      // Tek satır toplam: kullanıcı/kolon listesi logda kalır, HTTP gövdesi
+      // istemciye (cron) sabit kalır ve şema sızdırmaz.
+      console.error(
+        `${stampFailures.length} hatırlatma damgası yazılamadı; bu gönderimler bir sonraki ` +
+          `koşuda TEKRAR denenecek (tekrar gönderim riski): ` +
+          stampFailures.map((f) => `${f.column}@${f.userId}`).join(", "),
+      );
     }
 
     return jsonResponse(req, {
       success: true,
       message: "Hatırlatıcılar kontrol edildi",
       sent: sentThisRun.length,
+      // Sıfırdan farklıysa cron alarmı üretir; normalde 0.
+      stampFailures: stampFailures.length,
     });
   } catch (error: unknown) {
     console.error("check-reminders hatası:", error);

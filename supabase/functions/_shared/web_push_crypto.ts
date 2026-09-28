@@ -90,8 +90,29 @@ export const MAX_ENCRYPTED_PAYLOAD_BYTES = 4096;
  * = 4010 gövde; bundan 16 bayt GCM etiketi ve 1 bayt padding ayracı düşer).
  * Şifrelenmiş gövde 4096 bayta sığmalıdır; `preparePushPayload` bunu ayrıca
  * kontrol eder, buradaki sınır ikinci savunma hattıdır.
+ *
+ * ÖLÇÜLEN GERÇEK (A1r4, `web_push_crypto_edge_test.ts` "sınırda düz metin"
+ * testi): şifreli gövde
+ *   `salt(16) + rs(4) + idlen(1) + (düz metin + 1 padding ayracı) + tag(16)`
+ * = `38 + düz metin` bayttır. `MAX_ENCRYPTED_PAYLOAD_BYTES` (4096) sınırı
+ * için **gerçek düz metin tavanı 4058** bayttır.
+ *
+ * Önceki değer 3993 idi ve iki ayrı hatadan kaynaklanıyordu:
+ *  (a) `rs = 4096` kullanılırken 4096 − 21 (başlık) hesabı yapılmış, GCM
+ *      etiketi (16) ve padding ayracı (1) **çıkarılmamıştı**.
+ *  (b) 3993 rakamı, RFC 8291'in `rs`'i 4096'dan *küçük* varsayan bir
+ *      "gövde 4010 bayt" senaryosundan türetilmiş; oysa bu modül tam olarak
+ *      4096 kullanır.
+ *  Sonuç: 3993-4058 bayt arası düz metin **gereksiz yere** reddediliyordu.
+ *
+ * Somut etki: `preparePushPayload` (vapid.ts) düz metni 4096 **karaktere**
+ * kadar kabul eder (ve `data` düşürerek/keserek sığdırır), ama şifreleme
+ * 3993 bayt üstünü reddederdi. Yani `weekly_summary` gibi uzun HTML gövdeli
+ * bildirimler push'ta **sessizce kayboldu** (e-posta + `notifications`
+ * satırı yazıldığı için hata görünmüyordu; `send-notification` yalnızca
+ * `console.error` basar).
  */
-export const MAX_PLAINTEXT_BYTES = 3993;
+export const MAX_PLAINTEXT_BYTES = MAX_ENCRYPTED_PAYLOAD_BYTES - 21 - 1 - 16; // 16 = GCM etiketi
 
 /** RFC 8291 §3.2: `auth_secret` tam olarak 16 bayttır. */
 const AUTH_BYTES = 16;
@@ -379,6 +400,14 @@ function concat(parts: Uint8Array[]): Uint8Array {
   return out;
 }
 
+/** Sabit zamanlı bayt karşılaştırması (KCI kontrolü için). */
+function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 /**
  * RFC 8291 §4 gereği **tek kayıt** üretir: `rs` = düz metin + 1 bayt padding
  * ayracı + 16 bayt GCM etiketinden **büyük** olmalıdır (4096 pratik değerdir).
@@ -447,8 +476,11 @@ export async function encryptPushBody(input: EncryptPushBodyInput): Promise<Encr
   //    kayıtta AES-128-GCM ile şifrele. GCM çıktısı `ciphertext || tag` üretir;
   //    RFC 8188 §2.5 gereği etiket kaydın **sonunda** tutulur (doğru biçim).
   const plaintextWithDelimiter = concat([encoder.encode(plaintext), new Uint8Array([PADDING_DELIMITER])]);
-  if (plaintextWithDelimiter.length > recordSize) {
-    // RFC 8291 §4: rs, düz metin + 1 + tag toplamından büyük olmalı.
+  // RFC 8291 §4: "rs, düz metin + 1 bayt padding ayracı + 16 bayt GCM
+  // etiketi toplamından **büyük** olmalıdır". `idlen` bu hesaba **dahil
+  // edilmez** (gövdeye gömülü as_public), ancak `MAX_ENCRYPTED_PAYLOAD_BYTES`
+  // kontrolü onu dolaylı olarak sınırlar. Aşımda reddet.
+  if (plaintextWithDelimiter.length + TAG_BYTES > recordSize) {
     throw new PushEncryptionError(
       `düz metin ${plaintextWithDelimiter.length} bayt, rs=${recordSize} sınırını aşıyor`,
     );
@@ -554,11 +586,6 @@ export async function decryptPushBody(
   const asPublicKeyBytes = await exportP256PublicKey(asPublicKey);
   const uaPublicKey = await importP256PublicKey(p256dh);
   const uaPublicKeyBytes = await exportP256PublicKey(uaPublicKey);
-  // İstemci tarafı: kendi özel anahtarı × AS public key (RFC 8291 §3.1/3.4).
-  const ecdhSecret = await deriveEcdhSecret(userAgentPrivateKey, asPublicKey);
-
-  const auth = base64UrlToBytes(authSecret);
-  if (auth.length !== AUTH_BYTES) throw new PushEncryptionError("auth 16 bayt olmalı");
 
   const view = new DataView(body.buffer, body.byteOffset, body.byteLength);
   const salt = body.slice(0, SALT_BYTES);
@@ -567,6 +594,50 @@ export async function decryptPushBody(
   if (SALT_BYTES + 5 + idlen > body.length) {
     throw new PushEncryptionError("idlen gövde sınırını aşıyor");
   }
+
+  // RFC 8188 §2.1 / RFC 8291 §4: `idlen > 0` ise AS public key gövdenin
+  // `SALT_BYTES + 5` sonrasındaki `idlen` baytında taşınır. Bu **eski**
+  // biçimdir (`dh=` başlığı yok) ve Web Push istemcileri destekler.
+  // `idlen` **gövdeye gömülü** as_public ile `Crypto-Key` başlığındakini
+  // karşılaştırmak zorundaydı (A1r4): ikisi farklıysa hangisinin
+  // `key_info`'ya gireceği belirsizleşir. Biz `dh` başlığını esas alırız
+  // (modül bunu üretir), ama uyumsuzluk sessiz geçmemelidir.
+  if (idlen > 0) {
+    if (idlen !== UNCOMPRESSED_P256_BYTES) {
+      throw new PushEncryptionError(`idlen ${idlen} geçersiz (${UNCOMPRESSED_P256_BYTES} bekleniyor)`);
+    }
+    const embedded = body.subarray(SALT_BYTES + 5, SALT_BYTES + 5 + idlen);
+    if (!equalBytes(embedded, asPublicKeyBytes)) {
+      throw new PushEncryptionError(
+        "gövdeye gömülü as_public başlıktaki dh= ile eşleşmiyor (KCI ihlali olabilir)",
+      );
+    }
+  }
+
+  // RFC 8188 §2.2: `rs` pozitif bir 32-bit tam sayı olmalı. **Daha önce
+  // doğrulanmıyordu** (A1r4 bulgusu):
+  //  - `rs = 0` → `perRecord = 16`, `offset` hiç artmadığı için döngü
+  //    `payload.length` kaydı sonsuza kadar işler (bellek/veri tüketimi).
+  //  - `rs = 0xFFFFFFFF` → `perRecord` `Number` taşmasına uğrayabilir ve
+  //    `offset` yine artmayabilir; aynı sonsuz döngü.
+  // Her iki durum da bozuk/ele geçirilmiş push gövdesiyle mümkündür.
+  // RFC 8188 §2.2: "The rs parameter is a positive 32-bit integer". Bu
+  // doğrulama **daha önce yoktu** (A1r4). `rs = 0` kayıtları
+  // `perRecord = TAG_BYTES = 16` adımla ayırır; bu bir sonsuz döngü DEĞİLDİR
+  // (her adımda `offset` 16 ilerler ve `payload.length` sonlu olduğu için
+  // döngü biter) ama RFC'ye aykırıdır ve çözülen metin **anlamsız** olur
+  // (delimiter rastgele bir yerde bulunamaz → "padding delimiter" hatası,
+  // ya da nadiren yanlış kayıt sınırında **sessizce** yanlış metin üretir).
+  // Doğru davranış: RFC'ye uymayan gövdeyi açıkça reddetmek.
+  if (recordSize === 0) {
+    throw new PushEncryptionError("geçersiz kayıt boyutu (rs=0)");
+  }
+
+  // İstemci tarafı: kendi özel anahtarı × AS public key (RFC 8291 §3.1/3.4).
+  const ecdhSecret = await deriveEcdhSecret(userAgentPrivateKey, asPublicKey);
+
+  const auth = base64UrlToBytes(authSecret);
+  if (auth.length !== AUTH_BYTES) throw new PushEncryptionError("auth 16 bayt olmalı");
 
   const prkKey = await hkdfExtract(auth, ecdhSecret);
   const ikm = await hkdfExpand(prkKey, buildKeyInfo(uaPublicKeyBytes, asPublicKeyBytes), 32);

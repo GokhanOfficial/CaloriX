@@ -27,6 +27,7 @@ import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 import { ValidationError, requireString } from "../_shared/validate.ts";
 import {
   DATA_TABLES,
+  DELETION_PARTIAL_MESSAGE,
   DELETION_SUCCESS_MESSAGE,
   assertSafeDeletionOrder,
   mapPasswordErrorToStatus,
@@ -37,8 +38,29 @@ import {
 // Uygulama
 // ---------------------------------------------------------------------------
 
-/** Silme denemeleri: saatte 5 (kötüye kullanım / CSRF ile zorlama koruması). */
-const RATE_LIMIT = { windowSeconds: 3600, max: 5 };
+/**
+ * Silme denemeleri: **saatte 2** (kötüye kullanım / CSRF-zorlama koruması).
+ *
+ * A1r4'ün revizyonu: A1r3 `max: 5` koymuştu. Beş denemenin anlamı yok çünkü
+ * bu bir **yıkıcı ve geri alınamaz** işlem: hesabı silebilmek için parolanın
+ * **doğru** olması gerekir, yani zorlayan taraf parolayı zaten biliyordur.
+ * 5 deneme, saldırganın/istenmeyen bir eylemin 5 silme yapmasına izin verir.
+ * Doğru parolayla yapılan **kısmi silme** (bkz. `DELETION_PARTIAL_MESSAGE`)
+ * zaten bu kotayı tüketir, ama kullanıcı kendi hesabını silmek istediğinde
+ * bu tavan ona **rahatsızlık** yaratabilir. Gerçek tehdit modeli:
+ *   - CSRF zorlama: saldırganın `Authorization` başlığı gönderemez (CORS
+ *     `allowed headers` yalnızca tarayıcı origin'lerine izin verir, üstelik
+ *     `access-control-allow-credentials` yok) → zaten mümkün değil.
+ *   - Oturum hırsızlığı (XSS): saldırgan oturumu kullanabilir ama
+ *     **parolayı bilmez** → silemez.
+ * Dolayısıyla kotanın birincil işi parola tahminini yavaşlatmak; 2 deneme
+ * saatte zaten kaba kuvvet için yeterince katıdır, başarılı silmeyi ise
+ * rahatsız etmez. `checkRateLimit` **kullanıcı bazlıdır**
+ * (`rateLimitKey(scope, req, userId)` → `delete-account:u:<uuid>`), yani
+ * IP tabanlı paylaşılan kotanın aksine bir kullanıcı başka birini
+ * etkilemez.
+ */
+const RATE_LIMIT = { windowSeconds: 3600, max: 2 };
 
 /** Yanlış parola denemeleri sonrası ek doğrulama yavaşlatması (kaba kuvvet zorlaştırma). */
 const PASSWORD_FAIL_DELAY_MS = 400;
@@ -99,14 +121,32 @@ const handler = async (req: Request): Promise<Response> => {
     await deleteUserStorageFiles(serviceClient, userId);
 
     // 7) Uygulama tabloları — service_role (RLS atlanır) ve idempotent biçimde.
-    const deleted = await deleteUserRows(serviceClient, userId);
+    //    Kısmi silme (A1r4): hata alan tablolar **raporlanır**, ama auth
+    //    kaydı silinmeden önce kullanıcıya **başarı** denmez.
+    const rows = await deleteUserRows(serviceClient, userId);
 
     // 8) Son adım: auth kullanıcısını sil. `ON DELETE CASCADE` ile kalan tüm
     //    satırlar (user_roles dahil) temizlenir. Idempotent: kullanıcı zaten
     //    yoksa Supabase "User not found" hatası döner; bu **başarı** sayılır.
     await deleteAuthUser(serviceClient, userId);
 
-    console.log(`Hesap silindi: user=${userId} silinen_tablolar=${deleted.join(",")}`);
+    console.log(
+      `Hesap silindi: user=${userId} silinen=${rows.deleted.join(",") || "-"} ` +
+        `basarisiz=${rows.failed.length}`,
+    );
+
+    if (rows.failed.length > 0) {
+      // Yalnızca `auth.admin.deleteUser()` **başarısız** olduğu için bu dal
+      // çalışmışsa, yani auth kaydı duruyor ve silme yeniden denenebilir.
+      // Bu yüzden istemciye başarı diyoruz ama **açıkça** eksik bırakıldığını
+      // söylüyoruz: KVKK "sil" talebi karşılanmadı, kullanıcı tekrar
+      // denemeli. Gövde sabit ve şemasız.
+      return jsonResponse(req, {
+        success: true,
+        message: DELETION_PARTIAL_MESSAGE,
+        retryRecommended: true,
+      });
+    }
     return jsonResponse(req, { success: true, message: DELETION_SUCCESS_MESSAGE });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -148,12 +188,13 @@ async function deleteUserStorageFiles(client: ServiceClient, userId: string): Pr
   }
 }
 
-/** Kullanıcının tüm uygulama satırlarını siler; silinen tablo listesini döndürür. */
+/** Kullanıcının tüm uygulama satırlarını siler. */
 export async function deleteUserRows(
   client: ServiceClient,
   userId: string,
-): Promise<string[]> {
+): Promise<{ deleted: string[]; failed: Array<{ table: string; message: string }> }> {
   const deleted: string[] = [];
+  const failed: Array<{ table: string; message: string }> = [];
   for (const table of DATA_TABLES) {
     const column = ownerFilterColumn(table);
     const { error } = await client
@@ -161,14 +202,36 @@ export async function deleteUserRows(
       .delete()
       .eq(column, userId);
     if (error) {
-      // Tek bir tablo hatası tüm silmeyi bozmaz; kayıt defteri sunucu
-      // logunda kalır ve `auth.admin.deleteUser()` cascade'i yine de temizler.
-      console.error(`Silinemedi: ${table}`, error.message);
+      // A1r4'ün bulduğu sessiz veri kaybı: buradaki `continue` ile hata
+      // yutuluyordu. `deleted` listesine girmediği için çağıran hatayı
+      // **fark edemiyor**, `console.error` da üretim loglarında çoğu zaman
+      // görülmüyor. Üstelik bu tablo bir sonraki adımda `auth.admin.deleteUser()`
+      // ile **kalıcı olarak temizlenmeyebilir** (bkz. `tablesWithoutCascade`):
+      //   - `notification_preferences` FK'si `ON DELETE CASCADE` → temizlenir.
+      //   - `profiles` silinemezse kullanıcının profili **kalır** ve
+      //     `auth.admin.deleteUser()` de FK ihlali nedeniyle BAŞARISIZ olur.
+      // Yani sessizce "başarılı" dönen bir 200, KVKK açısından eksik silmedir.
+      // Bu yüzden: hatayı topla, işin sonunda **gürültü taşımayan** ama
+      // **başarısız** bir sonuç üret (aşağıdaki çağıran).
+      const message = error.message;
+      if (/not found|does not exist|schema cache/i.test(message)) {
+        // Tablo/şema yok: hedef veri de yoktur, idempotent başarı sayılır.
+        deleted.push(table);
+        continue;
+      }
+      failed.push({ table, message });
       continue;
     }
     deleted.push(table);
   }
-  return deleted;
+  if (failed.length > 0) {
+    // Detay yalnızca sunucu logunda (istemciye tablo/kolon adı sızmaz).
+    console.error(
+      "Hesap silme: bazı tablolar temizlenemedi: " +
+        failed.map((f) => `${f.table} (${f.message})`).join(", "),
+    );
+  }
+  return { deleted, failed };
 }
 
 /** `auth.admin.deleteUser()` — idempotent (kullanıcı yoksa başarı sayılır). */

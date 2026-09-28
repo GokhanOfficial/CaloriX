@@ -198,7 +198,16 @@ Kilo ${previousWeightKg > currentWeightKg ? "azaldı" : "arttı"}. Yeni kiloya g
     return jsonResponse(req, result);
   } catch (error) {
     if (error instanceof AuthError) return errorResponse(req, error.status, error.status === 401 ? "Yetkisiz" : "İstek işlenemedi");
-    if (error instanceof ValidationError) return errorResponse(req, error.status, error.message);
+    // A1r4: `ValidationError` mesajı **istemciye** gönderiliyordu. Bu mesaj
+    // `requireEnum`/`requireNumber` gibi doğrulayıcılardan gelen ALAN ADI ve
+    // beklenen aralık içerir ("height_cm 100-260 aralığında olmalı") —
+    // yani şema hakkında bilgi sızdırır. `_shared/auth.ts` (`readJsonBody`)
+    // zaten 415/413/400 için sabit mesaj kullanıyor; `delete-account` da
+    // sabit mesaj döndürüyor. Burada da aynı politika uygulanır.
+    if (error instanceof ValidationError) {
+      console.error("calculate-macros doğrulama hatası:", error.message);
+      return errorResponse(req, error.status, "Eksik veya geçersiz istek");
+    }
     console.error("calculate-macros beklenmeyen hata", error);
     return errorResponse(req, 500, "Beklenmeyen bir hata oluştu");
   }

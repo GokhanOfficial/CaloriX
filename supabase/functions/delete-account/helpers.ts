@@ -100,3 +100,11 @@ export function mapPasswordErrorToStatus(error: {
 
 /** Yanıtta kullanıcıya dönen SABİT mesaj (KVKK onayı). */
 export const DELETION_SUCCESS_MESSAGE = "Hesabınız ve tüm verileriniz kalıcı olarak silindi.";
+
+/**
+ * Kısmi silme yanıtı (A1r4): `auth.admin.deleteUser()` BAŞARISIZ olduğu için
+ * bu mesaj yalnızca o durumda döner. Kullanıcıya "başarı" gibi görünmemeli
+ * ama tablo/kolon adı da sızdırılmamalıdır.
+ */
+export const DELETION_PARTIAL_MESSAGE =
+  "Hesabınızın bir bölümü silinemedi. Lütfen birkaç dakika sonra tekrar deneyin.";

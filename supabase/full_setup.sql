@@ -634,6 +634,34 @@ ALTER TABLE public.notifications
   CHECK (type IN ('weigh_in','meal_reminder','goal','achievement','system',
                   'water','daily_log','weekly_summary','goal_achieved'));
 
+-- profiles.timezone artık SERBEST METIN DEGIL: gercek bir IANA dilimi
+-- olmali (20260928200000 ile hizalandi). Gerekce: kolon `text` ve RLS
+-- `Users can update their own profile` oldugu icin kullanici bos/curp bir
+-- deger yazabiliyordu; `check-reminders` bu kolonu okudugu icin (eski kodda
+-- sabit UTC+3 idi) bozuk deger sessizce yanlis saate dusuyordu.
+CREATE OR REPLACE FUNCTION public.is_valid_timezone(_value TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT _value IS NOT NULL
+     AND btrim(_value) <> ''
+     AND EXISTS (
+       SELECT 1
+       FROM pg_catalog.pg_timezone_names() z
+       WHERE z.name = btrim(_value)
+     )
+$$;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_timezone_is_valid_iana;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_timezone_is_valid_iana
+  CHECK (public.is_valid_timezone(timezone));
+COMMENT ON FUNCTION public.is_valid_timezone(TEXT) IS
+  'TRUE iff _value bos degil ve pg_timezone_names() icinde bir IANA adidir. profiles_timezone_is_valid_iana CHECK kisitinin arkasindaki fonksiyon.';
+COMMENT ON COLUMN public.profiles.timezone IS
+  'IANA saat dilimi (orn. Europe/Istanbul). NULL/'' yazilamaz; kontrol: profiles_timezone_is_valid_iana. check-reminders bu kolonu okur (eski kodda sabit UTC+3 idi).';
+
 -- ============================================================================
 -- 4c. STORAGE — chat-attachments kovasi (20260518080500 ile hizalandi)
 -- ----------------------------------------------------------------------------

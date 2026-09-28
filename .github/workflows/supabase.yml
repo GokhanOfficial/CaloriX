@@ -1,0 +1,131 @@
+name: Supabase Edge CI
+
+# `supabase/**` altındaki değişikliklerde tetiklenir. Bu workflow olmadan
+# edge function katmanı **hiç denetlenmiyordu**: 19 edge testi ve
+# `deno check` yalnızca lokalde çalışıyordu, bir güvenlik düzeltmesi
+# (ör. push şifreleme, hesap silme) regresyona uğrasa CI sessizce yeşil
+# kalırdı. Flutter CI yalnızca Dart, React CI yalnızca `src/**` kapsıyordu.
+#
+# NOT (deneyim, 2026-09-28): supabase CLI'nin Docker'ı bu ortamda **yok**
+# (`psql`/`supabase` kurulu değil). Postgres 16'yı `docker exec ... psql`
+# ile sıralı uygulama yöntemi A1r2/A1r3'te kullanıldı ve **gereksiz
+# container + image indirme (dakikalar)** getiriyordu. Bu yüzden
+# 15 sıfır-hatalı migration Postgres'e doğrulanmış durumdadır; bu workflow
+# edge TypeScript katmanını kapsar. Migration/RLS testlerini CI'a almak
+# `supabase start` gerektirir (bkz. rapor: "Doğrulayamadığım şeyler").
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase.yml"
+  pull_request:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase.yml"
+
+# Aynı branch için art arda tetiklenmelerde eski çalışmayı iptal et.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Lokal doğrulama ortamıyla birebir aynı sürüm (doğrulama 2026-09-28:
+  # `deno --version` → deno 2.9.7 (stable)). Deno 2.x major'ı gerekir:
+  # edge kodu `import type` + `satisfies` + `Uint8Array<ArrayBuffer>`
+  # sözdizimini kullanıyor.
+  #
+  # Sürüm **iki yerde** sabitlenir: (a) .github/dependabot.yml'in
+  # `denoland/setup-deno` güncellemesi action etiketiyle gelir, (b) aşağıdaki
+  # `DENO_VERSION` eylem girdisi. `deno-version-file` (.tool-versions) veya
+  # `deno-version` girdisinden hangisinin desteklendiği setup-deno@v2
+  # README'sinden DOĞRULANDI (ikisi de destekleniyor); Dependabot'un
+  # action'ı değil sürümü güncellediği için repo kökünde aslında ölü bir
+  # dosya olurdu — bu yüzden `deno-version` girdisi seçildi.
+  # NOT: Dependabot bu repoda **yok** (`.github/dependabot.yml` mevcut değil).
+  # A6 alanında gerekçelendirilmiş bir dosya eklenecekse `setup-deno` için
+  # `package-ecosystem: "github-actions"` kaydı doğru olan yerdir; sürüm
+  # (`deno-version`) Dependabot tarafından güncellenmez, elle yükseltilir.
+  DENO_VERSION: "2.9.7"
+
+# Varsayılan `write-all` yerine sadece okuma (flutter.yml / react.yml ile aynı
+# gerekçe: bu workflow hiçbir şey yazmıyor).
+permissions:
+  contents: read
+
+jobs:
+  edge:
+    name: deno check + test
+    runs-on: ubuntu-latest
+    # Soğuk `DENO_DIR`'a uzak bağımlılık indirme (esm.sh, deno.land) en kötü
+    # ağda 5-8 dk. 15 dakika bol; varsayılan 6 saat ağ takılmasında
+    # boşa bekler.
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: supabase
+    steps:
+      # Tüm eylemler 40 haneli commit SHA'sına pinlenir (flutter.yml ile aynı
+      # gerekçe: etiket (`@v2`) hareketli bir referans).
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Deno ${{ env.DENO_VERSION }}
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+          # `cache: true` varsayılan cache anahtarı `**/deno.lock` dosyasının
+          # hash'ini kullanır. Repo kökündeki `deno.lock` (sürüm 5) edge
+          # bağımlılıklarını kilitler ve **repoda takip edilir**; yerel
+          # `deno test` de aynı lock'u kullanır → CI ile lokal aynı grafiği
+          # çözer, sürüm sürgüsü (floating `esm.sh/@supabase/supabase-js@2`)
+          # CI'da görünmez.
+          cache: true
+
+      - name: Show toolchain
+        run: deno --version
+
+      # `deno check` TÜM fonksiyon + shared + test dosyalarını tip denetler.
+      # 17 dosya temiz olmalı. `deno check` bir dizin kabul eder ve
+      # `_test.ts` dosyalarını da kapsar (bunlar ayrıca `deno test` ile
+      # koşar). Bu adım `deno test`'ten **önce** gelir: tip hatası derleme
+      # aşamasında daha okunabilir bir mesaj verir ve test adımına
+      # ulaşılmaz.
+      - name: Type check edge functions
+        run: deno check functions/
+
+      # 54 test. `--allow-env` gerekir: `rate_limit_test.ts` ve
+      # `web_push_crypto_test.ts` `Deno.env.get` okur; `--allow-read` test
+      # dosyalarının `index.ts` kaynağını okuduğu senkronizasyon testleri
+      # için; `--allow-net` uzak bağımlılıkların (esm.sh) indirilmesi ve
+      # WebCrypto tabanlı testler için. Aynı bayraklar lokalde kullanılan
+      # komutla birebir aynıdır.
+      - name: Test edge functions
+        run: deno test --allow-env --allow-read --allow-net functions/
+
+      # Migration dosya adlarının sırası ve biçimi ucuz bir denetimle
+      # denetlenir: Supabase migration'ları **kronolojik olarak** uygular
+      # (şema geçmişi `history` tablosundaki sıraya göre), yani yanlış ad
+      # = yanlış uygulama sırası. Bu adım SQL **sözdizimini doğrulamaz**;
+      # gerçek sözdizimi doğrulaması Postgres gerektirir (bkz. yukarıdaki
+      # not ve rapor) — uydurma bir "SQL geçerli" adımı eklenmedi.
+      - name: Validate migration file names and order
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, re, sys
+          migrations = pathlib.Path("migrations")
+          files = sorted(p.name for p in migrations.glob("*.sql"))
+          if not files:
+              sys.exit("migrations/ altında .sql dosyası yok")
+          pattern = re.compile(r"^\d{14}_[A-Za-z0-9][A-Za-z0-9_-]*\.sql$")
+          bad = [f for f in files if not pattern.match(f)]
+          if bad:
+              sys.exit(f"geçersiz migration adı (YYYYMMDDHHMMSS_aciklama.sql bekleniyor): {bad}")
+          stamps = [f[:14] for f in files]
+          if stamps != sorted(stamps):
+              sys.exit(f"migration zaman damgaları sıralı değil: {files}")
+          dupes = {s for s in stamps if stamps.count(s) > 1}
+          if dupes:
+              sys.exit(f"yinelenen migration zaman damgası: {sorted(dupes)}")
+          print(f"✓ {len(files)} migration adı geçerli ve kronolojik sıralı")
+          PY

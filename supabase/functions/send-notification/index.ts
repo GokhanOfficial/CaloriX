@@ -42,7 +42,11 @@ interface PushSubscription {
 }
 
 // Email templates
-const getEmailTemplate = (type: string, title: string, message: string, userName: string) => {
+// A1r4: `title` parametresi Tur 1'den kalan **ölü parametre** idi (hiçbir
+// şablonda kullanılmıyor; başlık şablonlarda sabit). Kaldırıldı — ölü
+// parametre, ileride "burada title kullanılıyor sanıp" hata yapılmasına
+// yol açan yanıltıcı bir imzadır. Test, imzanın senkron kaldığını doğrular.
+const getEmailTemplate = (type: string, message: string, userName: string) => {
   // HTML enjeksiyonuna karşı kullanıcı/AI metinleri kaçırılır.
   const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
   const safeName = escapeHtml(userName);
@@ -276,7 +280,7 @@ async function sendEmailNotification(
       from: "CaloriX <notifications@resend.dev>",
       to: [email],
       subject: title,
-      html: getEmailTemplate(type, title, message, userName),
+      html: getEmailTemplate(type, message, userName),
     });
 
     console.log("E-posta gönderildi:", emailResponse?.data?.id ?? "bilinmiyor");
@@ -352,7 +356,11 @@ const handler = async (req: Request): Promise<Response> => {
     return await processNotification(req, body, targetUserId, true);
   } catch (error) {
     if (error instanceof AuthError) return errorResponse(req, error.status, error.status === 401 ? "Yetkisiz" : "İstek işlenemedi");
-    if (error instanceof ValidationError) return errorResponse(req, error.status, error.message);
+    // A1r4: sabit mesaj — `ValidationError` metni alan adı/şema sızdırır.
+    if (error instanceof ValidationError) {
+      console.error("send-notification doğrulama hatası:", error.message);
+      return errorResponse(req, error.status, "Eksik veya geçersiz istek");
+    }
     console.error("send-notification beklenmeyen hata", error);
     return errorResponse(req, 500, "Beklenmeyen bir hata oluştu");
   }

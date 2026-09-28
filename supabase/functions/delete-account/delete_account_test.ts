@@ -20,6 +20,8 @@
 
 import {
   DATA_TABLES,
+  DELETION_PARTIAL_MESSAGE,
+  DELETION_SUCCESS_MESSAGE,
   OWNER_FILTER_OVERRIDES,
   assertSafeDeletionOrder,
   mapPasswordErrorToStatus,
@@ -190,6 +192,7 @@ Deno.test("index.ts saf çekirdeği helpers.ts'ten alır (tek kaynak)", async ()
   for (const symbol of [
     "DATA_TABLES",
     "DELETION_SUCCESS_MESSAGE",
+    "DELETION_PARTIAL_MESSAGE",
     "assertSafeDeletionOrder",
     "mapPasswordErrorToStatus",
     "ownerFilterColumn",
@@ -205,4 +208,93 @@ Deno.test("index.ts saf çekirdeği helpers.ts'ten alır (tek kaynak)", async ()
     !source.includes('body.userId') && !source.includes('body.user_id'),
     "kullanıcı kimliği gövdeden okunmamalı — yalnızca doğrulanmış JWT",
   );
+});
+
+// ---------------------------------------------------------------------------
+// A1r4: kısmi silme sessizce "başarılı" sayılmamalı
+// ---------------------------------------------------------------------------
+
+Deno.test("tablo silme hatası sessizce yutulmaz (kısmi silme raporlanır)", async () => {
+  // A1r3'ün `deleteUserRows` uygulaması hata alan tabloyu `continue` ile
+  // atlıyor, `deleted` listesine koymuyor ve **başarı** dönüyordu. Bu, KVKK
+  // açısından eksik silmeydi. Yeni sözleşme: `{ deleted, failed }`.
+  const source = await readSource("./index.ts");
+  assert(
+    source.includes("failed.push("),
+    "tablo silme hatası `failed` listesine eklenmeli",
+  );
+  assert(
+    source.includes("DELETION_PARTIAL_MESSAGE"),
+    "kısmi silmede kullanıcıya SABİT mesaj dönmeli",
+  );
+  assert(
+    source.includes("retryRecommended"),
+    "kısmi silmede yeniden deneme önerisi işaretlenmeli",
+  );
+  // Hata mesajı istemciye sızmamalı: yalnızca `console.error` içinde.
+  assert(
+    !/jsonResponse\(req, \{[^}]*error\.message/.test(source),
+    "ham hata mesajı istemciye gönderilmemeli",
+  );
+});
+
+Deno.test("kısmi silme mesajı başarı mesajından FARKLIDIR (kullanıcı yanıltılmaz)", () => {
+  assertEquals(typeof DELETION_PARTIAL_MESSAGE, "string");
+  assert(
+    (DELETION_PARTIAL_MESSAGE as string) !== (DELETION_SUCCESS_MESSAGE as string),
+    "kısmi silme ile tam silme mesajı aynı olmamalı",
+  );
+  // Kısmi silme mesajı tablo/kolon adı veya SQL detayı sızdırmamalı.
+  for (const leak of ["profiles", "meal_entries", "user_id", "policy", "relation", "pg_"]) {
+    assert(
+      !DELETION_PARTIAL_MESSAGE.includes(leak),
+      `kısmi silme mesajı şema sızdırıyor: ${leak}`,
+    );
+  }
+  // Yine de kullanıcıya ne yapması gerektiği söylenmeli.
+  assert(
+    DELETION_PARTIAL_MESSAGE.includes("tekrar deneyin"),
+    "kısmi silme mesajı yeniden deneme yönlendirmesi içermeli",
+  );
+});
+
+Deno.test("deleteUserRows sözleşmesi { deleted, failed } döndürür", async () => {
+  const source = await readSource("./index.ts");
+  assert(
+    /Promise<\{ deleted: string\[\]; failed: Array<\{ table: string; message: string \}> \}>/.test(source),
+    "dönüş tipi hem başarılı hem başarısız tabloları içermeli",
+  );
+});
+
+Deno.test("rate limit kullanıcı bazlı ve yıkıcı işlem için 2/saat", async () => {
+  const source = await readSource("./index.ts");
+  // Anahtar kullanıcı bazlı olmalı (IP tabanlı olsaydı bir kullanıcı
+  // başkasının kotasını tüketirdi ve NAT arkasındaki kullanıcılar
+  // birbirini kilitlerdi).
+  assert(
+    source.includes('rateLimitKey("delete-account", req, userId)'),
+    "rate limit anahtarı doğrulanmış userId ile üretilmeli (kullanıcı bazlı)",
+  );
+  // Yıkıcı + geri alınamaz işlem: 5 deneme fazla.
+  const match = /const RATE_LIMIT = \{ windowSeconds: (\d+), max: (\d+) \}/.exec(source);
+  assert(match, "RATE_LIMIT sabiti okunamadı");
+  const windowSeconds = Number(match![1]);
+  const max = Number(match![2]);
+  assertEquals(windowSeconds, 3600, "pencere 1 saat olmalı");
+  assert(
+    max <= 3,
+    `saatte ${max} silme denemesi fazla; parola doğrulandığı için 2 yeterli (A1r4)`,
+  );
+});
+
+Deno.test("parola gövdeden gelir ama asla loglanmaz", async () => {
+  const source = await readSource("./index.ts");
+  // Parolayı yazan herhangi bir log/console ifadesi olmamalı.
+  assert(!/console\.(log|error|warn|info)\([^)]*\bpassword\b/.test(source),
+    "parola hiçbir log ifadesinde geçmemeli");
+  assert(!/JSON\.stringify\(body\)/.test(source), "gövde (parola içerir) loglanmamalı");
+  // Parola yalnızca `signInWithPassword`'a verilir.
+  assert(source.includes("signInWithPassword"), "parola doğrulaması yapılmalı");
+  const uses = (source.match(/\bpassword\b/g) ?? []).length;
+  assert(uses <= 6, `parola değişkeni gereğinden fazla yerde geçiyor (${uses}) — sızıntı riski`);
 });
