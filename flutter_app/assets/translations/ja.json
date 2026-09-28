@@ -329,7 +329,23 @@
       "days": "日",
       "reminderTitle": "食事リマインダー",
       "reminderDesc": "食事ごとに個別のリマインダーを設定できます",
-      "webOnlyInApp": "Webではアプリ起動中のみリマインダーが表示されます"
+      "webOnlyInApp": "Webではアプリ起動中のみリマインダーが表示されます",
+      "server": {
+        "title": "サーバー通知",
+        "desc": "端末を変更しても保持される通知（水・記録リマインダー・週次サマリー）です。アカウントに保存されます。上の食事リマインダーは端末に保持されます。",
+        "loadFailed": "サーバー側のリマインダー設定を読み込めませんでした。保存すると既定値が使用されます。",
+        "water": "水分補給リマインダー",
+        "dailyLog": "記録リマインダー",
+        "weeklySummary": "週次サマリー",
+        "goalAchieved": "目標達成",
+        "startHour": "開始時刻",
+        "endHour": "終了時刻",
+        "intervalHours": "間隔（時間）",
+        "summaryDay": "曜日",
+        "summaryHour": "時刻",
+        "days": "日",
+        "hours": "時間"
+      }
     },
     "import": {
       "title": "データをインポート",
@@ -370,6 +386,36 @@
       "nudgeDesc": "選択した時刻までに記録がない場合、1日1回通知を送ります（おおよその時刻）",
       "nudgeTime": "リマインダー時刻",
       "androidOnly": "ウィジェット設定はAndroidのみ利用できます"
+    },
+    "deleteAccount": {
+      "confirm": "アカウントを削除",
+      "data": {
+        "chat": "AI チャットの履歴",
+        "favorites": "お気に入り食品と最近使った食品",
+        "meals": "食品・食事の記録",
+        "notifications": "通知とリマインダー",
+        "settings": "プロフィール、目標、アプリ設定",
+        "water": "水分摂取の記録",
+        "weight": "体重の記録"
+      },
+      "deleting": "アカウントを削除しています…",
+      "entry": "アカウントを削除",
+      "entryDesc": "アカウントとすべてのデータを完全に削除します",
+      "irreversible": "この操作は取り消せず、データを復元することもできません。",
+      "messages": {
+        "failed": "アカウントを削除できませんでした。時間をおいてお試しください。",
+        "invalidRequest": "リクエストが無効です。もう一度お試しください。",
+        "localCleanup": "一部の端末データを消去できませんでした。アプリを再起動してください。",
+        "network": "接続できませんでした。インターネット接続を確認してください。",
+        "partial": "一部のデータを削除できませんでした。アカウントは残っています。数分後に再度お試しください。",
+        "rateLimited": "試行回数が多すぎます。数分後に再度お試しください。",
+        "unauthorized": "セッションの有効期限が切れました。再度ログインしてください。",
+        "wrongPassword": "パスワードが正しくありません。もう一度お試しください。"
+      },
+      "passwordLabel": "現在のパスワード",
+      "passwordRequired": "パスワードを入力してください",
+      "title": "アカウントを削除しますか？",
+      "warning": "この操作は取り消せません。アカウントと以下のデータが完全に削除されます："
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "食品がまだ追加されていません"
     },
     "favorites": {
-      "title": "よく食べるもの",
-      "empty": "食品がまだ追加されていません"
+      "title": "お気に入り",
+      "empty": "お気に入りはまだありません。食べ物を検索してスターをタップしてください。"
     },
     "tabs": {
       "search": "検索"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "食品を追加しました",
       "error": "食品の追加エラー"
+    },
+    "frequent": {
+      "title": "よく食べるもの",
+      "empty": "食品がまだありません"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "身長は {min} から {max} cm の間にしてください",
     "errWeightRange": "体重は {min} から {max} kg の間にしてください",
     "errTargetWeightRange": "目標体重は {min} から {max} kg の間にしてください"
+  },
+  "favorites": {
+    "add": "お気に入りに追加：{food}",
+    "remove": "お気に入りから削除：{food}",
+    "toasts": {
+      "addFailed": "お気に入りに追加できませんでした",
+      "removeFailed": "お気に入りから削除できませんでした"
+    }
   }
 }

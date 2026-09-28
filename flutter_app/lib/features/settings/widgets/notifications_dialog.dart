@@ -9,20 +9,50 @@ import '../../../core/notifications/meal_reminder.dart';
 import '../../../core/notifications/reminder_settings.dart';
 import '../../../data/models/profile.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/notification_preferences_repository.dart';
 import '../../../data/repositories/profile_repository.dart';
+import 'server_notification_preferences_section.dart';
 
 /// Bildirim ayarları diyaloğu — web `saveNotifications` parity.
 ///
-/// Profil seviyesi anahtarlar yazılır: push/email master, tartılma sıklığı,
-/// makro otomatik yeniden hesap. Tür bazlı `notification_preferences`
-/// tablosu Faz 5'te (bildirim zamanlayıcı) ele alınır.
+/// ## İki kaynak, tek ekran (A4r7, ürün kararı 2-A)
+///
+/// Kullanıcı **iki ayrı ayar ekranı görmemeli**. Bu ekranda iki bölüm
+/// yan yana durur ve ikisi de "Kaydet" ile birlikte kaydedilir:
+///
+/// 1. **Profil seviyesi anahtarlar** (push/email master, tartılma sıklığı,
+///    makro otomatik yeniden hesap) — `profiles` tablosu.
+/// 2. **Sunucu hatırlatıcıları** (`water` / `daily_log` / `weekly_summary` /
+///    `goal_achieved`) — `notification_preferences` tablosu.
+/// 3. **Öğün hatırlatıcıları** — cihazda (`ReminderSettings`,
+///    SharedPreferences + `NotificationService`).
+///
+/// ### ⭐ Öncelik kuralı (belgelenmiş karar)
+///
+/// **Sunucu yalnızca push/e-posta kanallarını yönetir; yerel bildirimler
+/// cihazda kalır.** Gerekçe:
+///
+/// - `check-reminders` cron'u **sadece push/e-posta** üretir
+///   (`send-notification`). Web'de bu tek çalışan kanaldır; tercihi
+///   kaydetmeyen bir kullanıcıda `water`/`daily_log`/`weekly_summary`
+///   **sessizce kapalı** kalır (`pref?.push_enabled` satır yoksa `false`).
+/// - Öğün hatırlatıcıları **cihazda** zamanlanır; PWA/web'de cihaz
+///   zamanlayıcısı yok, mobilde push aboneliği gerekir. Bu ikisini
+///   sunucuya taşımak mevcut mimariyi bozar ve web'de çalışmaz.
+/// - Dolayısıyla iki kaynak **birbirinin yerine geçmez**; sunucu
+///   push/e-posta izinlerini, cihaz yerel zamanlamayı yönetir.
+///   Çakışma (ayrışma) senaryosunda **cihaz kazanır** — çünkü öğün
+///   hatırlatıcılarında sunucunun hiçbir karşılığı yoktur.
 class NotificationsDialog extends ConsumerStatefulWidget {
   const NotificationsDialog({super.key, this.profile});
 
   final Profile? profile;
 
   static Future<void> show(
-      BuildContext context, WidgetRef ref, Profile? profile) {
+    BuildContext context,
+    WidgetRef ref,
+    Profile? profile,
+  ) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -45,9 +75,73 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
   late bool _push = widget.profile?.pushNotificationsEnabled ?? true;
   late bool _email = widget.profile?.emailNotificationsEnabled ?? true;
   late final TextEditingController _frequency = TextEditingController(
-      text: (widget.profile?.weighInFrequencyDays ?? 7).toString());
+    text: (widget.profile?.weighInFrequencyDays ?? 7).toString(),
+  );
   late bool _autoRecalc = widget.profile?.autoRecalculateMacros ?? true;
   bool _saving = false;
+
+  /// Sunucu tercihleri. `{}` = henüz yüklenmedi (bkz. [_prefsLoaded]).
+  ///
+  /// Varsayılanlar `defaultServerPreference` ile gelir; DB'de satır
+  /// **yoksa** kullanıcı sunucu tarafını bilmeden "kapalı" kalıyordu —
+  /// bu yüzden kaydetme her zaman **beş tipin de** satırını yazar.
+  Map<ServerNotificationType, NotificationPreference> _serverPrefs = {};
+
+  /// `fetch` bitti mi? `false` ise **"Kaydet" düğmesi pasif**.
+  ///
+  /// ⭐ Neden gerekli (A4r7b): `_loadServerPrefs` `initState` içindeki
+  /// `Future.microtask` ile koşuyor. Yükleme bitmeden "Kaydet" basılırsa
+  /// `_serverPrefs` hâlâ `{}` → `upsertAll` **hiçbir şey yazmaz** → kullanıcı
+  /// "Ayarlar güncellendi" görür ama `check-reminders`'ın `water`/`daily_log`/
+  /// `weekly_summary` sessiz-kapalı davranışı **hiç değişmemiştir**. Yükleme
+  /// hata verirse (ağ yok) kullanıcı yine de kaydedebilmeli — bu yüzden
+  /// hata halinde de `_prefsLoaded = true` yapılır (varsayılanlarla kaydeder)
+  /// ve ayrıca uyarı gösterilir.
+  bool _prefsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sunucu tercihlerini arka planda yükle; ilk kare hemen görünür.
+    Future.microtask(_loadServerPrefs);
+  }
+
+  Future<void> _loadServerPrefs() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      if (mounted) setState(() => _prefsLoaded = true);
+      return;
+    }
+    Map<ServerNotificationType, NotificationPreference> loaded;
+    Object? failure;
+    try {
+      loaded = await ref
+          .read(notificationPreferencesRepositoryProvider)
+          .fetch(user.id);
+    } catch (e) {
+      // Oturum dışı/ağ hatası: ayar ekranı **çökmemeli** (PROTOKOL §2 P1).
+      // Varsayılanlarla devam edilir; kaydetme yine de mümkündür.
+      loaded = const {};
+      failure = e;
+    }
+    if (!mounted) return;
+    setState(() {
+      _serverPrefs = {
+        for (final type in ServerNotificationType.values)
+          type: loaded[type] ?? defaultServerPreference(type),
+      };
+      _prefsLoaded = true;
+    });
+    if (failure != null) {
+      // Sessizce varsayılan kaydetmek kullanıcıyı yanıltır: "push açık"
+      // gördüğü halde yazılacak olan **kendi girdisi** değil.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('settings.notifications.server.loadFailed'.tr()),
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -55,20 +149,45 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
     super.dispose();
   }
 
+  /// Bir sunucu tercihini **yerinde** günceller (anlık UI, kaydetmeye bağlı
+  /// değil — "Kaydet" butonu her şeyi birlikte yollar).
+  void _updateServerPref(
+    ServerNotificationType type,
+    NotificationPreference Function(NotificationPreference) update,
+  ) {
+    setState(() {
+      _serverPrefs = {
+        ..._serverPrefs,
+        type: update(_serverPrefs[type] ?? defaultServerPreference(type)),
+      };
+    });
+  }
+
   Future<void> _save() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
+
+    // Profil + sunucu tercihlerini birlikte kaydet; biri başarısız olursa
+    // hata mesajı gösterilir ama **diğeri kaydedilmiş** olur (kısmi kayıt
+    // en azından görünür; sessiz yutulmaz).
     try {
       await ref.read(profileRepositoryProvider).update(user.id, {
         'push_notifications_enabled': _push,
         'email_notifications_enabled': _email,
-        'weigh_in_frequency_days':
-            int.tryParse(_frequency.text.trim()) ?? 7,
+        'weigh_in_frequency_days': int.tryParse(_frequency.text.trim()) ?? 7,
         'auto_recalculate_macros': _autoRecalc,
       });
       ref.invalidate(profileProvider);
+
+      // Sunucu bildirim tercihleri `notification_preferences`'a yazılır
+      // (yoksa `check-reminders` bu tipleri sessizce kapatıyordu).
+      await ref
+          .read(notificationPreferencesRepositoryProvider)
+          .upsertAll(user.id, _serverPrefs.values);
+      ref.invalidate(notificationPreferencesProvider);
+
       if (mounted) Navigator.of(context).pop();
       messenger.showSnackBar(
         SnackBar(content: Text('settings.messages.settingsSaved'.tr())),
@@ -107,11 +226,15 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('settings.notifications.title'.tr(),
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'settings.notifications.title'.tr(),
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 4),
-          Text('settings.notifications.desc'.tr(),
-              style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            'settings.notifications.desc'.tr(),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 16),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -143,8 +266,26 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
             onChanged: (v) => setState(() => _autoRecalc = v),
           ),
           const Divider(height: 32),
-          Text('settings.notifications.reminderTitle'.tr(),
-              style: Theme.of(context).textTheme.titleMedium),
+          // --- Sunucu hatırlatıcıları (hesaba kaydedilir) ---------------
+          Text(
+            'settings.notifications.server.title'.tr(),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'settings.notifications.server.desc'.tr(),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          ServerNotificationPreferencesSection(
+            prefs: _serverPrefs,
+            onChanged: _updateServerPref,
+          ),
+          const Divider(height: 32),
+          Text(
+            'settings.notifications.reminderTitle'.tr(),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 4),
           Text(
             kIsWeb
@@ -155,8 +296,10 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
           for (final meal in reminderMeals)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Text(meal.emoji,
-                  style: Theme.of(context).textTheme.titleMedium),
+              leading: Text(
+                meal.emoji,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               title: Text('meals.${meal.name}'.tr()),
               subtitle: Text(
                 _formatTime(reminder.meals[meal]!),
@@ -164,8 +307,9 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
               ),
               trailing: Switch(
                 value: reminder.meals[meal]!.enabled,
-                onChanged: (v) =>
-                    ref.read(reminderSettingsProvider.notifier).setEnabled(meal, v),
+                onChanged: (v) => ref
+                    .read(reminderSettingsProvider.notifier)
+                    .setEnabled(meal, v),
               ),
               onTap: () => _pickTime(meal),
             ),
@@ -179,12 +323,18 @@ class _NotificationsDialogState extends ConsumerState<NotificationsDialog> {
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed: _saving ? null : _save,
+                // ⚠️ `_prefsLoaded` kapısı (A4r7b): yükleme bitmeden "Kaydet"
+                // basılırsa `_serverPrefs` boştur ve **hiçbir sunucu tercihi
+                // yazılmaz** → kullanıcı "Ayarlar güncellendi" görür ama
+                // `check-reminders`'ın sessiz-kapalı davranışı durur.
+                // `_saving` eski kapıyı korur (çift gönderim).
+                onPressed: (_saving || !_prefsLoaded) ? null : _save,
                 child: _saving
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : Text('common.save'.tr()),
               ),
             ],

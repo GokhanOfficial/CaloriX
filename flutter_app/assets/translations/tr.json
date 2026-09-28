@@ -329,7 +329,23 @@
       "days": "gün",
       "reminderTitle": "Öğün Hatırlatıcıları",
       "reminderDesc": "Her öğün için ayrı hatırlatma saati belirle",
-      "webOnlyInApp": "Web'de hatırlatma yalnızca uygulama açıkken gösterilir"
+      "webOnlyInApp": "Web'de hatırlatma yalnızca uygulama açıkken gösterilir",
+      "server": {
+        "title": "Sunucu Hatırlatıcıları",
+        "desc": "Cihaz değişse de korunan hatırlatıcılar (su, günlük kayıt, haftalık özet). Bu ayarlar hesabınıza kaydedilir; öğün hatırlatıcıları yukarıda cihazınızda kalır.",
+        "loadFailed": "Sunucu hatırlatma ayarları yüklenemedi. Kaydederseniz varsayılanlar kullanılır.",
+        "water": "Su İçme Hatırlatıcısı",
+        "dailyLog": "Günlük Kayıt Hatırlatıcısı",
+        "weeklySummary": "Haftalık Özet",
+        "goalAchieved": "Hedef Başarısı",
+        "startHour": "Başlangıç saati",
+        "endHour": "Bitiş saati",
+        "intervalHours": "Aralık (saat)",
+        "summaryDay": "Gün",
+        "summaryHour": "Saat",
+        "days": "gün",
+        "hours": "saat"
+      }
     },
     "import": {
       "title": "Verileri İçe Aktar",
@@ -370,6 +386,36 @@
       "nudgeDesc": "Seçilen saatte bugün hiç öğün eklenmemişse günde bir kez bildirim gönderir (yaklaşık saat)",
       "nudgeTime": "Hatırlatma saati",
       "androidOnly": "Widget ayarları yalnızca Android'de görünür"
+    },
+    "deleteAccount": {
+      "confirm": "Hesabımı Sil",
+      "data": {
+        "chat": "Yapay zekâ sohbet geçmişi",
+        "favorites": "Favori yiyecekler ve son kullanılanlar",
+        "meals": "Yemek ve öğün kayıtları",
+        "notifications": "Bildirimler ve hatırlatıcılar",
+        "settings": "Profil, hedefler ve uygulama ayarları",
+        "water": "Su takibi",
+        "weight": "Kilo kayıtları"
+      },
+      "deleting": "Hesabınız siliniyor...",
+      "entry": "Hesabımı Sil",
+      "entryDesc": "Hesabınızı ve tüm verilerinizi kalıcı olarak silin",
+      "irreversible": "Bu işlem geri alınamaz ve verileriniz kurtarılamaz.",
+      "messages": {
+        "failed": "Hesabınız silinemedi. Lütfen daha sonra tekrar deneyin.",
+        "invalidRequest": "İstek geçersiz. Lütfen tekrar deneyin.",
+        "localCleanup": "Bazı cihaz verileri temizlenemedi. Lütfen uygulamayı yeniden başlatın.",
+        "network": "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.",
+        "partial": "Bazı veriler silinemedi. Hesabınız hâlâ duruyor; birkaç dakika sonra tekrar deneyin.",
+        "rateLimited": "Çok fazla deneme yaptınız. Lütfen biraz sonra tekrar deneyin.",
+        "unauthorized": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
+        "wrongPassword": "Parolanız hatalı. Lütfen tekrar deneyin."
+      },
+      "passwordLabel": "Mevcut parolanız",
+      "passwordRequired": "Parolanızı girin",
+      "title": "Hesabınızı silmek istiyor musunuz?",
+      "warning": "Bu işlem geri alınamaz. Hesabınız ve aşağıdaki tüm veriler kalıcı olarak silinecek:"
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "Henüz yiyecek eklenmedi"
     },
     "favorites": {
-      "title": "En Çok Yenenler",
-      "empty": "Henüz yiyecek eklenmedi"
+      "title": "Favorilerim",
+      "empty": "Henüz favori yok. Aramadan bir yiyecek seçip yıldıza dokunun."
     },
     "tabs": {
       "search": "Ara"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "Yiyecek eklendi",
       "error": "Yiyecek eklenemedi"
+    },
+    "frequent": {
+      "title": "En Çok Yenenler",
+      "empty": "Henüz yiyecek eklenmedi"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "Boy {min} ile {max} cm arasında olmalıdır",
     "errWeightRange": "Kilo {min} ile {max} kg arasında olmalıdır",
     "errTargetWeightRange": "Hedef kilo {min} ile {max} kg arasında olmalıdır"
+  },
+  "favorites": {
+    "add": "Favorilere ekle: {food}",
+    "remove": "Favorilerden çıkar: {food}",
+    "toasts": {
+      "addFailed": "Favorilere eklenemedi",
+      "removeFailed": "Favorilerden çıkarılamadı"
+    }
   }
 }

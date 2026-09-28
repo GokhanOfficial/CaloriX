@@ -329,7 +329,23 @@
       "days": "días",
       "reminderTitle": "Recordatorios de comidas",
       "reminderDesc": "Configura un recordatorio distinto para cada comida",
-      "webOnlyInApp": "En la web, los recordatorios solo se muestran con la app abierta"
+      "webOnlyInApp": "En la web, los recordatorios solo se muestran con la app abierta",
+      "server": {
+        "title": "Recordatorios del servidor",
+        "desc": "Recordatorios que se conservan al cambiar de dispositivo (agua, registro diario, resumen semanal). Se guardan en tu cuenta; los recordatorios de comidas de arriba se quedan en tu dispositivo.",
+        "loadFailed": "No se pudieron cargar los ajustes de recordatorio del servidor. Al guardar se usarán los valores predeterminados.",
+        "water": "Recordatorio de agua",
+        "dailyLog": "Recordatorio de registro diario",
+        "weeklySummary": "Resumen semanal",
+        "goalAchieved": "Logro de objetivo",
+        "startHour": "Hora de inicio",
+        "endHour": "Hora de fin",
+        "intervalHours": "Intervalo (horas)",
+        "summaryDay": "Día",
+        "summaryHour": "Hora",
+        "days": "días",
+        "hours": "horas"
+      }
     },
     "import": {
       "title": "Importar datos",
@@ -370,6 +386,36 @@
       "nudgeDesc": "Si no hay registros a la hora elegida, envía una notificación al día (hora aproximada)",
       "nudgeTime": "Hora del recordatorio",
       "androidOnly": "Los ajustes de widgets solo están disponibles en Android"
+    },
+    "deleteAccount": {
+      "confirm": "Eliminar mi cuenta",
+      "data": {
+        "chat": "Historial de chats con IA",
+        "favorites": "Alimentos favoritos y recientes",
+        "meals": "Registros de alimentos y comidas",
+        "notifications": "Notificaciones y recordatorios",
+        "settings": "Perfil, objetivos y ajustes de la app",
+        "water": "Seguimiento del agua",
+        "weight": "Registros de peso"
+      },
+      "deleting": "Eliminando tu cuenta...",
+      "entry": "Eliminar mi cuenta",
+      "entryDesc": "Elimina permanentemente tu cuenta y todos tus datos",
+      "irreversible": "Esta acción es irreversible y tus datos no se podrán recuperar.",
+      "messages": {
+        "failed": "No se pudo eliminar tu cuenta. Inténtalo más tarde.",
+        "invalidRequest": "Solicitud no válida. Inténtalo de nuevo.",
+        "localCleanup": "Algunos datos locales no se pudieron borrar. Reinicia la aplicación.",
+        "network": "No se pudo conectar. Comprueba tu conexión a internet.",
+        "partial": "Algunos datos no se pudieron eliminar. Tu cuenta sigue existiendo; inténtalo en unos minutos.",
+        "rateLimited": "Demasiados intentos. Inténtalo de nuevo en unos minutos.",
+        "unauthorized": "Tu sesión ha finalizado. Inicia sesión de nuevo.",
+        "wrongPassword": "Tu contraseña es incorrecta. Inténtalo de nuevo."
+      },
+      "passwordLabel": "Tu contraseña actual",
+      "passwordRequired": "Introduce tu contraseña",
+      "title": "¿Quieres eliminar tu cuenta?",
+      "warning": "Esta acción no se puede deshacer. Tu cuenta y todos los datos siguientes se eliminarán permanentemente:"
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "Sin alimentos añadidos aún"
     },
     "favorites": {
-      "title": "Más consumidos",
-      "empty": "Sin alimentos añadidos aún"
+      "title": "Mis Favoritos",
+      "empty": "Aún no hay favoritos. Busca un alimento y pulsa la estrella."
     },
     "tabs": {
       "search": "Buscar"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "Alimento añadido",
       "error": "Error al añadir alimento"
+    },
+    "frequent": {
+      "title": "Más consumidos",
+      "empty": "Aún no se ha añadido comida"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "La altura debe estar entre {min} y {max} cm",
     "errWeightRange": "El peso debe estar entre {min} y {max} kg",
     "errTargetWeightRange": "El peso objetivo debe estar entre {min} y {max} kg"
+  },
+  "favorites": {
+    "add": "Añadir a favoritos: {food}",
+    "remove": "Quitar de favoritos: {food}",
+    "toasts": {
+      "addFailed": "No se pudo añadir a favoritos",
+      "removeFailed": "No se pudo quitar de favoritos"
+    }
   }
 }

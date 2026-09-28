@@ -329,7 +329,23 @@
       "days": "jours",
       "reminderTitle": "Rappels des repas",
       "reminderDesc": "Définissez un rappel distinct pour chaque repas",
-      "webOnlyInApp": "Sur le web, les rappels ne s'affichent que si l'app est ouverte"
+      "webOnlyInApp": "Sur le web, les rappels ne s'affichent que si l'app est ouverte",
+      "server": {
+        "title": "Rappels du serveur",
+        "desc": "Rappels qui survivent au changement d'appareil (eau, saisie quotidienne, résumé hebdomadaire). Ils sont enregistrés dans votre compte ; les rappels de repas ci-dessus restent sur votre appareil.",
+        "loadFailed": "Impossible de charger les paramètres de rappel du serveur. L'enregistrement utilisera les valeurs par défaut.",
+        "water": "Rappel d'hydratation",
+        "dailyLog": "Rappel de saisie quotidienne",
+        "weeklySummary": "Résumé hebdomadaire",
+        "goalAchieved": "Objectif atteint",
+        "startHour": "Heure de début",
+        "endHour": "Heure de fin",
+        "intervalHours": "Intervalle (heures)",
+        "summaryDay": "Jour",
+        "summaryHour": "Heure",
+        "days": "jours",
+        "hours": "heures"
+      }
     },
     "import": {
       "title": "Importer les données",
@@ -370,6 +386,36 @@
       "nudgeDesc": "Si rien n'est enregistré à l'heure choisie, envoie une notification par jour (heure approximative)",
       "nudgeTime": "Heure du rappel",
       "androidOnly": "Les réglages des widgets ne sont disponibles que sur Android"
+    },
+    "deleteAccount": {
+      "confirm": "Supprimer mon compte",
+      "data": {
+        "chat": "Historique des conversations IA",
+        "favorites": "Aliments favoris et récents",
+        "meals": "Aliments et repas",
+        "notifications": "Notifications et rappels",
+        "settings": "Profil, objectifs et paramètres",
+        "water": "Suivi de l'eau",
+        "weight": "Relevé de poids"
+      },
+      "deleting": "Suppression de votre compte...",
+      "entry": "Supprimer mon compte",
+      "entryDesc": "Supprime définitivement votre compte et toutes vos données",
+      "irreversible": "Cette action est irréversible et vos données ne pourront pas être récupérées.",
+      "messages": {
+        "failed": "Votre compte n'a pas pu être supprimé. Réessayez plus tard.",
+        "invalidRequest": "Requête invalide. Veuillez réessayer.",
+        "localCleanup": "Certaines données locales n'ont pas pu être effacées. Redémarrez l'application.",
+        "network": "Connexion impossible. Vérifiez votre connexion internet.",
+        "partial": "Certaines données n'ont pas pu être supprimées. Votre compte existe toujours ; réessayez dans quelques minutes.",
+        "rateLimited": "Trop de tentatives. Réessayez dans quelques minutes.",
+        "unauthorized": "Votre session a expiré. Veuillez vous reconnecter.",
+        "wrongPassword": "Votre mot de passe est incorrect. Veuillez réessayer."
+      },
+      "passwordLabel": "Votre mot de passe actuel",
+      "passwordRequired": "Saisissez votre mot de passe",
+      "title": "Voulez-vous supprimer votre compte ?",
+      "warning": "Cette action est irréversible. Votre compte et toutes les données suivantes seront définitivement supprimées :"
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "Aucun aliment ajouté"
     },
     "favorites": {
-      "title": "Les plus consommés",
-      "empty": "Aucun aliment ajouté"
+      "title": "Mes favoris",
+      "empty": "Aucun favori pour l'instant. Recherchez un aliment et appuyez sur l'étoile."
     },
     "tabs": {
       "search": "Rechercher"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "Aliment ajouté",
       "error": "Erreur lors de l'ajout de l'aliment"
+    },
+    "frequent": {
+      "title": "Les plus consommés",
+      "empty": "Aucun aliment ajouté pour l'instant"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "La taille doit être comprise entre {min} et {max} cm",
     "errWeightRange": "Le poids doit être compris entre {min} et {max} kg",
     "errTargetWeightRange": "Le poids cible doit être compris entre {min} et {max} kg"
+  },
+  "favorites": {
+    "add": "Ajouter aux favoris : {food}",
+    "remove": "Retirer des favoris : {food}",
+    "toasts": {
+      "addFailed": "Impossible d'ajouter aux favoris",
+      "removeFailed": "Impossible de retirer des favoris"
+    }
   }
 }

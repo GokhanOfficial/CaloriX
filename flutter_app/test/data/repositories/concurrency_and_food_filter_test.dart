@@ -262,7 +262,11 @@ void main() {
           reason: 'silinmiş öğün arama sonucunda görünmemeli');
     });
 
-    test('favorites: silinmiş öğün sayıma girmez (deleted_at istenir)', () async {
+    test('frequentFoods: silinmiş öğün sayıma girmez (deleted_at istenir)',
+        () async {
+      // A4r7: `favorites` artık `favorite_foods` **tablosundan** okuyor
+      // (kullanıcının seçtiği favoriler). Türetilmiş "en çok yenilenler"
+      // listesi `frequentFoods` adıyla korundu ve bu sözleşme **ona** aittir.
       final uris = <Uri>[];
       final client = _clientWith((req) async {
         uris.add(req.url);
@@ -292,7 +296,7 @@ void main() {
         ]);
       });
 
-      final items = await FoodRepository(client).favorites('u1');
+      final items = await FoodRepository(client).frequentFoods('u1');
       expect(items, hasLength(1));
       expect(items.single.useCount, 1,
           reason: 'silinmiş ikinci kayıt sayıma katılmamalı');

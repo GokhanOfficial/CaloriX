@@ -329,7 +329,23 @@
       "days": "天",
       "reminderTitle": "餐点提醒",
       "reminderDesc": "为每餐设置单独的提醒时间",
-      "webOnlyInApp": "在网页端，仅当应用打开时显示提醒"
+      "webOnlyInApp": "在网页端，仅当应用打开时显示提醒",
+      "server": {
+        "title": "服务器提醒",
+        "desc": "更换设备后仍会保留的提醒（饮水、每日记录、每周摘要）。这些会保存到你的账户；上方的用餐提醒仍保留在设备上。",
+        "loadFailed": "无法加载服务器提醒设置。保存时将使用默认值。",
+        "water": "饮水提醒",
+        "dailyLog": "每日记录提醒",
+        "weeklySummary": "每周摘要",
+        "goalAchieved": "达成目标",
+        "startHour": "开始时间",
+        "endHour": "结束时间",
+        "intervalHours": "间隔（小时）",
+        "summaryDay": "星期",
+        "summaryHour": "时间",
+        "days": "天",
+        "hours": "小时"
+      }
     },
     "import": {
       "title": "导入数据",
@@ -370,6 +386,36 @@
       "nudgeDesc": "如果在所选时间前没有任何记录，每天发送一次通知（大约时间）",
       "nudgeTime": "提醒时间",
       "androidOnly": "小组件设置仅在 Android 上可用"
+    },
+    "deleteAccount": {
+      "confirm": "删除我的账户",
+      "data": {
+        "chat": "AI 聊天记录",
+        "favorites": "收藏及最近使用的食物",
+        "meals": "食物与餐食记录",
+        "notifications": "通知与提醒",
+        "settings": "个人资料、目标与应用设置",
+        "water": "饮水记录",
+        "weight": "体重记录"
+      },
+      "deleting": "正在删除账户…",
+      "entry": "删除我的账户",
+      "entryDesc": "永久删除你的账户及所有数据",
+      "irreversible": "此操作不可撤销，数据无法恢复。",
+      "messages": {
+        "failed": "账户删除失败，请稍后重试。",
+        "invalidRequest": "请求无效，请重试。",
+        "localCleanup": "部分本地数据未能清理，请重启应用。",
+        "network": "无法连接，请检查网络后重试。",
+        "partial": "部分数据未能删除，账户仍然存在，请几分钟后重试。",
+        "rateLimited": "尝试次数过多，请几分钟后重试。",
+        "unauthorized": "会话已结束，请重新登录。",
+        "wrongPassword": "密码不正确，请重试。"
+      },
+      "passwordLabel": "当前密码",
+      "passwordRequired": "请输入密码",
+      "title": "要删除你的账户吗？",
+      "warning": "此操作无法撤销。你的账户及以下数据将被永久删除："
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "暂无添加的食物"
     },
     "favorites": {
-      "title": "常吃食物",
-      "empty": "暂无添加的食物"
+      "title": "我的收藏",
+      "empty": "还没有收藏。搜索食物后点击星标即可。"
     },
     "tabs": {
       "search": "搜索"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "食物已添加",
       "error": "添加食物时出错"
+    },
+    "frequent": {
+      "title": "最常食用",
+      "empty": "尚未添加任何食物"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "身高必须在 {min} 到 {max} 厘米之间",
     "errWeightRange": "体重必须在 {min} 到 {max} 千克之间",
     "errTargetWeightRange": "目标体重必须在 {min} 到 {max} 千克之间"
+  },
+  "favorites": {
+    "add": "添加到收藏：{food}",
+    "remove": "从收藏中移除：{food}",
+    "toasts": {
+      "addFailed": "无法添加到收藏",
+      "removeFailed": "无法从收藏中移除"
+    }
   }
 }

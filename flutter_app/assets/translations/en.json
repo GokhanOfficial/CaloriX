@@ -329,7 +329,23 @@
       "days": "days",
       "reminderTitle": "Meal Reminders",
       "reminderDesc": "Set a separate reminder for each meal",
-      "webOnlyInApp": "On web, reminders are shown only while the app is open"
+      "webOnlyInApp": "On web, reminders are shown only while the app is open",
+      "server": {
+        "title": "Server Reminders",
+        "desc": "Reminders that survive a device change (water, daily log, weekly summary). These are saved to your account; meal reminders above stay on your device.",
+        "loadFailed": "Server reminder settings could not be loaded. Saving will use the defaults.",
+        "water": "Water Reminder",
+        "dailyLog": "Daily Log Reminder",
+        "weeklySummary": "Weekly Summary",
+        "goalAchieved": "Goal Achievement",
+        "startHour": "Start hour",
+        "endHour": "End hour",
+        "intervalHours": "Interval (hours)",
+        "summaryDay": "Day",
+        "summaryHour": "Hour",
+        "days": "days",
+        "hours": "hours"
+      }
     },
     "import": {
       "title": "Import Data",
@@ -370,6 +386,36 @@
       "nudgeDesc": "If nothing is logged by the chosen time, sends one notification per day (approximate time)",
       "nudgeTime": "Reminder time",
       "androidOnly": "Widget settings are only available on Android"
+    },
+    "deleteAccount": {
+      "confirm": "Delete my account",
+      "data": {
+        "chat": "AI chat history",
+        "favorites": "Favorite foods and recently used",
+        "meals": "Food and meal records",
+        "notifications": "Notifications and reminders",
+        "settings": "Profile, goals and app settings",
+        "water": "Water tracking",
+        "weight": "Weight records"
+      },
+      "deleting": "Deleting your account...",
+      "entry": "Delete my account",
+      "entryDesc": "Permanently delete your account and all your data",
+      "irreversible": "This action is irreversible and your data cannot be recovered.",
+      "messages": {
+        "failed": "Your account could not be deleted. Please try again later.",
+        "invalidRequest": "Invalid request. Please try again.",
+        "localCleanup": "Some local data could not be cleared. Please restart the app.",
+        "network": "Could not connect. Please check your internet and try again.",
+        "partial": "Some data could not be deleted. Your account still exists; try again in a few minutes.",
+        "rateLimited": "Too many attempts. Please try again in a few minutes.",
+        "unauthorized": "Your session has ended. Please sign in again.",
+        "wrongPassword": "Your password is incorrect. Please try again."
+      },
+      "passwordLabel": "Your current password",
+      "passwordRequired": "Enter your password",
+      "title": "Do you want to delete your account?",
+      "warning": "This action cannot be undone. Your account and all of the following data will be permanently deleted:"
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "No food added yet"
     },
     "favorites": {
-      "title": "Most Eaten",
-      "empty": "No food added yet"
+      "title": "My Favorites",
+      "empty": "No favorites yet. Search for a food and tap the star."
     },
     "tabs": {
       "search": "Search"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "Food added",
       "error": "Error adding food"
+    },
+    "frequent": {
+      "title": "Most Eaten",
+      "empty": "No food added yet"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "Height must be between {min} and {max} cm",
     "errWeightRange": "Weight must be between {min} and {max} kg",
     "errTargetWeightRange": "Target weight must be between {min} and {max} kg"
+  },
+  "favorites": {
+    "add": "Add to favorites: {food}",
+    "remove": "Remove from favorites: {food}",
+    "toasts": {
+      "addFailed": "Could not add to favorites",
+      "removeFailed": "Could not remove from favorites"
+    }
   }
 }

@@ -329,7 +329,23 @@
       "days": "Tage",
       "reminderTitle": "Mahlzeiten-Erinnerungen",
       "reminderDesc": "Lege für jede Mahlzeit eine eigene Erinnerungszeit fest",
-      "webOnlyInApp": "Im Web werden Erinnerungen nur bei geöffneter App angezeigt"
+      "webOnlyInApp": "Im Web werden Erinnerungen nur bei geöffneter App angezeigt",
+      "server": {
+        "title": "Server-Erinnerungen",
+        "desc": "Erinnerungen, die einen Gerätewechsel überstehen (Wasser, Tagesprotokoll, Wochenzusammenfassung). Diese werden in Ihrem Konto gespeichert; die Mahlzeiten-Erinnerungen oben bleiben auf Ihrem Gerät.",
+        "loadFailed": "Server-Erinnerungseinstellungen konnten nicht geladen werden. Beim Speichern werden die Standardwerte verwendet.",
+        "water": "Wassererinnerung",
+        "dailyLog": "Tagesprotokoll-Erinnerung",
+        "weeklySummary": "Wochenzusammenfassung",
+        "goalAchieved": "Ziel erreicht",
+        "startHour": "Startstunde",
+        "endHour": "Endstunde",
+        "intervalHours": "Intervall (Stunden)",
+        "summaryDay": "Tag",
+        "summaryHour": "Stunde",
+        "days": "Tage",
+        "hours": "Stunden"
+      }
     },
     "import": {
       "title": "Daten importieren",
@@ -370,6 +386,36 @@
       "nudgeDesc": "Sendet einmal täglich eine Benachrichtigung, wenn bis zur gewählten Zeit nichts erfasst wurde (ungefähre Zeit)",
       "nudgeTime": "Erinnerungszeit",
       "androidOnly": "Widget-Einstellungen sind nur auf Android verfügbar"
+    },
+    "deleteAccount": {
+      "confirm": "Mein Konto löschen",
+      "data": {
+        "chat": "KI-Chatverlauf",
+        "favorites": "Lieblingslebensmittel und zuletzt verwendet",
+        "meals": "Lebensmittel- und Mahlzeitenverlauf",
+        "notifications": "Benachrichtigungen und Erinnerungen",
+        "settings": "Profil, Ziele und App-Einstellungen",
+        "water": "Wassererfassung",
+        "weight": "Gewichtsverlauf"
+      },
+      "deleting": "Dein Konto wird gelöscht...",
+      "entry": "Mein Konto löschen",
+      "entryDesc": "Dein Konto und alle Daten dauerhaft löschen",
+      "irreversible": "Diese Aktion ist nicht umkehrbar und deine Daten können nicht wiederhergestellt werden.",
+      "messages": {
+        "failed": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es später erneut.",
+        "invalidRequest": "Ungültige Anfrage. Bitte versuche es erneut.",
+        "localCleanup": "Einige Gerätedaten konnten nicht bereinigt werden. Bitte starte die App neu.",
+        "network": "Verbindung fehlgeschlagen. Bitte prüfe deine Internetverbindung.",
+        "partial": "Einige Daten konnten nicht gelöscht werden. Dein Konto besteht weiter; versuche es in ein paar Minuten erneut.",
+        "rateLimited": "Zu viele Versuche. Bitte versuche es in ein paar Minuten erneut.",
+        "unauthorized": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+        "wrongPassword": "Dein Passwort ist falsch. Bitte versuche es erneut."
+      },
+      "passwordLabel": "Dein aktuelles Passwort",
+      "passwordRequired": "Gib dein Passwort ein",
+      "title": "Möchtest du dein Konto löschen?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Dein Konto und alle folgenden Daten werden dauerhaft gelöscht:"
     }
   },
   "dashboard": {
@@ -458,8 +504,8 @@
       "empty": "Noch keine Lebensmittel hinzugefügt"
     },
     "favorites": {
-      "title": "Am häufigsten gegessen",
-      "empty": "Noch keine Lebensmittel hinzugefügt"
+      "title": "Meine Favoriten",
+      "empty": "Noch keine Favoriten. Suchen Sie ein Lebensmittel und tippen Sie auf den Stern."
     },
     "tabs": {
       "search": "Suchen"
@@ -478,6 +524,10 @@
     "toasts": {
       "success": "Lebensmittel hinzugefügt",
       "error": "Fehler beim Hinzufügen des Lebensmittels"
+    },
+    "frequent": {
+      "title": "Meistgegessen",
+      "empty": "Noch kein Lebensmittel hinzugefügt"
     }
   },
   "analytics": {
@@ -599,5 +649,13 @@
     "errHeightRange": "Die Größe muss zwischen {min} und {max} cm liegen",
     "errWeightRange": "Das Gewicht muss zwischen {min} und {max} kg liegen",
     "errTargetWeightRange": "Das Zielgewicht muss zwischen {min} und {max} kg liegen"
+  },
+  "favorites": {
+    "add": "Zu Favoriten hinzufügen: {food}",
+    "remove": "Aus Favoriten entfernen: {food}",
+    "toasts": {
+      "addFailed": "Zu Favoriten konnte nicht hinzugefügt werden",
+      "removeFailed": "Aus Favoriten konnte nicht entfernt werden"
+    }
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/food_item.dart';
 import '../../data/repositories/food_repository.dart';
+import '../../shared/widgets/favorite_button.dart';
 import 'widgets/add_from_food_dialog.dart';
 import 'widgets/add_manual_entry_dialog.dart';
 import 'widgets/add_with_ai_dialog.dart';
@@ -119,10 +120,19 @@ class _AddPageState extends ConsumerState<AddPage> {
             ),
             const SizedBox(height: 12),
             _FoodListSection(
+              title: 'addFood.frequent.title'.tr(),
+              icon: Icons.local_fire_department_outlined,
+              provider: frequentFoodsProvider,
+              emptyMessage: 'addFood.frequent.empty'.tr(),
+              onSelect: _openFood,
+            ),
+            const SizedBox(height: 12),
+            _FoodListSection(
               title: 'addFood.favorites.title'.tr(),
               icon: Icons.star_outline,
               provider: favoriteFoodsProvider,
               emptyMessage: 'addFood.favorites.empty'.tr(),
+              itemsAreFavorites: true,
               onSelect: _openFood,
             ),
           ],
@@ -191,12 +201,21 @@ class _AiCard extends StatelessWidget {
 }
 
 /// Yiyecek satırı — web `FoodListSection` içi button karşılığı:
-/// ad + (marka) + `100g • X kcal`, sağda P/K/Y.
+/// ad + (marka) + `100g • X kcal`, sağda P/K/Y ve favori yıldızı.
+///
+/// [initialFavorite] yalnız **favoriler bölümünde** `true` verilir (o
+/// listenin öğeleri zaten favoridir). Arama sonuçlarında `false` verilir ve
+/// düğmenin gerçek durumu `favoriteIdsProvider`'dan tek sorguda okunur.
 class _FoodTile extends StatelessWidget {
-  const _FoodTile({required this.food, required this.onTap});
+  const _FoodTile({
+    required this.food,
+    required this.onTap,
+    this.initialFavorite = false,
+  });
 
   final FoodItem food;
   final VoidCallback onTap;
+  final bool initialFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +257,15 @@ class _FoodTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 4),
+              // Favori yıldızı — `InkWell`in **dışında** ama aynı `Row`
+              // içinde; aksi halde yıldıza basmak yemeği de eklerdi.
+              FavoriteButton(
+                foodId: food.foodId,
+                foodName: food.name,
+                initialFavorite: initialFavorite,
+              ),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -265,9 +292,8 @@ class _MacroLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '$label: ${_fmt(value)}g',
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 
@@ -283,6 +309,7 @@ class _FoodListSection extends ConsumerWidget {
     required this.provider,
     required this.emptyMessage,
     required this.onSelect,
+    this.itemsAreFavorites = false,
   });
 
   final String title;
@@ -290,6 +317,11 @@ class _FoodListSection extends ConsumerWidget {
   final FutureProvider<List<FoodItem>> provider;
   final String emptyMessage;
   final ValueChanged<FoodItem> onSelect;
+
+  /// Bu bölümdeki her öğe favori mi? `true` ise satırlardaki yıldız
+  /// **dolu** başlar (aksi hâlde favori listesinde boş yıldız görünür ve
+  /// kullanıcı kendi favorilerini listeden "kaldırıyor" gibi görünür).
+  final bool itemsAreFavorites;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -337,6 +369,7 @@ class _FoodListSection extends ConsumerWidget {
                           _FoodTile(
                             food: food,
                             onTap: () => onSelect(food),
+                            initialFavorite: itemsAreFavorites,
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -390,7 +423,9 @@ class _SearchCard extends ConsumerWidget {
             ),
             if (searching) ...[
               const SizedBox(height: 12),
-              ref.watch(foodSearchProvider(query)).when(
+              ref
+                  .watch(foodSearchProvider(query))
+                  .when(
                     loading: () => const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Center(child: CircularProgressIndicator()),

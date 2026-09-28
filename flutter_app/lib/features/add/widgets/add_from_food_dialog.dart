@@ -9,6 +9,7 @@ import '../../../data/models/food_item.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/diary_repository.dart';
 import '../../../data/repositories/food_repository.dart';
+import '../../../shared/widgets/favorite_button.dart';
 import 'meal_selector.dart';
 
 /// Seçili yemeği miktar + öğün seçerek günlüğe ekleme dialogu.
@@ -152,6 +153,16 @@ class _AddFromFoodDialogState extends ConsumerState<AddFromFoodDialog> {
                 ),
                 textAlign: TextAlign.center,
               ),
+            // Favori yıldızı — yemek seçim ekranında da favorileyebilmek için.
+            // `custom` girdilerde `foodId == null` olduğundan düğme **gizlenir**
+            // (`favorite_foods.food_id` NOT NULL FK).
+            Align(
+              alignment: Alignment.centerRight,
+              child: FavoriteButton(
+                foodId: widget.food.foodId,
+                foodName: widget.food.name,
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _amountController,
