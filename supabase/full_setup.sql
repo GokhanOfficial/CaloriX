@@ -902,10 +902,86 @@ CREATE POLICY "Users can delete their own chat attachments" ON storage.objects F
   USING (bucket_id = 'chat-attachments' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 -- 5. Cron Jobs
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+-- A1r10 (Tur 11): `CREATE EXTENSION IF NOT EXISTS` kurulu olmayan eklenti
+-- için "extension is not available" HATASI verir. Stock `postgres:16-alpine`
+-- imajında ikisi de yok → bu blok hatayı `NOTICE`'e çevirir (idempotans:
+-- aynı blok 1/2/3. kez çalıştırılabilir, 0 gerçek hata).
+DO $$
+BEGIN
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'full_setup: pg_cron kurulamadı/kapalı (%)', SQLERRM;
+  END;
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'full_setup: pg_net kurulamadı/kapalı (%)', SQLERRM;
+  END;
+END $$;
 GRANT USAGE ON SCHEMA cron TO postgres;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO postgres;
+
+-- A1r10 (Tur 11): `check-reminders` cron job'ı.
+--
+-- ⭐ P0: Bu dosya daha önce **hiçbir job tanımlamıyordu**; sunucu tarafı
+-- hatırlatıcıları (`water`, `daily_log`, `weekly_summary`, `weigh_in`)
+-- elle tetikleniyordu, yani hiç gidiyordu. Migration karşılığı:
+-- `20260929010000_check_reminders_cron_job.sql` (parite).
+--
+-- Sıklık `7-59 * * * *` (saatte 7 kez). Gerekçe migration dosyasında;
+-- özet: dakikada bir `checkRateLimit` 2/300 kovası yüzünden anlamsız,
+-- saatte bir ise 09:00 (`weigh_in`) ve 18:00 (`daily_log`) saatlerinde
+-- tetiklenen bildirimler 1/24 ihtimalle **kaçar**.
+--
+-- Yetkilendirme `x-calorix-internal-token` başlığı ile
+-- (`check-reminders/index.ts` `isAuthorizedCall`). Token Vault'ta:
+--   SELECT vault.create_secret('<token>', 'calorix_internal_function_token');
+-- Token'ı migration'a düz yazmak repoya sır giriyor; bu yüzden Vault.
+DO $$
+DECLARE
+  v_job_id BIGINT;
+BEGIN
+  IF to_regprocedure('cron.schedule(text, text, text)') IS NULL THEN
+    RAISE NOTICE 'full_setup: pg_cron yok, check-reminders job''ı kurulmadı.';
+    RETURN;
+  END IF;
+  -- `to_regprocedure` imzayı birebir arar; `pg_net`'in belgelenen imzası beş
+  -- argümanlıdır ama dört argümanlı kurulumlar da vardır. Üçünü de kabul et
+  -- (A1r10 ölçümü: yalnız beş argümanlı arama, dört argümanlı bir kurulumda
+  -- job'u sessizce kurmadan geçiyordu).
+  IF (to_regprocedure('net.http_post(text, jsonb, jsonb, jsonb, integer)') IS NULL
+      AND to_regprocedure('net.http_post(text, jsonb, jsonb, jsonb)') IS NULL
+      AND to_regprocedure('net.http_post(text, jsonb)') IS NULL)
+     OR to_regclass('vault.decrypted_secrets') IS NULL THEN
+    RAISE WARNING 'full_setup: pg_net veya vault yok, check-reminders job''ı kurulmadı.';
+    RETURN;
+  END IF;
+
+  -- Çift kayıt koruması: aynı adlı her job'ı düşür, sonra bir tane kur.
+  FOR v_job_id IN SELECT jobid FROM cron.job WHERE jobname = 'check-reminders' LOOP
+    PERFORM cron.unschedule(v_job_id);
+  END LOOP;
+
+  PERFORM cron.schedule(
+    'check-reminders',
+    '7-59 * * * *',
+    $cron$
+      SELECT net.http_post(
+        url := 'https://oshafbahrwburzmanzzj.supabase.co/functions/v1/check-reminders',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'x-calorix-internal-token',
+            (SELECT decrypted_secret FROM vault.decrypted_secrets
+              WHERE name = 'calorix_internal_function_token')
+        ),
+        body := jsonb_build_object('scheduled_at', now()),
+        timeout_milliseconds := 30000
+      ) AS request_id;
+    $cron$
+  );
+  RAISE NOTICE 'full_setup: check-reminders job''ı kuruldu (saatte 7 kez).';
+END $$;
 
 -- 6. Nutrition Updates
 ALTER TABLE public.food_nutrition ADD COLUMN IF NOT EXISTS trans_fat_g numeric NULL;
