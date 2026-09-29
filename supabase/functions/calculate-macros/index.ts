@@ -4,6 +4,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { AuthError, readJsonBody, requireUserContext } from "../_shared/auth.ts";
 import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.ts";
+import {
+  buildRequestBody,
+  buildRequestProfiles,
+  parseJsonObjectResponse,
+  shouldRetryWithNextProfile,
+} from "../_shared/openai_compat.ts";
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 import {
   ValidationError,
@@ -13,9 +19,71 @@ import {
   requireString,
 } from "../_shared/validate.ts";
 
-/** Dış AI çağrısı için üst süre sınırı. */
-const AI_TIMEOUT_MS = 45_000;
+/**
+ * Dış AI çağrısı için üst süre sınırı.
+ *
+ * ⭐ ÖLÇÜM NOTU (A1r11): gerekçe tüketen modeller ölçümde **13.6s - 24.5s**
+ * sürdü (gemini-2.5-flash p50 ≈ 18s). Eski 45s sınırı, bir kez 30s'yi aşan
+ * bir çağrıda kullanıcıya yine 502 döndürürdü. Supabase edge fonksiyonlarının
+ * platform üst sınırı göz önüne alınarak 55s'ye çıkarıldı; 24.5s ölçümünün
+ * 2 katından fazla pay bırakır.
+ */
+const AI_TIMEOUT_MS = 55_000;
 const RATE_LIMIT = { windowSeconds: 60, max: 10 };
+
+// ===========================================================================
+// ⭐ AI İSTEK/ÇIKTI UYUMLULUĞU (A1r11) — ÖLÇÜM DAYANAKLI DÜZELTME
+// ---------------------------------------------------------------------------
+// Şikâyet: "GPT modelleriyle sorunsuz çalışıyor, Gemini/Gemma bazen hata veriyor."
+//
+// ÖLÇÜM (`plans/analiz-26-09-27/MODEL-UYUMLULUK-RAPORU.md`, 6 model × 6 senaryo
+// × 3 koşu = 108 istek) iki ayrı kök nedeni kesinleştirdi:
+//
+//  (1) KOD BLOĞU SARMA (asıl neden). `gemini-2.5-flash`, `gemini-3.7-flash`,
+//      `gemma-4-31b-it`, `glm-5.3-flash` JSON'u **```` ```json ... ``` ````**
+//      içinde döndürüyor — `response_format: { type: "json_object" }`
+//      GÖNDERİLMİŞ OLMASI BİLE. Eski `JSON.parse(content)` bu metni
+//      doğrudan reddediyordu → kullanıcıya 502. `gpt-4.1`/`gpt-5-mini`
+//      çıplak JSON döndürdüğü için aynı kod onlarda çalışıyordu. **Bu,
+//      "GPT çalışıyor / Gemini kırılıyor" gözleminin tam açıklamasıdır.**
+//
+//  (2) TOKEN BÜTÇESİ. `max_tokens: 500` gerekçe modelleri için yetersiz:
+//      gemini-3.7-flash tek koşuda **2186 reasoning token** harcadı
+//      (`usage.completion_tokens_details.reasoning_tokens`), yanıt
+//      `finish_reason: "length"` ile ortasından kesildi → JSON yarım kaldı.
+//      Bu da `JSON.parse` hatası olarak görünüyordu (iki hata iç içe).
+//
+// DÜZELTMELER (her biri bir ölçüme bağlı):
+//   - `parseJsonLoose` → kod bloğunu soyar / ön-son metni atlar (ölçüm 1).
+//   - `max_tokens` 500 → 4000 (ölçüm 2: en yüksek reasoning tüketimi 2186 +
+//     ~800 token'lık JSON + güvenlik payı).
+//   - `extractText` → `content` string/dizi/`text` alanı (ölçüm 3: `content`
+//     beklenmedik yerlerde dönüyor).
+//   - Kademeli istek profilleri (ölçüm 4: sağlayıcı 4xx döndüğünde
+//     desteklenmeyen alanlar sırayla kaldırılır).
+//
+// ⚠️ SESSİZ BAŞARISIZLIK YASAK: `finish_reason === "length"` olan yanıt
+//    **asla** kabul edilmez; alan eksikse `requireNumber` reddeder. Yarım
+//    cevap üzerine sayı uydurulmaz.
+// ===========================================================================
+
+/**
+ * Yanıt için token bütçesi.
+ *
+ * ÖLÇÜM (canlı, `max_tokens: 16000` ile tavan yok koşusu):
+ *   gemini-2.5-flash : completion 2076 / 2487 / 2970 / **3297**
+ *                      (reasoning 1819 / 2255 / 2753 / **3102** token)
+ *   gemini-3.7-flash : completion 265-303 + reasoning **2078-2727** token
+ *
+ * ⭐ Reasoning tüketimi **model seçimine bağlı ve öngörülemez** (1.8k-3.1k
+ * aralığında salınıyor). 500 (eski) ve 4000 (ilk deneme) tavanları ikisini
+ * de kesiyordu: 4000 ile ölçümde hâlâ `finish_reason: "length"` alındı.
+ *
+ * `max_tokens` bir **tavandır, fatura değil** — kullanılan token kadar
+ * ücretlendirilir. Bu yüzden güvenli pay (gerekçe 3.1k + JSON ~0.8k + başlık
+ * payı) 8000'dir: tavan yükseltmek maliyeti artırmaz, kesilme riskini kaldırır.
+ */
+const MAX_COMPLETION_TOKENS = 8000;
 
 const GENDERS = ["male", "female", "other"] as const;
 const ACTIVITY_LEVELS = ["sedentary", "light", "moderate", "active", "very_active"] as const;
@@ -144,56 +212,129 @@ JSON formatında yanıt ver:
 Kilo ${previousWeightKg > currentWeightKg ? "azaldı" : "arttı"}. Yeni kiloya göre makroları güncelle ve açıklamada ilerlemeyi değerlendir.`;
     }
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openAIApiKey}`,
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
-    });
+    // --- Dış AI çağrısı: kademeli parametre profilleriyle -------------------
+    //
+    // Ölçüm, `response_format`/`temperature`/token alanı adlarının sağlayıcıdan
+    // sağlayıcıya **desteklenmediğini** gösterdi. Bu yüzden tam parametreli
+    // istek atılır; upstream **istem reddi (4xx)** dönerse desteklenmeyen
+    // alanlar kademeli olarak kaldırılarak yeniden denenir. 5xx/rate-limit
+    // durumunda tekrar denenmez (`shouldRetryWithNextProfile`).
+    const profiles = buildRequestProfiles(MAX_COMPLETION_TOKENS);
+    let data: unknown = null;
+    let lastStatus = 0;
+    let lastErrorBody = "";
 
-    if (!response.ok) {
-      console.error("OpenAI hata durumu:", response.status, (await response.text()).slice(0, 500));
+    for (let attempt = 0; attempt < profiles.length; attempt++) {
+      const profile = profiles[attempt];
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openAIApiKey}`,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+          body: JSON.stringify(buildRequestBody(model, systemPrompt, userPrompt, profile)),
+        });
+      } catch (error) {
+        // Ağ/timeout: tekrar denemek aynı sonucu verir.
+        console.error("calculate-macros upstream çağrısı başarısız", {
+          model,
+          attempt,
+          error: error instanceof Error ? error.name : "unknown",
+        });
+        return errorResponse(req, 502, "Makro hedefleri şu anda hesaplanamıyor");
+      }
+
+      if (response.ok) {
+        try {
+          data = await response.json();
+        } catch (_) {
+          console.error("calculate-macros upstream gövdesi JSON değil", { model, attempt });
+          return errorResponse(req, 502, "AI servisinden yanıt alınamadı");
+        }
+        break;
+      }
+
+      lastStatus = response.status;
+      // Gövde yalnızca sunucu loguna yazılır; **anahtar sızdırmaz** (istek
+      // gövdesi loglanmaz) ve istemciye hiçbir şekilde dönülmez.
+      lastErrorBody = (await response.text()).slice(0, 300);
+      const isLast = attempt === profiles.length - 1;
+      if (isLast || !shouldRetryWithNextProfile(response.status)) break;
+      // Bir sonraki profille (daha gevşek parametrelerle) tekrar dene.
+    }
+
+    if (data === null) {
+      console.error("calculate-macros upstream hata durumu", {
+        model,
+        status: lastStatus,
+        body: lastErrorBody,
+      });
       return errorResponse(req, 502, "Makro hedefleri şu anda hesaplanamıyor");
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      console.error("OpenAI yanıtında içerik yok");
-      return errorResponse(req, 502, "AI servisinden yanıt alınamadı");
-    }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(content);
-    } catch (_) {
-      console.error("OpenAI yanıtı JSON değil");
+    // --- Yanıtı sağlayıcıdan bağımsız ayrıştır ---------------------------
+    //
+    // `extractText` (string/dizi/`text`) + kod bloğu temizleme + kesilmiş
+    // yanıt reddi. Tanı logu **model adı + finish_reason + content şekli**
+    // içerir; ham gövde/anahtar **yazılmaz**.
+    const parsedResult = parseJsonObjectResponse<Record<string, unknown>>(data);
+    if (!parsedResult.ok) {
+      console.error("calculate-macros AI yanıtı işlenemedi", {
+        model,
+        reason: parsedResult.reason,
+        ...parsedResult.diagnostic,
+      });
+      if (parsedResult.reason === "truncated") {
+        // Kesilmiş yanıt: kullanıcıya yarım hedef göstermektense anlaşılır
+        // hata. Yeniden denemede daha yüksek bütçe kullanılabilir.
+        return errorResponse(req, 502, "AI yanıtı eksik geldi, lütfen tekrar deneyin");
+      }
       return errorResponse(req, 502, "AI yanıtı işlenemedi");
     }
+    const parsed = parsedResult.value;
+    // Tanı logları için `finish_reason` (başarı dalında da anlamlı: model
+    // yanıtı `stop` ile mi bitirdi, kesildi mi?).
+    const finishReason = parsedResult.diagnostic.finishReason;
 
-    // İstemcinin beklediği alanları sayısal olarak normalize et (NaN/null kırılmasın).
-    const result = {
-      daily_calorie_target: Math.round(requireNumber(parsed.daily_calorie_target, "daily_calorie_target", 0, 20000)),
-      protein_target_g: Math.round(requireNumber(parsed.protein_target_g, "protein_target_g", 0, 2000)),
-      carbs_target_g: Math.round(requireNumber(parsed.carbs_target_g, "carbs_target_g", 0, 2000)),
-      fat_target_g: Math.round(requireNumber(parsed.fat_target_g, "fat_target_g", 0, 2000)),
-      daily_water_target_ml: Math.round(requireNumber(parsed.daily_water_target_ml, "daily_water_target_ml", 0, 10000)),
-      bmr: Math.round(requireNumber(parsed.bmr, "bmr", 0, 20000)),
-      tdee: Math.round(requireNumber(parsed.tdee, "tdee", 0, 20000)),
-      explanation: optionalString(parsed.explanation, "explanation", 2000) ?? undefined,
-    };
+    // ⚠️ `requireNumber` **ValidationError** fırlatır ve dışarıdaki catch bloğu
+    // onu 400 "Eksik veya geçersiz istek" olarak döner. Burada alanlar **model
+    // çıktısıdır**, kullanıcı isteği değil — model eksik alan döndüğünde
+    // kullanıcıya "istediğiniz eksik" demek yanlış olur ve şema sızdırır.
+    // Bu yüzden AI çıktısı doğrulaması AYRI ve sessizce geçmeyen bir yol izler.
+    //
+    // ⭐ SESSİZ BAŞARISIZLIK YASAK: eksik alan **sıfıra doldurulmaz**
+    //    (A1r4'ün "kısmi silme 200 başarı" hatasının kaynağı buydu). Eksik alan
+    //    varsa istek 502 ile kapanır.
+    const AI_TARGET_FIELDS = [
+      { key: "daily_calorie_target", min: 500, max: 20000 },
+      { key: "protein_target_g", min: 0, max: 2000 },
+      { key: "carbs_target_g", min: 0, max: 2000 },
+      { key: "fat_target_g", min: 0, max: 2000 },
+      { key: "daily_water_target_ml", min: 2000, max: 10000 },
+      { key: "bmr", min: 500, max: 20000 },
+      { key: "tdee", min: 500, max: 20000 },
+    ] as const;
+
+    const result: Record<string, number | string | undefined> = {};
+    for (const field of AI_TARGET_FIELDS) {
+      const raw = parsed[field.key];
+      const num = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+      if (!Number.isFinite(num) || num < field.min || num > field.max) {
+        console.error("calculate-macros AI yanıtında alan eksik/geçersiz", {
+          model,
+          field: field.key,
+          finishReason,
+        });
+        return errorResponse(req, 502, "AI yanıtı eksik geldi, lütfen tekrar deneyin");
+      }
+      result[field.key] = Math.round(num);
+    }
+    // `explanation` isteğe bağlıdır; alan yoksa alan **atlanır** (uydurulmaz).
+    const explanation = optionalString(parsed.explanation, "explanation", 2000);
+    if (explanation) result.explanation = explanation;
 
     return jsonResponse(req, result);
   } catch (error) {
