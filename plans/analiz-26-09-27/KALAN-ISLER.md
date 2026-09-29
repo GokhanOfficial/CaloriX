@@ -220,6 +220,33 @@ olmaz. Deploy sonrası smoke test önerilir:
 
 ---
 
+## ⭐ `gpt-5-mini` timeout'u — kapatıldı, açıklama raporlandı (29.09)
+
+A1r11 ölçümünde `gpt-5-mini` 3/5 istekte `TimeoutError` verdi. **A1r12 bunu
+araştırmak için görevlendirildi ve istek `ECONNRESET` ile öldü** (sağlayıcı
+bağlantıyı kesti). Kullanıcı bu denemeyi bırakmayı seçti.
+
+**Karar: gpt-5-mini varsayılan model olarak kalıyor.** Gerekçe:
+- A1r11'in düzeltme **sonrası** doğrulamasında `gpt-5-mini` **5/5 başarılıydı**
+- 3/5 timeout, aynı dönemde OpenAI satırlarında görülen
+  `403 all_providers_failed` **doygunluk** etkisiyle aynı pencerede
+- A1r11 düzeltme **öncesinde** de 3/3 timeout ölçtü → **regresyon değil**,
+  model kaynaklı değil, sağlayıcı kaynaklı
+- `AI_TIMEOUT_MS` 45s → 55s olarak zaten yükseltildi
+
+⚠️ **Yine de izle:** Production'da `gpt-5-mini` ile 502 alırsan, sağlayıcı
+tarafında geçici doygunluk olabilir. Teşhis:
+```sql
+select * from cron.job_run_details order by run_at desc limit 5;  -- (varsa)
+```
+Edge Function log'unda `openai hata durumu: 403 all_providers_failed` görüyorsan
+model değil sağlayıcı tarafıdır; `finish_reason=length` görüyorsan token tavanı
+konusudur (8000'e çıkarıldı).
+
+**Tekrar ölçmek istersen:** `tool/probe_gpt5.ts` (bu depoda, anahtar içermez,
+yalnız `DENO_USTAGPT_KEY` okur) model blokları yerine **tur tur sıralı**
+koşar — doygunluk etkisini ayırmak için tasarlandı.
+
 ## ✅ DOĞRULANMIŞ DURUM (deploy edebilirsin)
 
 Bunlar **şu an yeşil**, commit'lenmiş, kanıtlanmış:
