@@ -20,6 +20,19 @@ import '../supabase/supabase_client_provider.dart';
 /// Yanıt: `{ foods: [...], description? }` → [RecognitionResult].
 /// Hata durumunda edge fonksiyonu `{ error: ... }` döndürür; bu durumda
 /// [RecognitionException] fırlatılır.
+///
+/// ⭐ TEK SEFERLİK OTOMATİK YENİDEN DENE (2026-10-17, canlı ölçüm):
+/// AI sağlayıcısının vision yolu doygunluk anlarında isteklerin ~%40'ını
+/// 60-74 s beklettikten sonra ret ediyor (`502 "AI servisi şu anda yanıt
+/// vermiyor"`; sağlayıcı deseni A1r11'in "403 all_providers_failed"
+/// ölçümünün aynısı). Ret penceresi kısa olduğundan kullanıcıya hatayı
+/// göstermek yerine BİR kez sessiz yeniden deneme yapılır:
+///  - yalnız 502 (sağlayıcı ret) ve 429 (rate limit) durumlarında —
+///    401 (oturum), 400 (doğrulama) gibi deterministik hatalarda
+///    yeniden deneme anlamsızdır ve kullanıcıyı gereksiz bekletir;
+///  - denemeler arası bekleme yok: ret zaten 60 s+ sonra geliyor,
+///    ekstra bekleme toplam süreyi 3 dakikaya taşırır.
+///  - ikinci deneme de başarısızsa hata olduğu gibi yukarı taşınır.
 class RecognitionRepository {
   RecognitionRepository(this._client);
 
@@ -57,11 +70,21 @@ class RecognitionRepository {
     try {
       response = await _client.functions.invoke(fn, body: body);
     } on FunctionException catch (e) {
-      // Non-2xx durumunda `functions.invoke` **istisna fırlatır**; hata
-      // gövdesi `details` alanındadır. Yakalanmazsa çağıran ekran ham
-      // `FunctionHttpException` mesajını kullanıcıya gösterirdi; burada
-      // sunucunun döndüğü `{error}` metni kullanıcıya taşınır.
-      throw RecognitionException(_errorFrom(e.details, e.status));
+      // Sağlayıcı doygunluğu (502) veya rate-limit (429): bir kez sessiz
+      // yeniden dene — retler kısa pencereli, ikinci deneme genelde tutar.
+      if (e.status == 502 || e.status == 429) {
+        try {
+          response = await _client.functions.invoke(fn, body: body);
+        } on FunctionException catch (e2) {
+          throw RecognitionException(_errorFrom(e2.details, e2.status));
+        }
+      } else {
+        // Non-2xx durumunda `functions.invoke` **istisna fırlatır**; hata
+        // gövdesi `details` alanındadır. Yakalanmazsa çağıran ekran ham
+        // `FunctionHttpException` mesajını kullanıcıya gösterirdi; burada
+        // sunucunun döndüğü `{error}` metni kullanıcıya taşınır.
+        throw RecognitionException(_errorFrom(e.details, e.status));
+      }
     }
 
     final data = response.data as Map<String, dynamic>?;
