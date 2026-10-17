@@ -7,8 +7,15 @@ import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 import { ValidationError, requireString } from "../_shared/validate.ts";
 
-/** Dış AI çağrısı için üst süre sınırı. */
-const AI_TIMEOUT_MS = 45_000;
+/**
+ * Dış AI çağrısı için üst süre sınırı.
+ *
+ * 90 saniye (2026-10-17): 45 s, sağlayıcı metin analizlerinde de
+ * 47-60 s ölçüldüğünden (bkz. recognize-food aynı düzeltme) gerçek
+ * istekleri kesebiliyordu. A1r11'in "55s" önerisi koda hiç
+ * uygulanmamıştı. RATE_LIMIT (20/dk) kötüye kullanımı sınırlar.
+ */
+const AI_TIMEOUT_MS = 90_000;
 const RATE_LIMIT = { windowSeconds: 60, max: 20 };
 
 serve(async (req) => {

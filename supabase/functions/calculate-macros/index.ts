@@ -27,8 +27,13 @@ import {
  * bir çağrıda kullanıcıya yine 502 döndürürdü. Supabase edge fonksiyonlarının
  * platform üst sınırı göz önüne alınarak 55s'ye çıkarıldı; 24.5s ölçümünün
  * 2 katından fazla pay bırakır.
+ *
+ * 2026-10-17 güncelleme: 60 s'ye çıkarıldı — sağlayıcı vision yollarında
+ * 47-60 s ölçüldü (bkz. recognize-food). Bu metin yolu daha hızlıdır ama
+ * aynı sağlayıcı doygunluğunu paylaşır; 55 s, A1r11'in ölçtüğü 59.6 s
+ * p95'in altında kalıyordu.
  */
-const AI_TIMEOUT_MS = 55_000;
+const AI_TIMEOUT_MS = 60_000;
 const RATE_LIMIT = { windowSeconds: 60, max: 10 };
 
 // ===========================================================================

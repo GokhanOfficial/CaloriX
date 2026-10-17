@@ -7,8 +7,17 @@ import { errorResponse, jsonResponse, preflightResponse } from "../_shared/http.
 import { checkRateLimit, rateLimitKey } from "../_shared/rate_limit.ts";
 import { ValidationError, requireImageBase64, optionalString } from "../_shared/validate.ts";
 
-/** Dış AI çağrısı için üstel geri çekilmeli üst süre sınırı. */
-const AI_TIMEOUT_MS = 45_000;
+/**
+ * Dış AI çağrısı için üst süre sınırı.
+ *
+ * 90 saniye (2026-10-17, canlı ölçüm): 45 saniyeye kadar vision istekleri
+ * sağlayıcıda 47-60 s sürüyordu; 45 s AbortSignal gerçek analizleri kesip
+ * catch-all'a ("Beklenmeyen bir hata oluştu", HTTP 500) düşürüyordu.
+ * A1r11'in "55s'e yükseltildi" notu KODA HİÇ UYGULANMAMIŞTı (üç
+ * fonksiyonda da 45 s kalıyordu); bu sefer ölçümle uygulandı.
+ * Platform tavanı 150 s; kötüye kullanım RATE_LIMIT (12/dk) ile sınırlı.
+ */
+const AI_TIMEOUT_MS = 90_000;
 const RATE_LIMIT = { windowSeconds: 60, max: 12 };
 
 serve(async (req) => {
