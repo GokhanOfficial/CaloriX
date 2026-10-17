@@ -74,8 +74,28 @@ if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
 fi
 
 # --- 2) Release APK derle ---
-echo "» flutter build apk --release ..."
-( cd "$FLUTTER_DIR" && flutter build apk --release )
+# Ağ dayanıklılığı (2026-10-17): gradle artifact indirmeleri (dl.google.com,
+# storage.googleapis.com) makinedeki aralıklı bağlantı kopmalarında "Remote
+# host terminated the handshake" / "Network is unreachable" ile ölüyordu ve
+# 20 dakikalık build'i bir TLS hatasında çökertiyordu. İki katman:
+#   1) Gradle'ın kendi yeniden deneme kapasitesini aç
+#      (org.gradle.internal.repository.max.retries + s).
+#   2) Script seviyesinde kademeli retry: build'in İLK adımları (gradle
+#      bağımlılık çözümü) ağ hatalarında hızlı fail verir; toplam üç deneme.
+# Flutter'ın kendi "Retrying Gradle Build"i yalnızca gradle içi bir kez
+# yakalar — script retry'ı bağlantı kopması penceresini atlatmayı sağlar.
+export ORG_GRADLE_PROJECT_org_gradle_internal_repository_max_retries="5"
+export ORG_GRADLE_PROJECT_org_gradle_internal_repository_initial_timeout="60000"
+BUILD_ATTEMPTS=3
+BUILD_OK=0
+for attempt in $(seq 1 "$BUILD_ATTEMPTS"); do
+  echo "» flutter build apk --release ... (deneme $attempt/$BUILD_ATTEMPTS)"
+  if ( cd "$FLUTTER_DIR" && flutter build apk --release ); then
+    BUILD_OK=1; break
+  fi
+  (( attempt < BUILD_ATTEMPTS )) && sleep $(( attempt * 30 ))
+done
+(( BUILD_OK == 1 )) || { echo "HATA: APK derlemesi $BUILD_ATTEMPTS denemede başarısız." >&2; exit 1; }
 APK="$FLUTTER_DIR/build/app/outputs/flutter-apk/app-release.apk"
 [[ -f "$APK" ]] || { echo "HATA: APK bulunamadı: $APK" >&2; exit 1; }
 

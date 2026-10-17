@@ -15,7 +15,7 @@
 --
 -- Kapsam:
 --   1) Idempotans: migration 3 kez → **1** job (çift kayıt yok)
---   2) Sıklık: `7-59 * * * *` (saatte 7 kez) ve saat başı **kaçırmaz**
+--   2) Sıklık: `7-59/7 * * * *` (saatte 7-8 kez) ve saat başı **kaçırmaz**
 --   3) Yetkilendirme başlığı `x-calorix-internal-token` (Vault'tan)
 --   4) Token **düz metin olarak job gövdesinde YOK**
 --   5) URL doğru (`<project_ref>/functions/v1/check-reminders`)
@@ -84,13 +84,13 @@ BEGIN
     v_fail := v_fail + 1;
   ELSE
     ----------------------------------------------------------------
-    -- 2.a) SIKLIK: `7-59 * * * *` → saatte 7 kez, :00'da DEĞİL
+    -- 2.a) SIKLIK: `7-59/7 * * * *` → saatte 7-8 kez, :00'da DEĞİL
     ----------------------------------------------------------------
-    IF v_sched = '7-59 * * * *' THEN
+    IF v_sched = '7-59/7 * * * *' THEN
       RAISE NOTICE 'A1r10-TEST: ok — sıklık %  (saatte 7 kez)', v_sched;
       v_ok := v_ok + 1;
     ELSE
-      RAISE NOTICE 'A1r10-TEST: FAIL — sıklık ''7-59 * * * *'' olmali, % bulundu', v_sched;
+      RAISE NOTICE 'A1r10-TEST: FAIL — sıklık ''7-59/7 * * * *'' olmali, % bulundu', v_sched;
       v_fail := v_fail + 1;
     END IF;
 
@@ -100,7 +100,7 @@ BEGIN
     -- `weigh_in` (09:00) ve `daily_log` (18:00) **belirli saatte**
     -- tetiklenir (`normalizedHour === 9` / `=== 18`). Saatlik koşuda
     -- o saat 7 dakikalık dilimlerden birine denk gelmeli.
-    -- `7-59` → dakikalar {7,14,21,28,35,42,49,56}. Bir "09:00 saati"
+    -- `7-59/7` → dakikalar {7,14,21,28,35,42,49,56}. Bir "09:00 saati"
     -- koşusu 09:07'de yapılır → 09:00 **kaçmaz**, en fazla 7 dk gecikmeli.
     -- Saatte bir (`0 * * * *`) olsaydı 09:00 koşusu 10:00'a kayar ve
     -- `normalizedHour === 9` artık sağlanmaz → **bildirim hiç gitmez**.
@@ -108,7 +108,10 @@ BEGIN
     -- pg_cron crontab: 5 alan = dakika saat gün ay yıl. "09:00" için
     -- dakika alanında 0 **veya** 7..59'tan biri olmalı; 0'da olmamalı
     -- çünkü her saatte :00'da değil, :07-:56'da koşmak istiyoruz.
-    IF (v_sched ~ '^\d+-\d+ ') OR (v_sched ~ '^\* ') THEN
+    -- (Adımsız `7-59` 53 koşu/saat üretir — regex `\d+-\d+` onu da
+    --  geçer sayıyordu; `7-59/7` adımlı formu da kabul edecek şekilde
+    --  genişletildi. 2026-10-17 canlı düzeltmesi.)
+    IF (v_sched ~ '^\d+-\d+(/\d+)? ') OR (v_sched ~ '^\* ') THEN
       RAISE NOTICE 'A1r10-TEST: ok — sıklık saatte 7 kez; 09:00/18:00 saatleri KAÇIRILMAZ (en fazla 7 dk gecikme)';
       v_ok := v_ok + 1;
     ELSE
@@ -226,7 +229,7 @@ BEGIN
       END IF;
 
       -- ⭐ URL ve zaman aşımı da işlevsel olarak doğrulanır.
-      IF v_url = 'https://oshafbahrwburzmanzzj.supabase.co/functions/v1/check-reminders' THEN
+      IF v_url = 'https://bzfnncensolirkqdohpq.supabase.co/functions/v1/check-reminders' THEN
         RAISE NOTICE 'A1r10-TEST: ok — kuyruktaki URL beklenen edge function adresi';
         v_ok := v_ok + 1;
       ELSE

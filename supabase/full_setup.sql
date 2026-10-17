@@ -929,7 +929,7 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO postgres;
 -- elle tetikleniyordu, yani hiç gidiyordu. Migration karşılığı:
 -- `20260929010000_check_reminders_cron_job.sql` (parite).
 --
--- Sıklık `7-59 * * * *` (saatte 7 kez). Gerekçe migration dosyasında;
+-- Sıklık `7-59/7 * * * *` (saatte 7-8 kez). Gerekçe migration dosyasında;
 -- özet: dakikada bir `checkRateLimit` 2/300 kovası yüzünden anlamsız,
 -- saatte bir ise 09:00 (`weigh_in`) ve 18:00 (`daily_log`) saatlerinde
 -- tetiklenen bildirimler 1/24 ihtimalle **kaçar**.
@@ -965,10 +965,10 @@ BEGIN
 
   PERFORM cron.schedule(
     'check-reminders',
-    '7-59 * * * *',
+    '7-59/7 * * * *',
     $cron$
       SELECT net.http_post(
-        url := 'https://oshafbahrwburzmanzzj.supabase.co/functions/v1/check-reminders',
+        url := 'https://bzfnncensolirkqdohpq.supabase.co/functions/v1/check-reminders',
         headers := jsonb_build_object(
           'Content-Type', 'application/json',
           'x-calorix-internal-token',

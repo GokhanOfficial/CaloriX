@@ -32,7 +32,14 @@
 -- ÇÖZÜM TASARIMI VE GEREKÇESİ (her seçim ölçülmüş/bağlantılı)
 -- ---------------------------------------------------------------------------
 --
--- [1] SIKLIK: `7-59 * * * *`  →  saatte 7 kez, **dakikada 1 kez değil**.
+-- [1] SIKLIK: `7-59/7 * * * *`  →  saatte 7-8 kez, **dakikada 1 kez değil**.
+--
+--   ⚠️ DÜZELTME (2026-10-17, canlı deploy): İlk yazım `7-59` (adımsız) idi ve
+--   pg_cron bunu "dakika 7..59 HER DAKİKA" = 53 koşu/saat olarak çalıştırdı
+--   (canlı kanıt: 18:07..18:12 her dakika koştu). Adımlı yazım `7-59/7` ise
+--   {7,14,21,28,35,42,49,56} verir = migration gerekçesinde ölçülen gerçek
+--   davranış. Test (`tests/cron_reminders_job.sql`) baştan adımlı seti
+--   iddia ediyordu; pattern artık onunla örtüşüyor.
 --
 --   Neden 5 dakika değil (A1r8'in önerisi)?
 --     - Üst sınır: `check-reminders` bir **AI çağrısı** yapabilir
@@ -54,9 +61,9 @@
 --       Supabase bağlantı havuzu için kabul edilebilir; `pg_net` tek HTTP
 --       isteği attığı için edge tarafı **tek** koşudur.
 --
---   Neden `7-59` (dakika 7'den başlayarak) ve `*/5` değil?
---     `*/5` = 0,5,10,... → dakika 0,5,...,55 (12 koşu). `7-59` = 7,14,...
---     59 (8 koşu). Dakika 0'da koşu olmaması, kullanıcıların saat başı
+--   Neden `7-59/7` (dakika 7'den başlayarak 7'şer adım) ve `*/5` değil?
+--     `*/5` = 0,5,10,... → dakika 0,5,...,55 (12 koşu). `7-59/7` = 7,14,...
+--     56 (8 koşu). Dakika 0'da koşu olmaması, kullanıcıların saat başı
 --     eşzamanlı yük oluşturmasını (thundering herd) bir miktar dağıtır;
 --     dakikalar arası en az 7 dakika, en çok 8 dakikadır (düzensiz ama
 --     sınırlı). `interval_hours` ölçüm hassasiyeti için 1 dakikalık
@@ -241,15 +248,15 @@ BEGIN
   END LOOP;
 
   -- 1.c) Yeni job.
-  --      `project_id` config.toml'dan (`oshafbahrwburzmanzzj`).
+  --      `project_id` config.toml'dan (`bzfnncensolirkqdohpq`).
   --      `SUPABASE_URL` = https://<project_ref>.supabase.co
   --      `functions/v1/check-reminders` = edge function yolu.
   PERFORM cron.schedule(
     'check-reminders',
-    '7-59 * * * *',           -- saatte 7 kez, :07/:14/:21/:28/:35/:42/:49/:56
+    '7-59/7 * * * *',           -- saatte 7-8 kez, :07/:14/:21/:28/:35/:42/:49/:56
     $cron$
       SELECT net.http_post(
-        url := 'https://oshafbahrwburzmanzzj.supabase.co/functions/v1/check-reminders',
+        url := 'https://bzfnncensolirkqdohpq.supabase.co/functions/v1/check-reminders',
         headers := jsonb_build_object(
           'Content-Type', 'application/json',
           -- ⭐ Yetkilendirme: `isAuthorizedCall` (check-reminders/index.ts:152)

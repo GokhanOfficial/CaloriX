@@ -3,7 +3,7 @@
 # yalnızca proje tanımlayıcısıdır. Gerçek anahtarlar `.env` dosyasındadır ve
 # `.gitignore` ile repoya girmez (`supabase/.env*` deseni: yalnızca `.env.example` izlenir).
 
-project_id = "oshafbahrwburzmanzzj"
+project_id = "bzfnncensolirkqdohpq"
 
 # ---------------------------------------------------------------------------
 # Edge Function JWT doğrulaması
